@@ -27,12 +27,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1, 
-    backgroundColor: '#a7e4f5', // Xanh thiên thanh
+    backgroundColor: '#DCFCE7', // Xanh thiên thanh
     alignItems: 'center',
     justifyContent: 'center',
   },
   contentBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8FAFC',
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',

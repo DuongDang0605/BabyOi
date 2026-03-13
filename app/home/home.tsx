@@ -1,42 +1,42 @@
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 
 export default function AppHomeScreen() {
   return (
-    <>
-      {/* Ẩn thanh Header mặc định có chữ home/home */}
+    <View style={styles.mainContainer}>
+      
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
-        {/* 1. Header: Thể hiện Core Value (Sự kết nối gia đình) */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Gia đình bé Ốc 🐌</Text>
-            <Text style={styles.name}>Tháng thứ 8</Text>
+            <Text style={styles.name}>8 tháng tuổi</Text>
             <Text style={styles.syncStatus}>🟢 Bố và Mẹ đang đồng bộ</Text>
           </View>
           <Image 
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3593/3593455.png' }} 
+            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }} 
             style={styles.avatar} 
           />
         </View>
 
-        {/* 2. Thẻ Cảnh báo (Actual Product - Theo dõi y tế) */}
         <View style={styles.alertCard}>
           <Text style={styles.alertTitle}>💉 Lịch tiêm sắp tới</Text>
           <Text style={styles.alertSubtitle}>Mũi Sởi đơn (Lúc 9 tháng tuổi)</Text>
           <Text style={styles.alertDate}>Dự kiến: 15/04/2026</Text>
         </View>
 
-        {/* 3. Lưới Tính năng cốt lõi (Actual Product) */}
         <Text style={styles.sectionTitle}>Chăm sóc bé</Text>
         <View style={styles.gridContainer}>
           <TouchableOpacity style={styles.gridItem}>
             <Text style={styles.gridIcon}>📈</Text>
             <Text style={styles.gridText}>Biểu đồ</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity 
+            style={styles.gridItem}
+            onPress={() => router.push('/lichtiem/listlichtiem')}
+          >
             <Text style={styles.gridIcon}>📖</Text>
             <Text style={styles.gridText}>Sổ tiêm</Text>
           </TouchableOpacity>
@@ -50,16 +50,6 @@ export default function AppHomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 4. Banner Tính năng Premium (Augmented Product - AI) */}
-        <TouchableOpacity style={styles.aiBanner}>
-          <View style={styles.aiContent}>
-            <Text style={styles.aiTitle}>✨ AI Trợ lý Dinh dưỡng</Text>
-            <Text style={styles.aiDesc}>Chụp ảnh nguyên liệu, nhận ngay thực đơn ăn dặm cho bé 8 tháng.</Text>
-          </View>
-          <Text style={styles.aiButton}>Hỏi ngay</Text>
-        </TouchableOpacity>
-
-        {/* 5. Gợi ý mua sắm (Augmented Product - Affiliate) */}
         <Text style={styles.sectionTitle}>Dành cho bé 8 tháng</Text>
         <View style={styles.affiliateCard}>
           <Image 
@@ -75,17 +65,26 @@ export default function AppHomeScreen() {
           </View>
         </View>
 
-        {/* Khoảng trống dưới cùng để vuốt không bị lẹm */}
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
-    </>
+
+      <TouchableOpacity 
+        style={styles.floatingAiButton}
+        onPress={() => router.push('/AI/chatboxAI')}
+      >
+        <Text style={styles.floatingAiIcon}>✨</Text>
+      </TouchableOpacity>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  scrollContainer: {
     padding: 20,
   },
   header: {
@@ -107,7 +106,7 @@ const styles = StyleSheet.create({
   },
   syncStatus: {
     fontSize: 12,
-    color: '#4CAF50', // Màu xanh lá báo hiệu đang đồng bộ
+    color: '#4CAF50',
     marginTop: 6,
     fontWeight: '600',
   },
@@ -154,12 +153,12 @@ const styles = StyleSheet.create({
   },
   gridContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap', // Tự động rớt dòng
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 25,
   },
   gridItem: {
-    width: '47%', // 2 cột, mỗi cột chiếm 47%
+    width: '47%',
     backgroundColor: '#f8f9fa',
     paddingVertical: 20,
     borderRadius: 16,
@@ -174,41 +173,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#444444',
-  },
-  aiBanner: {
-    backgroundColor: '#fff7e6', // Màu cam nhạt nổi bật
-    padding: 20,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: '#ffd591',
-  },
-  aiContent: {
-    flex: 1,
-    marginRight: 10,
-  },
-  aiTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#d46b08',
-    marginBottom: 5,
-  },
-  aiDesc: {
-    fontSize: 13,
-    color: '#666666',
-    lineHeight: 18,
-  },
-  aiButton: {
-    backgroundColor: '#ff9c6e',
-    color: '#ffffff',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    fontWeight: 'bold',
-    overflow: 'hidden',
   },
   affiliateCard: {
     flexDirection: 'row',
@@ -249,5 +213,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#333333',
+  },
+  floatingAiButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    backgroundColor: '#ff9c6e',
+    width: 65,
+    height: 65,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#d46b08',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 6, 
+  },
+  floatingAiIcon: {
+    fontSize: 30,
   },
 });
