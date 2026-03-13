@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
-
+import { router } from 'expo-router';
 export default function LoginScreen() {
   return (
     <View style={styles.container}>
@@ -21,7 +21,7 @@ export default function LoginScreen() {
       />
 
       {/* 3. Nút Xác nhận */}
-      <TouchableOpacity style={styles.button}>
+      <TouchableOpacity style={styles.button} onPress={()=> router.push('/home/home')}>
         <Text style={styles.buttonText}>Xác nhận</Text>
       </TouchableOpacity>
     </View>
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#a7e4f5', // Điểm nhấn màu xanh
+    color: '#9ccc65', // Điểm nhấn màu xanh
     marginBottom: 10,
     textAlign: 'center', // Căn giữa chữ
   },
