@@ -59,7 +59,6 @@ export default function BookingVaccineScreen() {
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Xác Nhận Đặt Lịch</Text>
-          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3209/3209995.png' }} style={styles.headerSticker} />
         </View>
 
         {/* 1. Thông tin mũi tiêm (ĐÃ SỬA THÀNH IMOJEV) */}

@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image } from 'rea
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-// DỮ LIỆU LOGIC: 4 Mũi tiêm sớm nhất của bé từ sơ sinh đến 2 tháng tuổi
 const FINISHED_VACCINES = [
   {
     id: 'v1',
@@ -14,7 +13,7 @@ const FINISHED_VACCINES = [
     price: '825.000đ',
     note: 'Thuốc ngọt, bé Ốc rất hợp tác, không trớ.',
     date: '15/09/2025',
-    color: '#a3d9b1', // Xanh lá pastel
+    color: '#a3d9b1',
   },
   {
     id: 'v2',
@@ -56,16 +55,22 @@ export default function FinishedVaccinesScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- HEADER --- */}
-      <View style={styles.customHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Đã Hoàn Thành</Text>
-      </View>
-
+      {/* CHUYỂN HEADER VÀO TRONG SCROLLVIEW ĐỂ ĐỒNG BỘ LAYOUT */}
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         
+        {/* --- HEADER CHUẨN --- */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>Đã Hoàn Thành</Text>
+          
+          {/* Sticker đóng vai trò cân bằng với nút Back */}
+          <View style={styles.rightPlaceholder}>
+          </View>
+        </View>
+
         {/* Lời khen ngợi động viên */}
         <View style={styles.heroSection}>
           <Text style={styles.heroText}>Bé Ốc đã rất dũng cảm hoàn thành</Text>
@@ -124,16 +129,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef9f3',
   },
   scrollArea: {
-    paddingHorizontal: 20,
+    padding: 20, // Chuẩn padding 4 phía
   },
-  /* --- STYLES HEADER ĐỒNG BỘ --- */
+  /* --- STYLES HEADER CHUẨN ĐỒNG BỘ --- */
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 40,
-    marginBottom: 10,
-    paddingHorizontal: 20,
+    marginBottom: 25, // Đổi thành 25 cho chuẩn layout gốc
   },
   backButton: {
     justifyContent: 'center',
@@ -142,19 +146,21 @@ const styles = StyleSheet.create({
     width: 45, 
   },
   headerTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    flex: 1, // Chiếm trọn không gian giữa để đẩy chữ vào tâm
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '900',
     color: '#ff8fab', 
     letterSpacing: 0.5,
-    zIndex: -1,
+  },
+  rightPlaceholder: {
+    width: 45, // Kích thước bằng đúng nút back để cân bằng
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   headerSticker: {
-    width: 45,
-    height: 45,
+    width: 40, // Chỉnh lại size một chút xíu cho gọn gàng
+    height: 40,
   },
   /* --- HERO SECTION LỜI KHEN --- */
   heroSection: {
@@ -171,7 +177,7 @@ const styles = StyleSheet.create({
   heroNumber: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#a3d9b1', // Màu xanh lá biểu thị hoàn thành
+    color: '#a3d9b1', 
     marginBottom: 4,
   },
   heroSubtext: {
@@ -186,7 +192,7 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: '#eafaf1', // Viền thẻ màu xanh lá nhạt
+    borderColor: '#eafaf1',
     shadowColor: '#a3d9b1',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -225,7 +231,7 @@ const styles = StyleSheet.create({
   },
   /* --- KHUNG CHI TIẾT DỮ LIỆU --- */
   detailBox: {
-    backgroundColor: '#f8fdfa', // Xanh mint rất nhạt
+    backgroundColor: '#f8fdfa', 
     padding: 14,
     borderRadius: 12,
     marginBottom: 15,
@@ -264,6 +270,6 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 14,
     color: '#5c7a8a',
-    fontWeight: '800', // Chữ ngày tháng in đậm
+    fontWeight: '800', 
   },
 });
