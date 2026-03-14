@@ -1,6 +1,7 @@
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -94,8 +95,11 @@ export default function AppHomeScreen() {
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
+     {/* --- Floating AI Button dùng Ionicons --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
-        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/8652/8652230.png' }} style={styles.aiIconAnime} />
+        <View style={{ backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 }}>
+          <Ionicons name="sparkles" size={20} color="#ff8fab" />
+        </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
     </View>
