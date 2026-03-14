@@ -55,16 +55,42 @@ export default function AppHomeScreen() {
         {/* --- PHẦN 1: 4 CHỨC NĂNG CHÍNH (GRID) --- */}
         <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
-          {MAIN_FEATURES.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
-              style={styles.gridItem}
-              onPress={() => item.route !== '#' && router.push(item.route as any)}
-            >
-              <Image source={{ uri: item.icon }} style={styles.mainIcon} />
-              <Text style={styles.gridText}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity style={styles.gridItem}>
+            <Image 
+              source={{ uri:'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg' }} 
+              style={styles.mainIcon}
+            />
+            <Text style={styles.gridText}>Phát triển</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.gridItem}
+            onPress={() => router.push('/lichtiem/listlichtiem')}
+          >
+            <Image 
+              source={{ uri: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg' }} 
+              style={styles.mainIcon}
+            />
+            <Text style={styles.gridText}>Sổ tiêm</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.gridItem}
+            onPress={() => router.push('/dinhduong/listdoan')}>
+            <Image 
+              source={{ uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s' }} 
+              style={styles.mainIcon}
+            />
+            <Text style={styles.gridText}>Dinh dưỡng</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.gridItem}
+            onPress={() => router.push('/nhatki/nhatki')}>
+            <Image 
+              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png' }} 
+              style={styles.mainIcon}
+            />
+            <Text style={styles.gridText}>Nhật ký</Text>
+          </TouchableOpacity>
         </View>
 
         {/* --- PHẦN 2: CHỨC NĂNG MỞ RỘNG (SLIDE) --- */}
