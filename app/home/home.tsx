@@ -1,11 +1,26 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const { width } = Dimensions.get('window');
+
+const MAIN_FEATURES = [
+  { id: '1', title: 'Sức khỏe', icon: 'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg', route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
+  { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
+  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '#' },
+];
+
+
+const MORE_FEATURES = [
+  { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
+  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '#' },
+  { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '#' },
+];
 
 export default function AppHomeScreen() {
   return (
     <View style={styles.mainContainer}>
-      {/* Ẩn Header mặc định của Stack */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -25,34 +40,20 @@ export default function AppHomeScreen() {
           </View>
         </View>
 
-        {/* --- Alert Card: Thông báo tiêm chủng --- */}
+        {/* --- Alert Card --- */}
         <View style={styles.alertCard}>
-          <Image 
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }} 
-            style={styles.alertIconAnime}
-          />
+          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }} style={styles.alertIconAnime} />
           <View style={styles.alertTextContent}>
             <Text style={styles.alertTitle}>Lịch tiêm nhắc bé</Text>
             <Text style={styles.alertSubtitle}>Mũi Sởi đơn (Lúc 9 tháng)</Text>
             <View style={styles.alertDateBadge}>
-                <Text style={styles.alertDateText}>Còn 30 ngày nữa mẹ nhé!</Text>
+                <Text style={styles.alertDateText}>Còn 30 ngày nữa!</Text>
             </View>
           </View>
         </View>
 
-        {/* --- Section Header: Góc của bé yêu --- */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Góc của bé yêu 🧸</Text>
-          <TouchableOpacity 
-            style={styles.listButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.listButtonText}>Xem tất cả</Text>
-            <Ionicons name="grid-outline" size={14} color="#FF8FAB" />
-          </TouchableOpacity>
-        </View>
-        
-        {/* --- Grid Menu: 4 chức năng chính --- */}
+        {/* --- PHẦN 1: 4 CHỨC NĂNG CHÍNH (GRID) --- */}
+        <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
           <TouchableOpacity style={styles.gridItem}>
             <Image 
@@ -92,227 +93,100 @@ export default function AppHomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* --- Tip Box: Lời nhắn dễ thương --- */}
+        {/* --- PHẦN 2: CHỨC NĂNG MỞ RỘNG (SLIDE) --- */}
+        <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.horizontalScrollContent}
+        >
+          {MORE_FEATURES.map((item) => (
+            <TouchableOpacity key={item.id} style={styles.slideItem}>
+              <View style={styles.slideIconCircle}>
+                <Image source={{ uri: item.icon }} style={styles.slideIcon} />
+              </View>
+              <Text style={styles.slideText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* --- Tip Box --- */}
         <View style={styles.tipCard}>
-           <Image 
-             source={{ uri: 'https://cdn-icons-png.flaticon.com/512/461/461141.png' }} 
-             style={styles.tipSticker}
-           />
-           <Text style={styles.tipText}>Mẹ ơi, hôm nay bé đã biết "ê a" theo tiếng mẹ gọi rồi đấy!</Text>
+            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
+            <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
         </View>
 
-        {/* Khoảng trống cuối để không bị che bởi nút AI */}
         <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
-      <TouchableOpacity 
-        style={styles.floatingAiButton}
-        activeOpacity={0.9}
-        onPress={() => router.push('/AI/chatboxAI')}
-      >
-        <Image 
-          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/8652/8652230.png' }} 
-          style={styles.aiIconAnime}
-        />
+      <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
+        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/8652/8652230.png' }} style={styles.aiIconAnime} />
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#FEF9F3', // Màu nền kem sữa
-  },
-  scrollContainer: {
-    paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 25,
-  },
-  greeting: {
-    fontSize: 16,
-    color: '#5C7A8A',
-    fontWeight: '600',
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FF8FAB',
-  },
-  avatarFrame: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 65,
-    height: 65,
-    borderRadius: 33,
-    borderWidth: 3,
-    borderColor: '#FFB6C1',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#2E7D32',
-    borderWidth: 2,
-    borderColor: '#FEF9F3',
-  },
-  alertCard: {
-    backgroundColor: '#FFB6C1',
-    padding: 18,
-    borderRadius: 30,
-    marginBottom: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#FFB6C1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  alertIconAnime: {
-    width: 55,
-    height: 55,
-    marginRight: 15,
-  },
-  alertTextContent: {
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  alertSubtitle: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.95,
-    marginBottom: 6,
-  },
-  alertDateBadge: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  alertDateText: {
-    fontSize: 12,
-    color: '#FF8FAB',
-    fontWeight: '900',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FF8FAB',
-  },
-  listButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#FFE5EC',
-  },
-  listButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FF8FAB',
-    marginRight: 6,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  gridItem: {
-    width: '47%',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 25,
-    borderRadius: 35,
-    alignItems: 'center',
-    marginBottom: 20,
+  mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
+  scrollContainer: { paddingHorizontal: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 60, marginBottom: 25 },
+  greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
+  name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
+  avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
+  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#2E7D32', borderWidth: 2, borderColor: '#FEF9F3' },
+  avatarFrame: { position: 'relative' },
+
+  alertCard: { backgroundColor: '#FFB6C1', padding: 18, borderRadius: 30, marginBottom: 25, flexDirection: 'row', alignItems: 'center' },
+  alertIconAnime: { width: 50, height: 50, marginRight: 12 },
+  alertTextContent: { flex: 1 },
+  alertTitle: { fontSize: 17, fontWeight: '900', color: '#FFF' },
+  alertSubtitle: { fontSize: 13, color: '#FFF', marginBottom: 5 },
+  alertDateBadge: { backgroundColor: '#FFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
+  alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },
+
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
+
+  // GRID 4 CHÍNH
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  gridItem: { 
+    width: '47%', 
+    backgroundColor: '#FFF', 
+    paddingVertical: 20, 
+    borderRadius: 25, 
+    alignItems: 'center', 
+    marginBottom: 15,
     elevation: 3,
     shadowColor: '#A7E4F5',
-    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
   },
-  mainIcon: {
-    width: 70,
-    height: 70,
-    marginBottom: 12,
-    resizeMode: 'contain',
-  },
-  gridText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#5C7A8A',
-  },
-  tipCard: {
-    backgroundColor: '#E8F9ED', 
-    padding: 18,
-    borderRadius: 25,
-    flexDirection: 'row',
+  mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
+  gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
+
+  // SLIDE NGANG
+  horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
+  slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
+  slideIconCircle: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: 25, 
+    backgroundColor: '#FFF', 
+    justifyContent: 'center', 
     alignItems: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#C1F0D0',
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05
   },
-  tipSticker: {
-    width: 45,
-    height: 45,
-    marginRight: 15,
-  },
-  tipText: {
-    fontSize: 15,
-    color: '#2E7D32',
-    fontWeight: '700',
-    flex: 1,
-    lineHeight: 20,
-  },
-  floatingAiButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    backgroundColor: '#FFB6C1',
-    paddingHorizontal: 25,
-    height: 70,
-    borderRadius: 35,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 10,
-    shadowColor: '#FFB6C1',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-  },
-  aiIconAnime: {
-    width: 38,
-    height: 38,
-    marginRight: 10,
-  },
-  aiLabel: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 18,
-  },
+  slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
+  slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
+
+  tipCard: { backgroundColor: '#E8F9ED', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  tipSticker: { width: 40, height: 40, marginRight: 12 },
+  tipText: { flex: 1, fontSize: 13, color: '#2E7D32', fontWeight: '600' },
+
+  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5 },
+  aiIconAnime: { width: 30, height: 30, marginRight: 8 },
+  aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 16 },
 });
