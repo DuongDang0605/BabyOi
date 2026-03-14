@@ -13,7 +13,7 @@ const MAIN_FEATURES = [
 
 const MORE_FEATURES = [
   { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/list' }, // Đã thêm đường dẫn
+  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' }, // Đã thêm đường dẫn
   { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
 ];
 
