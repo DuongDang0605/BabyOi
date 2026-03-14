@@ -82,7 +82,8 @@ export default function AppHomeScreen() {
             <Text style={styles.gridText}>Dinh dưỡng</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity style={styles.gridItem}
+            onPress={() => router.push('/nhatki/nhatki')}>
             <Image 
               source={{ uri: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png' }} 
               style={styles.mainIcon}

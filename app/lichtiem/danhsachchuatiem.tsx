@@ -33,17 +33,22 @@ export default function UpcomingVaccinesScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- HEADER --- */}
-      <View style={styles.customHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lịch Sắp Tới</Text>
-        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3209/3209995.png' }} style={styles.headerSticker} />
-      </View>
-
+      {/* --- BAO TOÀN BỘ BẰNG SCROLLVIEW NHƯ FORM CHUẨN --- */}
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         
+        {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>Lịch Sắp Tới</Text>
+          
+          {/* Cục tạ Sticker cân bằng với nút Back */}
+          <View style={styles.rightPlaceholder}>
+          </View>
+        </View>
+
         {/* Lời nhắc nhở dễ thương */}
         <View style={styles.heroSection}>
           <Text style={styles.heroText}>Tháng tới bé Ốc tròn 9 tháng tuổi rồi! 🎉</Text>
@@ -91,16 +96,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef9f3',
   },
   scrollArea: {
-    paddingHorizontal: 20,
+    padding: 20, // CHUẨN: padding đều 4 phía
   },
-  /* --- STYLES HEADER ĐỒNG BỘ --- */
+  /* --- STYLES HEADER CHUẨN ĐỒNG BỘ --- */
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 40,
-    marginBottom: 10,
-    paddingHorizontal: 20,
+    marginBottom: 25, // Đổi thành 25 cho đồng bộ
   },
   backButton: {
     justifyContent: 'center',
@@ -109,19 +113,21 @@ const styles = StyleSheet.create({
     width: 45, 
   },
   headerTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    flex: 1, // Điền đầy khoảng trống giữa để tự động căn giữa chữ
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '900',
     color: '#ff8fab', 
     letterSpacing: 0.5,
-    zIndex: -1,
+  },
+  rightPlaceholder: {
+    width: 45,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   headerSticker: {
-    width: 45,
-    height: 45,
+    width: 40,
+    height: 40,
   },
   /* --- LỜI NHẮC --- */
   heroSection: {
