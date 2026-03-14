@@ -5,17 +5,16 @@ import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View
 const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Sức khỏe', icon: 'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg', route: '/phattrien/growth-charts' },
+  { id: '1', title: 'Phát triển', icon: 'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg', route: '/phattrien/growth-charts' },
   { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '#' },
+  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
 ];
-
 
 const MORE_FEATURES = [
   { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '#' },
-{ id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
+  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/list' }, // Đã thêm đường dẫn
+  { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
 ];
 
 export default function AppHomeScreen() {
@@ -25,17 +24,14 @@ export default function AppHomeScreen() {
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
-        {/* --- Header: Thông tin bé --- */}
+        {/* --- Header --- */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Chào mẹ bé Ốc! ✨</Text>
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
           <View style={styles.avatarFrame}>
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} 
-              style={styles.avatar} 
-            />
+            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} style={styles.avatar} />
             <View style={styles.onlineDot} />
           </View>
         </View>
@@ -47,53 +43,27 @@ export default function AppHomeScreen() {
             <Text style={styles.alertTitle}>Lịch tiêm nhắc bé</Text>
             <Text style={styles.alertSubtitle}>Mũi Sởi đơn (Lúc 9 tháng)</Text>
             <View style={styles.alertDateBadge}>
-                <Text style={styles.alertDateText}>Còn 30 ngày nữa!</Text>
+              <Text style={styles.alertDateText}>Còn 30 ngày nữa!</Text>
             </View>
           </View>
         </View>
 
-        {/* --- PHẦN 1: 4 CHỨC NĂNG CHÍNH (GRID) --- */}
+        {/* --- PHẦN 1: 4 CHỨC NĂNG CHÍNH --- */}
         <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
-          <TouchableOpacity style={styles.gridItem}>
-            <Image 
-              source={{ uri:'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg' }} 
-              style={styles.mainIcon}
-            />
-            <Text style={styles.gridText}>Phát triển</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.gridItem}
-            onPress={() => router.push('/lichtiem/listlichtiem')}
-          >
-            <Image 
-              source={{ uri: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg' }} 
-              style={styles.mainIcon}
-            />
-            <Text style={styles.gridText}>Sổ tiêm</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridItem}
-            onPress={() => router.push('/dinhduong/listdoan')}>
-            <Image 
-              source={{ uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s' }} 
-              style={styles.mainIcon}
-            />
-            <Text style={styles.gridText}>Dinh dưỡng</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridItem}
-            onPress={() => router.push('/nhatki/nhatki')}>
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png' }} 
-              style={styles.mainIcon}
-            />
-            <Text style={styles.gridText}>Nhật ký</Text>
-          </TouchableOpacity>
+          {MAIN_FEATURES.map((item) => (
+            <TouchableOpacity 
+              key={item.id} 
+              style={styles.gridItem}
+              onPress={() => item.route !== '#' && router.push(item.route as any)}
+            >
+              <Image source={{ uri: item.icon }} style={styles.mainIcon} />
+              <Text style={styles.gridText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* --- PHẦN 2: CHỨC NĂNG MỞ RỘNG (SLIDE) --- */}
+        {/* --- PHẦN 2: TIỆN ÍCH THÊM (ĐÃ SỬA LỖI BẤM) --- */}
         <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
         <ScrollView 
           horizontal 
@@ -101,7 +71,12 @@ export default function AppHomeScreen() {
           contentContainerStyle={styles.horizontalScrollContent}
         >
           {MORE_FEATURES.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.slideItem}>
+            <TouchableOpacity 
+              key={item.id} 
+              style={styles.slideItem}
+              // THÊM DÒNG NÀY ĐỂ BẤM ĐƯỢC:
+              onPress={() => item.route !== '#' && router.push(item.route as any)}
+            >
               <View style={styles.slideIconCircle}>
                 <Image source={{ uri: item.icon }} style={styles.slideIcon} />
               </View>
@@ -148,7 +123,6 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
 
-  // GRID 4 CHÍNH
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
   gridItem: { 
     width: '47%', 
@@ -164,7 +138,6 @@ const styles = StyleSheet.create({
   mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
 
-  // SLIDE NGANG
   horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
   slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
   slideIconCircle: { 

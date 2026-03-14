@@ -27,7 +27,7 @@ export default function DoctorBookingScreen() {
             <Text style={styles.title}>Đặt lịch khám cho bé</Text>
             <TouchableOpacity
                 style={styles.historyBtn}
-                onPress={() => router.push('/phattrien/booking-history')}
+                onPress={() => router.push('/datlich/doctor-booking')}
             >
                 <Ionicons name="calendar-number" size={20} color="#FF8FAB" />
                 <Text style={styles.historyBtnText}>Lịch đã đặt</Text>
