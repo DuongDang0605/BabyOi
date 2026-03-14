@@ -1,60 +1,86 @@
 import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons'; 
 
 export default function ChatBoxAIScreen() {
   return (
-    // Dùng KeyboardAvoidingView để tự động đẩy khung chat lên khi bàn phím xuất hiện
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
     >
-      {/* Header của khung Chat */}
-      <Stack.Screen options={{ title: 'AI Trợ lý', headerBackTitle: 'Đóng' }} />
+      {/* Tắt Header mặc định */}
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* --- HEADER ĐỒNG BỘ --- */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>AI Trợ Lý</Text>
+        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.headerSticker} />
+      </View>
 
       {/* 1. Khu vực hiển thị tin nhắn */}
       <ScrollView style={styles.chatArea} showsVerticalScrollIndicator={false}>
         
-        {/* Tin nhắn của AI (Bên trái) */}
+        {/* Tin nhắn chào hỏi của AI (Bên trái) */}
         <View style={styles.messageWrapper_AI}>
           <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.aiAvatar} />
           <View style={styles.bubble_AI}>
-            <Text style={styles.text_AI}>Chào mẹ! Mẹ cần tư vấn thực đơn ăn dặm hay muốn phân tích thành phần dinh dưỡng món nào cho bé Ốc hôm nay không? 😊</Text>
+            <Text style={styles.text_AI}>
+              Chào mẹ! Mẹ cần Trợ lý AI tư vấn về lịch tiêm phòng, tác dụng phụ của vắc-xin hay vấn đề sức khỏe nào của bé Ốc hôm nay không? 🧚‍♀️
+            </Text>
           </View>
         </View>
 
-        {/* Tin nhắn của Người dùng (Bên phải) */}
+        {/* Tin nhắn của Người dùng (Bên phải - Đã đổi thành câu hỏi về vắc-xin) */}
         <View style={styles.messageWrapper_User}>
           <View style={styles.bubble_User}>
-            <Text style={styles.text_User}>Trong tủ lạnh đang có cà rốt và cá hồi, nấu món gì ăn dặm cho bé 8 tháng được nhỉ?</Text>
+            <Text style={styles.text_User}>
+              Bé nhà mình sắp được 9 tháng, nghe nói có mũi Viêm não Nhật Bản. Mũi này tiêm loại nào tốt và có hay bị sốt không AI?
+            </Text>
           </View>
         </View>
 
-        {/* Tin nhắn phản hồi của AI (Bên trái) */}
+        {/* Tin nhắn tư vấn của AI (Bên trái) */}
         <View style={styles.messageWrapper_AI}>
           <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.aiAvatar} />
           <View style={styles.bubble_AI}>
-            <Text style={styles.text_AI}>Tuyệt vời quá! Mẹ có thể làm món **Cháo cá hồi cà rốt** nhé.{'\n\n'}Cá hồi giàu Omega-3 giúp phát triển trí não, còn cà rốt cung cấp Vitamin A rất tốt cho mắt của bé. Bé 8 tháng mẹ nhớ tán nhuyễn vừa phải để bé tập nhai nhé! 🥕🐟</Text>
+            <Text style={styles.text_AI}>
+              Dạ thưa mẹ, bé Ốc sắp 9 tháng tuổi là <Text style={styles.textHighlight}>thời điểm vàng</Text> để tiêm Viêm não Nhật Bản rồi ạ! 🌟{'\n\n'}
+              Hiện tại có loại <Text style={styles.textHighlight}>Imojev (Thái Lan)</Text> rất tốt, chỉ cần tiêm 2 mũi (thay vì 3 mũi như loại Jevax cũ) và rất ít gây sốt. Tuy nhiên, một số bé trộm vía nhạy cảm có thể hơi hâm hấp ấm đầu trong 1-2 ngày đầu mẹ nhé.{'\n\n'}
+              Mẹ có muốn em thêm mũi Imojev này vào lịch "Sắp tới" của bé Ốc luôn không ạ? 🥰
+            </Text>
+
+            {/* Nút thao tác nhanh của AI (Gợi ý thêm luôn vào sổ) */}
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/lichtiem/themmuitiem')}
+            >
+              <Text style={styles.quickActionText}>👉 Thêm vào sổ tiêm</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* 2. Khu vực nhập tin nhắn (Dưới cùng) */}
       <View style={styles.inputArea}>
         <TouchableOpacity style={styles.cameraButton}>
-          <Text style={styles.cameraIcon}>📷</Text>
+          <Ionicons name="camera" size={26} color="#b0bec5" />
         </TouchableOpacity>
         
         <TextInput 
           style={styles.textInput}
-          placeholder="Hỏi AI về dinh dưỡng..."
+          placeholder="Hỏi AI về lịch tiêm..."
           placeholderTextColor="#999"
-          multiline={true} // Cho phép gõ nhiều dòng
+          multiline={true} 
         />
 
+        {/* Nút gửi màu xanh baby dễ thương */}
         <TouchableOpacity style={styles.sendButton}>
-          <Text style={styles.sendIcon}>➤</Text>
+          <Ionicons name="send" size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
@@ -65,91 +91,163 @@ export default function ChatBoxAIScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5', // Màu xám nhạt làm nền để tin nhắn nổi bật
+    backgroundColor: '#fef9f3', // Nền kem pastel 
   },
+  /* --- HEADER --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    width: 45,
+  },
+  headerTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+    zIndex: -1,
+  },
+  headerSticker: {
+    width: 40,
+    height: 40,
+  },
+  /* --- CHAT AREA --- */
   chatArea: {
     flex: 1,
-    padding: 15,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
-  // -- Tin nhắn của AI --
   messageWrapper_AI: {
     flexDirection: 'row',
     marginBottom: 20,
-    alignItems: 'flex-end', // Cho avatar nằm ngang hàng với dòng cuối cùng của bong bóng
-    paddingRight: 60, // Ép bong bóng không được tràn hết sang phải
+    alignItems: 'flex-end', 
+    paddingRight: 50, // Tránh tràn viền phải
   },
   aiAvatar: {
-    width: 35,
-    height: 35,
+    width: 38,
+    height: 38,
     marginRight: 10,
-    borderRadius: 17.5,
+    borderRadius: 19,
+    backgroundColor: '#ffffff',
   },
   bubble_AI: {
     backgroundColor: '#ffffff',
-    padding: 15,
+    padding: 16,
     borderRadius: 20,
-    borderBottomLeftRadius: 5, // Vát góc dưới cùng bên trái cho giống đuôi bong bóng
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    borderBottomLeftRadius: 5, // Vát góc đuôi bong bóng
+    borderWidth: 1.5,
+    borderColor: '#f0f4f8',
+    shadowColor: '#a7e4f5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 1,
+    elevation: 2,
   },
   text_AI: {
     fontSize: 15,
-    color: '#333333',
-    lineHeight: 22,
+    color: '#445566',
+    lineHeight: 23,
   },
-  // -- Tin nhắn của Người dùng --
+  textHighlight: {
+    fontWeight: 'bold',
+    color: '#d46b08',
+  },
+  quickActionButton: {
+    marginTop: 15,
+    backgroundColor: '#fffcf5', // Nền vàng nhạt
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: '#ffe08a', // Viền vàng đậm hơn chút
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#d46b08',
+  },
+  /* --- USER MESSAGE --- */
   messageWrapper_User: {
     flexDirection: 'row',
-    justifyContent: 'flex-end', // Đẩy toàn bộ sang sát mép phải
+    justifyContent: 'flex-end', 
     marginBottom: 20,
-    paddingLeft: 60, // Ép bong bóng không tràn hết sang trái
+    paddingLeft: 50, 
   },
   bubble_User: {
-    backgroundColor: '#a7e4f5', // Bong bóng màu xanh chủ đạo của app
-    padding: 15,
+    backgroundColor: '#ffb6c1', // Bong bóng hồng phấn
+    padding: 16,
     borderRadius: 20,
-    borderBottomRightRadius: 5, // Vát đuôi bên phải
+    borderBottomRightRadius: 5,
+    shadowColor: '#ffb6c1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   text_User: {
     fontSize: 15,
-    color: '#00425c', // Chữ xanh đậm để dễ đọc trên nền xanh nhạt
+    color: '#ffffff', // Chữ trắng nổi bật trên nền hồng
     lineHeight: 22,
+    fontWeight: '600',
   },
-  // -- Khu vực nhập liệu --
+  /* --- INPUT AREA --- */
   inputArea: {
     flexDirection: 'row',
-    padding: 10,
-    paddingBottom: 25, // Tạo khoảng trống an toàn cho các dòng điện thoại tai thỏ/vuốt
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
     backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderColor: '#eeeeee',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 10,
   },
   cameraButton: {
-    padding: 10,
-  },
-  cameraIcon: {
-    fontSize: 24,
+    padding: 8,
+    marginRight: 5,
   },
   textInput: {
-    flex: 1, // Tự động dãn ra chiếm hết khoảng trống giữa 2 nút
-    backgroundColor: '#f0f0f0',
+    flex: 1, 
+    backgroundColor: '#f5f7f9',
     borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    paddingTop: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingTop: 12,
     fontSize: 15,
-    maxHeight: 100, // Khống chế độ cao khi gõ quá dài
+    color: '#333333',
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sendButton: {
-    padding: 10,
-    marginLeft: 5,
-  },
-  sendIcon: {
-    fontSize: 24,
-    color: '#ff9c6e', // Màu cam đồng bộ với nút nổi AI
+    backgroundColor: '#a3d9b1', // Nút gửi màu xanh lá pastel
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+    shadowColor: '#a3d9b1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });
