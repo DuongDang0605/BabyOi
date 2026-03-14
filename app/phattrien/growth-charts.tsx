@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React from 'react';
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from "react-native-chart-kit";
 
 const { width } = Dimensions.get('window');
@@ -20,21 +20,24 @@ export default function GrowthChartsScreen() {
   const latest = { weight: 5.3, height: 58, bmi: 15.8 };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        headerTitle: "Sức khỏe",
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 15 }}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-        ),
-      }} />
+    <View style={styles.container}>
+      {/* Tắt Header mặc định của Expo Router */}
+      <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
+        {/* --- HEADER CHUẨN ĐỒNG BỘ NẰM TRONG SCROLLVIEW --- */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>Sức khỏe</Text>
+          
+          {/* Cục tạ 45px cân bằng với nút Back để chữ vào giữa */}
+          <View style={{ width: 45 }} />
+        </View>
+
         {/* --- PHẦN 1: THẺ CHỈ SỐ NHANH --- */}
         <View style={styles.summaryGrid}>
           <View style={[styles.summaryCard, { backgroundColor: '#FF8FAB' }]}>
@@ -141,18 +144,43 @@ export default function GrowthChartsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContent: { padding: 20 },
+
+  /* --- STYLES HEADER CHUẨN ĐỒNG BỘ --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 25,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    width: 45, 
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
+
   summaryGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   summaryCard: { width: (width - 60) / 3, padding: 12, borderRadius: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1 },
   cardValue: { fontSize: 16, fontWeight: '900', color: '#FFF', marginTop: 8 },
   cardUnit: { fontSize: 10, fontWeight: '600' },
   cardLabel: { fontSize: 10, color: '#FFF', fontWeight: '700', marginTop: 4 },
+  
   chartSection: { backgroundColor: '#FFF', borderRadius: 25, padding: 15, elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.2 },
   chartTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 10 },
   legendContainer: { flexDirection: 'row', justifyContent: 'center', gap: 15, marginBottom: 15 },
@@ -160,8 +188,10 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
   legendText: { fontSize: 11, fontWeight: '700', color: '#5C7A8A' },
   chartStyle: { borderRadius: 16, marginLeft: -15 },
+  
   aiBox: { flexDirection: 'row', backgroundColor: '#FFF0F3', padding: 15, borderRadius: 20, marginTop: 20, alignItems: 'center' },
   aiText: { flex: 1, marginLeft: 10, color: '#FF8FAB', fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  
   buttonGroup: { marginTop: 20, gap: 12 },
   longButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 20, borderWidth: 1.5, borderColor: '#FFE5EC', elevation: 3 },
   longButtonText: { flex: 1, fontSize: 15, fontWeight: '800', color: '#FF8FAB', marginLeft: 12 },

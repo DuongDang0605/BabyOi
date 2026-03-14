@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, FlatList, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const DOCTORS = [
     { 
@@ -32,7 +32,6 @@ const DOCTORS = [
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
 
-// Tạo danh sách 7 ngày tới
 const DATES = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
@@ -71,17 +70,21 @@ export default function DoctorBookingScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{
-                headerTitle: "Đặt lịch bác sĩ",
-                headerStyle: { backgroundColor: '#FFB6C1' },
-                headerTintColor: '#FFF',
-                headerLeft: () => (
-                    <TouchableOpacity onPress={handleBack} style={{ marginLeft: 15 }}>
-                        <Ionicons name="chevron-back" size={24} color="white" />
-                    </TouchableOpacity>
-                ),
-            }} />
+        <View style={styles.container}>
+            <Stack.Screen options={{ headerShown: false }} />
+
+            {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+            <View style={styles.customHeader}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+                </TouchableOpacity>
+                
+                <Text style={styles.headerTitle}>
+                    {selectedDoctor ? "Chi Tiết Bác Sĩ" : "Đặt Lịch Bác Sĩ"}
+                </Text>
+                
+                <View style={{ width: 45 }} />
+            </View>
 
             <View style={styles.content}>
                 {mainTab === 'menu' && (
@@ -223,12 +226,36 @@ export default function DoctorBookingScreen() {
                     </View>
                 )}
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FEF9F3' },
+    
+    /* --- HEADER CHUẨN ĐỒNG BỘ --- */
+    customHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 60, // Né notch sâu
+        marginBottom: 10,
+        paddingHorizontal: 20,
+    },
+    backButton: {
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        width: 45, 
+    },
+    headerTitle: {
+        flex: 1, 
+        textAlign: 'center',
+        fontSize: 22,
+        fontWeight: '900',
+        color: '#ff8fab', 
+        letterSpacing: 0.5,
+    },
+
     content: { flex: 1, padding: 20 },
     
     // Menu

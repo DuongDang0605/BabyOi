@@ -5,7 +5,6 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -26,25 +25,28 @@ export default function UpdateIndexScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        headerTitle: "Cập Nhật Chỉ Số",
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 15 }}>
-            <Ionicons name="close" size={26} color="white" />
-          </TouchableOpacity>
-        ),
-      }} />
+    <View style={styles.container}>
+      {/* Tắt Header mặc định */}
+      <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
+          {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+          <View style={styles.customHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="close" size={28} color="#ff8fab" />
+            </TouchableOpacity>
+            
+            <Text style={styles.headerTitle}>Cập Nhật Chỉ Số</Text>
+            
+            {/* Cục tạ 45px cân bằng với nút Close để chữ vào giữa */}
+            <View style={{ width: 45 }} />
+          </View>
+
           {/* Hướng dẫn nhỏ */}
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color="#FF8FAB" />
@@ -53,7 +55,7 @@ export default function UpdateIndexScreen() {
             </Text>
           </View>
 
-          {/* Form nhập liệu - Theo phong cách ảnh 2 */}
+          {/* Form nhập liệu */}
           <View style={styles.form}>
             
             {/* Chiều cao */}
@@ -86,7 +88,7 @@ export default function UpdateIndexScreen() {
               </View>
             </View>
 
-            {/* Vòng đầu (Thay cho Waist trong ảnh mẫu vì đây là App cho bé) */}
+            {/* Vòng đầu */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Vòng đầu (cm)</Text>
               <View style={styles.inputWrapper}>
@@ -103,7 +105,7 @@ export default function UpdateIndexScreen() {
 
           </View>
 
-          {/* Nút Save - Màu Xanh Mint đồng bộ với Lịch sinh hoạt */}
+          {/* Nút Save - Màu Xanh Mint đồng bộ */}
           <TouchableOpacity 
             style={styles.saveButton} 
             activeOpacity={0.8}
@@ -122,28 +124,53 @@ export default function UpdateIndexScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  scrollContent: { padding: 25 },
+  container: { flex: 1, backgroundColor: '#fef9f3' }, // Màu kem đồng bộ toàn app
+  scrollContent: { padding: 20 },
+
+  /* --- HEADER CHUẨN ĐỒNG BỘ --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 25,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    width: 45, 
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
   
   infoBox: { 
     flexDirection: 'row', 
     backgroundColor: '#FFF0F3', 
     padding: 15, 
-    borderRadius: 15, 
+    borderRadius: 20, 
     alignItems: 'center',
-    marginBottom: 30 
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: '#FFE5EC'
   },
   infoText: { 
     flex: 1, 
     marginLeft: 10, 
     color: '#FF8FAB', 
     fontSize: 13, 
-    fontWeight: '600' 
+    fontWeight: '700' 
   },
 
   form: { gap: 20 },
@@ -157,37 +184,42 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: '#EEE',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#f0f4f8',
     paddingHorizontal: 15,
-    height: 55,
+    height: 60,
+    elevation: 2,
+    shadowColor: '#FFB6C1',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   input: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#333',
   },
   unitText: {
     color: '#999',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
 
   saveButton: {
-    backgroundColor: '#98D8AA', // Màu xanh mint từ nút Lịch sinh hoạt
-    height: 55,
-    borderRadius: 28,
+    backgroundColor: '#98D8AA', 
+    height: 60,
+    borderRadius: 30,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 40,
-    elevation: 4,
+    elevation: 5,
     shadowColor: '#98D8AA',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
   },
   saveButtonText: {
     color: '#FFF',
@@ -195,7 +227,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   cancelButton: {
-    marginTop: 15,
+    marginTop: 20,
     alignItems: 'center',
     padding: 10,
   },
