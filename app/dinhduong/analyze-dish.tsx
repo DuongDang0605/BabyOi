@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface Ingredient {
   id: string;
@@ -33,7 +33,7 @@ export default function AnalyzeDishScreen() {
       return {
         calo: acc.calo + (qty * item.caloPerUnit),
         protein: acc.protein + (qty * item.proteinPerUnit),
-        carbs: acc.carbs + (qty * item.carbsPerUnit),
+        carbs: acc.carbs + (acc.carbs === undefined ? (qty * item.carbsPerUnit) : (qty * item.carbsPerUnit)),
         fat: acc.fat + (qty * item.fatPerUnit),
       };
     }, { calo: 0, protein: 0, carbs: 0, fat: 0 });
@@ -45,13 +45,9 @@ export default function AnalyzeDishScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.mainContainer}>
-      <Stack.Screen options={{
-        headerTitle: "Phân tích chi tiết",
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-      }} />
+    <View style={styles.mainContainer}>
+      {/* Tắt Header mặc định */}
+      <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView 
@@ -59,6 +55,17 @@ export default function AnalyzeDishScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* --- HEADER CHUẨN ĐỒNG BỘ - ĐÃ ĐẨY XUỐNG SÂU --- */}
+          <View style={styles.customHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+            </TouchableOpacity>
+            
+            <Text style={styles.headerTitle}>Phân Tích Chi Tiết</Text>
+            
+            <View style={{ width: 45 }} />
+          </View>
+
           {/* --- Phần 1: Hình ảnh & Nguyên liệu bay --- */}
           <View style={styles.analyzeCard}>
             <View style={styles.imageCircleContainer}>
@@ -135,18 +142,42 @@ export default function AnalyzeDishScreen() {
           <Text style={styles.saveButtonText}>Thêm vào món yêu thích</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
-  scrollContainer: { padding: 20 },
-  analyzeCard: { alignItems: 'center', marginTop: 50, marginBottom: 30 },
+  scrollContainer: { paddingHorizontal: 20 },
+
+  /* --- HEADER CHUẨN ĐỒNG BỘ - SIÊU THOÁNG --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 70, // Tăng lên 70 để né camera notch hoàn toàn
+    marginBottom: 20,
+    paddingTop: 10,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    width: 45, 
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
+
+  analyzeCard: { alignItems: 'center', marginTop: 20, marginBottom: 30 },
   imageCircleContainer: { width: 300, height: 300, justifyContent: 'center', alignItems: 'center' },
-  imageCircle: { width: 170, height: 170, borderRadius: 85, backgroundColor: '#FFF', elevation: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#FFB6C1' },
+  imageCircle: { width: 170, height: 170, borderRadius: 85, backgroundColor: '#FFF', elevation: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#FFB6C1', shadowColor: '#FFB6C1', shadowOpacity: 0.3, shadowRadius: 10 },
   mainImg: { width: 162, height: 162, borderRadius: 81 },
-  floatingIng: { position: 'absolute', backgroundColor: '#FFF', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 18, alignItems: 'center', elevation: 6, minWidth: 80, borderWidth: 1, borderColor: '#FFE5EC' },
+  floatingIng: { position: 'absolute', backgroundColor: '#FFF', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 18, alignItems: 'center', elevation: 6, minWidth: 80, borderWidth: 1, borderColor: '#FFE5EC', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
   floatingText: { fontSize: 10, fontWeight: '800', color: '#5C7A8A' },
   dishTitle: { fontSize: 26, fontWeight: '900', color: '#FF8FAB', marginTop: 15 },
   recipeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginTop: 10, borderWidth: 1, borderColor: '#FFB6C1' },
@@ -156,7 +187,7 @@ const styles = StyleSheet.create({
   statLabelText: { fontSize: 12, color: '#5C7A8A', fontWeight: '700', marginVertical: 4 },
   statValueText: { fontSize: 18, fontWeight: '900' },
   unitText: { fontSize: 12, fontWeight: '600' },
-  adjustSection: { backgroundColor: '#FFF', borderRadius: 30, padding: 20, elevation: 4 },
+  adjustSection: { backgroundColor: '#FFF', borderRadius: 30, padding: 20, elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.1 },
   sectionTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 20, textAlign: 'center' },
   ingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, backgroundColor: '#FEF9F3', padding: 10, borderRadius: 15 },
   ingLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -165,7 +196,7 @@ const styles = StyleSheet.create({
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 10, borderWidth: 1.5, borderColor: '#FFB6C1', paddingHorizontal: 10, height: 40 },
   textInput: { width: 55, textAlign: 'center', fontWeight: '900', color: '#FF8FAB', fontSize: 16 },
   unitLabel: { fontSize: 12, color: '#999', fontWeight: '700', marginLeft: 5 },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#FEF9F3', paddingBottom: 35 },
-  saveButton: { backgroundColor: '#FFB6C1', height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: 'rgba(254, 249, 243, 0.95)', paddingBottom: 35 },
+  saveButton: { backgroundColor: '#FFB6C1', height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 10 },
   saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: '900' }
 });

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React from 'react';
-import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const HEALTH_HISTORY_DATA = [
   { id: '1', date: '14/03/2024', weight: '5.3', height: '58', bmi: '15.8', sickCount: '2', status: 'Tăng trưởng tốt' },
@@ -13,73 +13,72 @@ const HEALTH_HISTORY_DATA = [
 
 export default function HealthHistoryScreen() {
   
-  const renderItem = ({ item }: { item: typeof HEALTH_HISTORY_DATA[0] }) => (
-    <View style={styles.historyCard}>
-      {/* Header: Ngày & Trạng thái */}
-      <View style={styles.cardHeader}>
-        <View style={styles.dateBadge}>
-          <Ionicons name="calendar" size={14} color="#FF8FAB" />
-          <Text style={styles.dateText}>{item.date}</Text>
+  const renderItem = ({ item }: { item: typeof HEALTH_HISTORY_DATA[0] }) => {
+    // Định dạng lại ngày để chỉ hiển thị MM/YYYY (Ví dụ: 03/2024)
+    const formattedDate = item.date.slice(-7);
+
+    return (
+      <View style={styles.historyCard}>
+        {/* Header của thẻ: Ngày & Trạng thái */}
+        <View style={styles.cardHeader}>
+          <View style={styles.dateBadge}>
+            <Ionicons name="calendar" size={14} color="#FF8FAB" />
+            <Text style={styles.dateText}>{formattedDate}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: item.status === 'Tăng trưởng tốt' ? '#E8F5E9' : '#FFF0F3' }]}>
+            <Text style={[styles.statusText, { color: item.status === 'Tăng trưởng tốt' ? '#4CAF50' : '#FF8FAB' }]}>
+              {item.status}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: item.status === 'Tăng trưởng tốt' ? '#E8F5E9' : '#FFF0F3' }]}>
-          <Text style={[styles.statusText, { color: item.status === 'Tăng trưởng tốt' ? '#4CAF50' : '#FF8FAB' }]}>
-            {item.status}
+
+        {/* Thông số: Cân nặng - Chiều cao - BMI */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Cân nặng</Text>
+            <Text style={styles.statValue}>{item.weight}<Text style={styles.unit}>kg</Text></Text>
+          </View>
+          
+          <View style={styles.divider} />
+
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Chiều cao</Text>
+            <Text style={styles.statValue}>{item.height}<Text style={styles.unit}>cm</Text></Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>BMI</Text>
+            <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{item.bmi}</Text>
+          </View>
+        </View>
+
+        {/* Thông tin số lần bệnh */}
+        <View style={styles.sickInfoBox}>
+          <Ionicons name="medkit" size={16} color={item.sickCount === '0' ? '#98D8AA' : '#FFD166'} />
+          <Text style={styles.sickText}>
+              Số lần bị bệnh trong kỳ: <Text style={styles.sickBold}>{item.sickCount} lần</Text>
           </Text>
         </View>
+
+        {/* Nút Xem chi tiết */}
+        <TouchableOpacity 
+          style={styles.detailBtn} 
+          activeOpacity={0.6}
+          onPress={() => router.push({ pathname: '/phattrien/health-detail', params: { date: item.date } })}
+        >
+          <Text style={styles.detailBtnText}>Xem chi tiết</Text>
+          <Ionicons name="chevron-forward" size={16} color="#FFB6C1" />
+        </TouchableOpacity>
       </View>
-
-      {/* Thông số: Cân nặng - Chiều cao - BMI */}
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Cân nặng</Text>
-          <Text style={styles.statValue}>{item.weight}<Text style={styles.unit}>kg</Text></Text>
-        </View>
-        
-        <View style={styles.divider} />
-
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Chiều cao</Text>
-          <Text style={styles.statValue}>{item.height}<Text style={styles.unit}>cm</Text></Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>BMI</Text>
-          <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{item.bmi}</Text>
-        </View>
-      </View>
-
-      {/* Thông tin số lần bệnh - Chỉ hiển thị text gọn gàng */}
-      <View style={styles.sickInfoBox}>
-        <Ionicons name="medkit" size={16} color={item.sickCount === '0' ? '#98D8AA' : '#FFD166'} />
-        <Text style={styles.sickText}>
-            Số lần bị bệnh trong kỳ đo này: <Text style={styles.sickBold}>{item.sickCount} lần</Text>
-        </Text>
-      </View>
-
-      {/* Nút Xem chi tiết */}
-      <TouchableOpacity style={styles.detailBtn} activeOpacity={0.6}
-      onPress={() => router.push({ pathname: '/phattrien/health-detail', params: { date: item.date } })}>
-        <Text style={styles.detailBtnText}>Xem chi tiết</Text>
-        <Ionicons name="chevron-forward" size={16} color="#FFB6C1" />
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        headerTitle: "Lịch Sử Sức Khỏe",
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 15 }}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-        ),
-      }} />
+    <View style={styles.container}>
+      {/* Tắt Header mặc định */}
+      <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
         data={HEALTH_HISTORY_DATA}
@@ -88,21 +87,58 @@ export default function HealthHistoryScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={() => (
-          <View style={styles.listHeader}>
-            <Text style={styles.headerTitle}>Nhật ký phát triển</Text>
-            <Text style={styles.headerSub}>Tổng hợp sức khỏe bé qua các lần cập nhật</Text>
+          <View>
+            {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+            <View style={styles.customHeader}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+              </TouchableOpacity>
+              
+              <Text style={styles.headerTitle}>Lịch Sử Sức Khỏe</Text>
+              
+              <View style={{ width: 45 }} />
+            </View>
+
+            <View style={styles.listHeader}>
+              <Text style={styles.listHeaderTitle}>Nhật ký phát triển</Text>
+              <Text style={styles.headerSub}>Tổng hợp sức khỏe bé qua các lần cập nhật</Text>
+            </View>
           </View>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
   listContent: { padding: 20 },
+  
+  /* --- HEADER CHUẨN ĐỒNG BỘ --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 25,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    width: 45, 
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
+
   listHeader: { marginBottom: 20 },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: '#5C7A8A' },
+  listHeaderTitle: { fontSize: 20, fontWeight: '900', color: '#5C7A8A' },
   headerSub: { fontSize: 13, color: '#999', fontWeight: '600', marginTop: 4 },
 
   historyCard: {

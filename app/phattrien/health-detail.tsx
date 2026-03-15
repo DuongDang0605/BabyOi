@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HealthDetailScreen() {
   // Nhận dữ liệu truyền qua từ trang danh sách (giả lập)
   const { date } = useLocalSearchParams();
-
+  const formattedDate = date && typeof date === 'string' ? date.slice(-7) : '03/2026';
   // Dữ liệu giả lập chi tiết cho tháng được chọn
   const MONTHLY_DETAIL = {
     stats: {
@@ -36,20 +36,24 @@ export default function HealthDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        headerTitle: `Chi tiết tháng ${date || ''}`,
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 15 }}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-        ),
-      }} />
+    <View style={styles.container}>
+      {/* --- Tắt Header mặc định --- */}
+      <Stack.Screen options={{ headerShown: false }} />
 
+      {/* --- BAO TOÀN BỘ BẰNG SCROLLVIEW CHUẨN FORM --- */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+      {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+          </TouchableOpacity>
+          
+          {/* Hiển thị tiêu đề đúng định dạng 03/2026 */}
+          <Text style={styles.headerTitle}>{formattedDate}</Text>
+          
+          <View style={{ width: 45 }} />
+        </View>
         
         {/* --- PHẦN 1: CHỈ SỐ CƠ THỂ --- */}
         <View style={styles.sectionHeader}>
@@ -75,7 +79,7 @@ export default function HealthDetailScreen() {
         {/* --- PHẦN 2: DANH SÁCH BỆNH TRONG THÁNG --- */}
         <View style={[styles.sectionHeader, { marginTop: 30 }]}>
           <Ionicons name="medkit-outline" size={20} color="#FF8FAB" />
-          <Text style={styles.sectionTitle}>Các đợt bệnh trong tháng</Text>
+          <Text style={styles.sectionTitle}>Các đợt bệnh</Text>
           <View style={styles.badgeCount}>
             <Text style={styles.badgeText}>{MONTHLY_DETAIL.illnesses.length}</Text>
           </View>
@@ -117,7 +121,7 @@ export default function HealthDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -125,6 +129,29 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContent: { padding: 20 },
   
+  /* --- STYLES HEADER CHUẨN ĐỒNG BỘ --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 25,
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    width: 45, 
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
+
   // Section Title
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 8 },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A' },
@@ -155,6 +182,9 @@ const styles = StyleSheet.create({
     borderLeftWidth: 5,
     borderLeftColor: '#FFD166', // Màu nhấn cho y tế
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
   },
   illnessHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   illnessName: { fontSize: 16, fontWeight: '800', color: '#FF8FAB' },

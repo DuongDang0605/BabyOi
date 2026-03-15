@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Animated, FlatList, Image, Modal, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Dish {
   id: string;
@@ -29,17 +29,15 @@ export default function FavoriteDishesScreen() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [progress] = useState(new Animated.Value(0));
 
-  // --- PHẦN SỬA ĐỔI CHÍNH: Hiệu ứng và Tự động chuyển trang ---
   useEffect(() => {
     if (showAIModal) {
       progress.setValue(0);
       Animated.timing(progress, {
         toValue: 1,
-        duration: 3000, // Chạy trong 3 giây
+        duration: 3000,
         useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) {
-          // Sau khi hoàn thành, đợi 500ms rồi tự động chuyển sang trang lịch trình
           setTimeout(() => {
             setShowAIModal(false);
             router.push('/dinhduong/meal-plan'); 
@@ -49,7 +47,7 @@ export default function FavoriteDishesScreen() {
     }
   }, [showAIModal]);
 
-  const width = progress.interpolate({
+  const progressWidth = progress.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
@@ -61,6 +59,7 @@ export default function FavoriteDishesScreen() {
   const renderItem = ({ item }: { item: Dish }) => (
     <TouchableOpacity 
       style={styles.favCard}
+      activeOpacity={0.8}
       onPress={() => router.push({ pathname: "/dinhduong/analyze-dish", params: { name: item.name } })}
     >
       <Image source={{ uri: item.image }} style={styles.favImage} />
@@ -82,35 +81,8 @@ export default function FavoriteDishesScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        headerTitle: "Món Yêu Thích",
-        headerStyle: { backgroundColor: '#FFB6C1' },
-        headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '900' },
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-        ),
-      }} />
-
-      <View style={styles.aiSection}>
-        <TouchableOpacity 
-          style={styles.aiButton}
-          activeOpacity={0.8}
-          onPress={() => setShowAIModal(true)}
-        >
-          <View style={styles.aiIconCircle}>
-            <Ionicons name="sparkles" size={20} color="#FFF" />
-          </View>
-          <View style={styles.aiTextContent}>
-            <Text style={styles.aiBtnTitle}>AI Build lịch ăn uống</Text>
-            <Text style={styles.aiBtnSub}>Lên thực đơn 7 ngày từ món yêu thích</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
         data={favorites}
@@ -118,6 +90,40 @@ export default function FavoriteDishesScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listPadding}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={() => (
+          <View>
+            {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+            <View style={styles.customHeader}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+              </TouchableOpacity>
+              
+              <Text style={styles.headerTitle}>Món Yêu Thích</Text>
+              
+              <View style={{ width: 45 }} />
+            </View>
+
+            {/* --- AI SECTION --- */}
+            <View style={styles.aiSection}>
+              <TouchableOpacity 
+                style={styles.aiButton}
+                activeOpacity={0.8}
+                onPress={() => setShowAIModal(true)}
+              >
+                <View style={styles.aiIconCircle}>
+                  <Ionicons name="sparkles" size={20} color="#FFF" />
+                </View>
+                <View style={styles.aiTextContent}>
+                  <Text style={styles.aiBtnTitle}>AI Build lịch ăn uống</Text>
+                  <Text style={styles.aiBtnSub}>Lên thực đơn 7 ngày từ món yêu thích</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.listSectionTitle}>Danh sách của mẹ</Text>
+          </View>
+        )}
       />
 
       {/* --- CUSTOM BEAUTIFUL MODAL --- */}
@@ -135,14 +141,13 @@ export default function FavoriteDishesScreen() {
             
             <Text style={styles.modalTitle}>Đang khởi tạo thực đơn...</Text>
             <Text style={styles.modalSub}>
-              Trí tuệ nhân tạo đang phân tích dinh dưỡng từ danh sách yêu thích để thiết lập lộ trình ăn uống tối ưu cho 7 ngày tới.
+              AI đang phân tích dinh dưỡng để thiết lập lộ trình ăn uống tối ưu cho 7 ngày tới.
             </Text>
 
             <View style={styles.loadingBarContainer}>
-              <Animated.View style={[styles.loadingBarActive, { width }]} />
+              <Animated.View style={[styles.loadingBarActive, { width: progressWidth }]} />
             </View>
 
-            {/* Nút đóng dự phòng nếu người dùng không muốn đợi */}
             <TouchableOpacity 
               style={styles.closeModalBtn}
               onPress={() => setShowAIModal(false)}
@@ -152,14 +157,39 @@ export default function FavoriteDishesScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
-  headerBack: { marginLeft: 10 },
-  aiSection: { padding: 20, paddingBottom: 10 },
+  
+ /* --- HEADER CHUẨN ĐỒNG BỘ - ĐÃ TĂNG KHOẢNG CÁCH --- */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 65, // Tăng lên 65 để đảm bảo né mọi loại Notch/Dynamic Island
+    marginBottom: 20,
+    paddingHorizontal: 0,
+    paddingTop: 5, // Thêm đệm nhẹ phía trên chữ
+  },
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    width: 45, 
+    height: 45, // Tạo khung bấm rộng hơn cho dễ thao tác
+  },
+  headerTitle: {
+    flex: 1, 
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ff8fab', 
+    letterSpacing: 0.5,
+  },
+
+  aiSection: { paddingVertical: 10, marginBottom: 15 },
   aiButton: {
     backgroundColor: '#FF8FAB',
     flexDirection: 'row',
@@ -176,8 +206,22 @@ const styles = StyleSheet.create({
   aiBtnTitle: { color: '#FFF', fontSize: 17, fontWeight: '900' },
   aiBtnSub: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '600', marginTop: 2 },
 
+  listSectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A', marginBottom: 15 },
   listPadding: { paddingHorizontal: 20, paddingBottom: 40 },
-  favCard: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 25, padding: 12, marginBottom: 15, alignItems: 'center', elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.1 },
+  
+  favCard: { 
+    flexDirection: 'row', 
+    backgroundColor: '#FFF', 
+    borderRadius: 25, 
+    padding: 12, 
+    marginBottom: 15, 
+    alignItems: 'center', 
+    elevation: 4, 
+    shadowColor: '#FFB6C1', 
+    shadowOpacity: 0.1,
+    borderWidth: 1,
+    borderColor: '#f0f4f8'
+  },
   favImage: { width: 85, height: 85, borderRadius: 20 },
   infoContainer: { flex: 1, marginLeft: 15 },
   tagRow: { backgroundColor: '#FFF0F3', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 4 },

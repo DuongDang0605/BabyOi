@@ -1,19 +1,19 @@
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Phát triển', icon: 'https://png.pngtree.com/element_our/png_detail/20181205/health-sign-vector-icon-png_260808.jpg', route: '/phattrien/growth-charts' },
-  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
+{ id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
   { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
   { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/list' }, // Đã thêm đường dẫn
+  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' }, // Đã thêm đường dẫn
   { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
 ];
 
@@ -95,8 +95,11 @@ export default function AppHomeScreen() {
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
+     {/* --- Floating AI Button dùng Ionicons --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
-        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/8652/8652230.png' }} style={styles.aiIconAnime} />
+        <View style={{ backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 }}>
+          <Ionicons name="sparkles" size={20} color="#ff8fab" />
+        </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
     </View>

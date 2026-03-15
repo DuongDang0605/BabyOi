@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
-import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, router } from 'expo-router';
+import React, { useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // DATA: Ưu tiên ưu đãi trước, sau đó sắp xếp theo khoảng cách (< 15km)
-// ĐÃ SỬA GIÁ KHỚP VỚI MŨI IMOJEV
 const ALL_CLINICS = [
   // --- NHÓM CÓ ƯU ĐÃI (Xếp trên cùng) ---
   {
@@ -12,7 +11,7 @@ const ALL_CLINICS = [
     name: 'Phòng tiêm chủng Nhi Đồng',
     address: 'Đường Chùa Thông, Sơn Tây, Hà Nội',
     distance: 3.6,
-    price: '635.000đ', // Đã giảm 50k
+    price: '635.000đ', 
     hasDiscount: true,
     discountText: '🔥 Giảm 50K',
   },
@@ -67,13 +66,17 @@ export default function ClinicListScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- HEADER --- */}
+      {/* --- HEADER CHUẨN ĐỒNG BỘ NÉ NOTCH --- */}
       <View style={styles.customHeader}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#ff8fab" />
         </TouchableOpacity>
+        
         <Text style={styles.headerTitle}>Chọn Cơ Sở</Text>
-        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3209/3209995.png' }} style={styles.headerSticker} />
+        
+        {/* Bọc sticker vào 1 view width 45 để cân bằng với nút Back */}
+        <View style={styles.rightPlaceholder}>
+        </View>
       </View>
 
       {/* --- THANH TÌM KIẾM --- */}
@@ -138,145 +141,103 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fef9f3', 
   },
+  
+  /* --- HEADER CHUẨN ĐỒNG BỘ --- */
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 40,
-    marginBottom: 15,
+    marginTop: 70, // Tăng lên 70 để né camera đục lỗ sâu
+    marginBottom: 20,
     paddingHorizontal: 20,
   },
   backButton: {
     justifyContent: 'center',
     alignItems: 'flex-start',
-    paddingVertical: 5,
     width: 45, 
   },
+  rightPlaceholder: {
+    width: 45, // Bằng kích thước nút back để cân bằng 2 bên
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    flex: 1, 
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '900',
     color: '#ff8fab', 
     letterSpacing: 0.5,
-    zIndex: -1,
   },
   headerSticker: {
-    width: 45,
-    height: 45,
+    width: 40,
+    height: 40,
   },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 20,
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 18,
     paddingHorizontal: 15,
     borderWidth: 2,
     borderColor: '#f0f4f8',
     shadowColor: '#a7e4f5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
+  searchIcon: { marginRight: 10 },
   searchInput: {
     flex: 1,
     paddingVertical: 14,
     fontSize: 15,
     color: '#333333',
+    fontWeight: '600'
   },
-  scrollArea: {
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    marginBottom: 15,
-    paddingHorizontal: 5,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#5c7a8a',
-  },
+  
+  scrollArea: { paddingHorizontal: 20 },
+  sectionHeader: { marginBottom: 15, paddingHorizontal: 5 },
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#5c7a8a' },
+  
   clinicCard: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 16,
     marginBottom: 15,
     alignItems: 'center', 
     borderWidth: 2,
     borderColor: '#f0f4f8',
+    elevation: 3,
+    shadowColor: '#FFB6C1',
+    shadowOpacity: 0.1,
   },
-  clinicInfo: {
-    flex: 1,
-    paddingRight: 10, 
-  },
-  clinicNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap', 
-    marginBottom: 6,
-  },
-  clinicName: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#333333',
-    marginRight: 8,
-  },
-  discountBadge: {
-    backgroundColor: '#ffe08a',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginTop: 2,
-  },
-  discountBadgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#d46b08',
-  },
-  clinicAddress: {
-    fontSize: 13,
-    color: '#8899aa',
-    marginBottom: 10,
-    lineHeight: 18,
-  },
-  clinicMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  distance: {
-    fontSize: 12,
-    color: '#2e7d32', 
-    fontWeight: '800',
-    marginRight: 15,
-  },
-  clinicCardPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#ff8fab',
-  },
+  clinicInfo: { flex: 1, paddingRight: 10 },
+  clinicNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 },
+  clinicName: { fontSize: 16, fontWeight: '900', color: '#333333', marginRight: 8 },
+  
+  discountBadge: { backgroundColor: '#ffe08a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, marginTop: 2 },
+  discountBadgeText: { fontSize: 11, fontWeight: '900', color: '#d46b08' },
+  
+  clinicAddress: { fontSize: 13, color: '#8899aa', marginBottom: 10, lineHeight: 18, fontWeight: '600' },
+  clinicMetaRow: { flexDirection: 'row', alignItems: 'center' },
+  distance: { fontSize: 12, color: '#2e7d32', fontWeight: '800', marginRight: 15 },
+  clinicCardPrice: { fontSize: 14, fontWeight: '900', color: '#ff8fab' },
+  
   selectButton: {
     backgroundColor: '#ffb6c1', 
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 15,
     shadowColor: '#ffb6c1',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  selectButtonText: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 14,
-  },
+  selectButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
 });

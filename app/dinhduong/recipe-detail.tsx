@@ -13,7 +13,7 @@ export default function RecipeDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ headerTitle: "Cách chế biến", headerTransparent: true, headerTintColor: '#FFF', headerLeft: () => (
+      <Stack.Screen options={{ headerTitle: "", headerTransparent: true, headerTintColor: '#FFF', headerLeft: () => (
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color="#FF8FAB" /></TouchableOpacity>
       )}} />
       <ScrollView showsVerticalScrollIndicator={false}>
