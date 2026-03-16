@@ -16,6 +16,7 @@ import {
 const { width, height } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
+  { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' }, { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
   { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
@@ -38,23 +39,16 @@ export default function AppHomeScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        
-        {/* --- HEADER --- */}
+
+        {/* --- Header --- */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Chào mẹ bé Ốc! ✨</Text>
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.avatarFrame} 
-            onPress={toggleMenu}
-            activeOpacity={0.8}
-          >
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} 
-              style={styles.avatar} 
-            />
+          <View style={styles.avatarFrame}>
+            <Image source={require('../../assets/images/avt.png')}
+              style={styles.avatar} />
             <View style={styles.onlineDot} />
           </TouchableOpacity>
         </View>
@@ -75,8 +69,8 @@ export default function AppHomeScreen() {
         <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
           {MAIN_FEATURES.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               style={styles.gridItem}
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
@@ -88,14 +82,14 @@ export default function AppHomeScreen() {
 
         {/* --- PHẦN 2: TIỆN ÍCH THÊM --- */}
         <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalScrollContent}
         >
           {MORE_FEATURES.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               style={styles.slideItem}
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
@@ -109,59 +103,15 @@ export default function AppHomeScreen() {
 
         {/* --- TIP BOX --- */}
         <View style={styles.tipCard}>
-            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
-            <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
+          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
+          <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
         </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* --- MODAL MENU TÀI KHOẢN (THẺ TRƯỢT XUỐNG) --- */}
-      <Modal
-        visible={menuVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={toggleMenu}
-      >
-        <TouchableWithoutFeedback onPress={toggleMenu}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.menuContainer}>
-                {/* Mũi tên nhỏ phía trên menu */}
-                <View style={styles.menuArrow} />
-                
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); /* Chuyển trang */ }}>
-                  <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
-                    <Ionicons name="people" size={20} color="#2196F3" />
-                  </View>
-                  <Text style={styles.menuText}>Đổi hồ sơ theo dõi</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
-                  <View style={[styles.iconCircle, { backgroundColor: '#F3E5F5' }]}>
-                    <Ionicons name="settings" size={20} color="#9C27B0" />
-                  </View>
-                  <Text style={styles.menuText}>Cài đặt tài khoản</Text>
-                </TouchableOpacity>
-
-                <View style={styles.menuDivider} />
-
-                <TouchableOpacity 
-                  style={styles.menuItem} 
-                  onPress={() => { toggleMenu(); router.replace('/'); }}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
-                    <Ionicons name="log-out" size={20} color="#F44336" />
-                  </View>
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>Đăng xuất</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* --- FLOATING AI BUTTON --- */}
+      {/* --- Floating AI Button --- */}
+      {/* --- Floating AI Button dùng Ionicons --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
         <View style={styles.aiSparkleContainer}>
           <Ionicons name="sparkles" size={20} color="#ff8fab" />
@@ -247,12 +197,33 @@ const styles = StyleSheet.create({
   alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },
   sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  gridItem: { width: '47%', backgroundColor: '#FFF', paddingVertical: 20, borderRadius: 25, alignItems: 'center', marginBottom: 15, elevation: 3 },
+  gridItem: {
+    width: '47%',
+    backgroundColor: '#FFF',
+    paddingVertical: 20,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginBottom: 15,
+    elevation: 3,
+    shadowColor: '#A7E4F5',
+    shadowOpacity: 0.1,
+  },
   mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
   horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
   slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
-  slideIconCircle: { width: 70, height: 70, borderRadius: 25, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2 },
+  slideIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 25,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05
+  },
   slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
   slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
   tipCard: { backgroundColor: '#E8F9ED', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', marginTop: 10 },
