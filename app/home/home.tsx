@@ -1,42 +1,65 @@
-import { Stack, router } from 'expo-router';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, router } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
+} from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-{ id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
+  { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
   { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
   { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' }, // Đã thêm đường dẫn
+  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' },
   { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
 ];
 
 export default function AppHomeScreen() {
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const toggleMenu = () => setMenuVisible(!menuVisible);
+
   return (
     <View style={styles.mainContainer}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
-        {/* --- Header --- */}
+        {/* --- HEADER --- */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Chào mẹ bé Ốc! ✨</Text>
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
-          <View style={styles.avatarFrame}>
-            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} style={styles.avatar} />
+          
+          <TouchableOpacity 
+            style={styles.avatarFrame} 
+            onPress={toggleMenu}
+            activeOpacity={0.8}
+          >
+            <Image 
+              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} 
+              style={styles.avatar} 
+            />
             <View style={styles.onlineDot} />
-          </View>
+          </TouchableOpacity>
         </View>
 
-        {/* --- Alert Card --- */}
+        {/* --- ALERT CARD --- */}
         <View style={styles.alertCard}>
           <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }} style={styles.alertIconAnime} />
           <View style={styles.alertTextContent}>
@@ -48,7 +71,7 @@ export default function AppHomeScreen() {
           </View>
         </View>
 
-        {/* --- PHẦN 1: 4 CHỨC NĂNG CHÍNH --- */}
+        {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
         <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
           {MAIN_FEATURES.map((item) => (
@@ -63,7 +86,7 @@ export default function AppHomeScreen() {
           ))}
         </View>
 
-        {/* --- PHẦN 2: TIỆN ÍCH THÊM (ĐÃ SỬA LỖI BẤM) --- */}
+        {/* --- PHẦN 2: TIỆN ÍCH THÊM --- */}
         <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
         <ScrollView 
           horizontal 
@@ -74,7 +97,6 @@ export default function AppHomeScreen() {
             <TouchableOpacity 
               key={item.id} 
               style={styles.slideItem}
-              // THÊM DÒNG NÀY ĐỂ BẤM ĐƯỢC:
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
               <View style={styles.slideIconCircle}>
@@ -85,7 +107,7 @@ export default function AppHomeScreen() {
           ))}
         </ScrollView>
 
-        {/* --- Tip Box --- */}
+        {/* --- TIP BOX --- */}
         <View style={styles.tipCard}>
             <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
             <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
@@ -94,10 +116,54 @@ export default function AppHomeScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* --- Floating AI Button --- */}
-     {/* --- Floating AI Button dùng Ionicons --- */}
+      {/* --- MODAL MENU TÀI KHOẢN (THẺ TRƯỢT XUỐNG) --- */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={toggleMenu}
+      >
+        <TouchableWithoutFeedback onPress={toggleMenu}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.menuContainer}>
+                {/* Mũi tên nhỏ phía trên menu */}
+                <View style={styles.menuArrow} />
+                
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); /* Chuyển trang */ }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
+                    <Ionicons name="people" size={20} color="#2196F3" />
+                  </View>
+                  <Text style={styles.menuText}>Đổi hồ sơ theo dõi</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#F3E5F5' }]}>
+                    <Ionicons name="settings" size={20} color="#9C27B0" />
+                  </View>
+                  <Text style={styles.menuText}>Cài đặt tài khoản</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => { toggleMenu(); router.replace('/'); }}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
+                    <Ionicons name="log-out" size={20} color="#F44336" />
+                  </View>
+                  <Text style={[styles.menuText, { color: '#F44336' }]}>Đăng xuất</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* --- FLOATING AI BUTTON --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
-        <View style={{ backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 }}>
+        <View style={styles.aiSparkleContainer}>
           <Ionicons name="sparkles" size={20} color="#ff8fab" />
         </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
@@ -113,8 +179,64 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
   name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
   avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
-  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#2E7D32', borderWidth: 2, borderColor: '#FEF9F3' },
+  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#4CAF50', borderWidth: 2, borderColor: '#FEF9F3' },
   avatarFrame: { position: 'relative' },
+
+  // MODAL STYLES
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 135, // Đẩy menu xuống dưới Avatar
+    paddingRight: 20,
+  },
+  menuContainer: {
+    width: width * 0.6,
+    backgroundColor: '#FFF',
+    borderRadius: 25,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  menuArrow: {
+    position: 'absolute',
+    top: -10,
+    right: 25,
+    width: 20,
+    height: 20,
+    backgroundColor: '#FFF',
+    transform: [{ rotate: '45deg' }],
+    borderRadius: 4,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#5C7A8A',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 5,
+    marginHorizontal: 10,
+  },
 
   alertCard: { backgroundColor: '#FFB6C1', padding: 18, borderRadius: 30, marginBottom: 25, flexDirection: 'row', alignItems: 'center' },
   alertIconAnime: { width: 50, height: 50, marginRight: 12 },
@@ -123,46 +245,20 @@ const styles = StyleSheet.create({
   alertSubtitle: { fontSize: 13, color: '#FFF', marginBottom: 5 },
   alertDateBadge: { backgroundColor: '#FFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },
-
   sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
-
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  gridItem: { 
-    width: '47%', 
-    backgroundColor: '#FFF', 
-    paddingVertical: 20, 
-    borderRadius: 25, 
-    alignItems: 'center', 
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#A7E4F5',
-    shadowOpacity: 0.1,
-  },
+  gridItem: { width: '47%', backgroundColor: '#FFF', paddingVertical: 20, borderRadius: 25, alignItems: 'center', marginBottom: 15, elevation: 3 },
   mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
-
   horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
   slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
-  slideIconCircle: { 
-    width: 70, 
-    height: 70, 
-    borderRadius: 25, 
-    backgroundColor: '#FFF', 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05
-  },
+  slideIconCircle: { width: 70, height: 70, borderRadius: 25, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2 },
   slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
   slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
-
   tipCard: { backgroundColor: '#E8F9ED', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   tipSticker: { width: 40, height: 40, marginRight: 12 },
   tipText: { flex: 1, fontSize: 13, color: '#2E7D32', fontWeight: '600' },
-
   floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5 },
-  aiIconAnime: { width: 30, height: 30, marginRight: 8 },
+  aiSparkleContainer: { backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 },
   aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 16 },
 });
