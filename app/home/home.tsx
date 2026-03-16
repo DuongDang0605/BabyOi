@@ -13,14 +13,13 @@ import {
   View
 } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' }, { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
-  { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
+ { id: '1', title: 'Sức khỏe', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
   { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
+  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '#' },
 ];
 
 const MORE_FEATURES = [
@@ -46,9 +45,10 @@ export default function AppHomeScreen() {
             <Text style={styles.greeting}>Chào mẹ bé Ốc! ✨</Text>
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
-          <View style={styles.avatarFrame}>
-            <Image source={require('../../assets/images/avt.png')}
-              style={styles.avatar} />
+          
+          {/* ĐÃ SỬA: Đổi View thành TouchableOpacity để bấm được */}
+          <TouchableOpacity style={styles.avatarFrame} onPress={toggleMenu} activeOpacity={0.8}>
+            <Image source={require('../../assets/images/avt.png')} style={styles.avatar} />
             <View style={styles.onlineDot} />
           </TouchableOpacity>
         </View>
@@ -111,13 +111,56 @@ export default function AppHomeScreen() {
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
-      {/* --- Floating AI Button dùng Ionicons --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
         <View style={styles.aiSparkleContainer}>
           <Ionicons name="sparkles" size={20} color="#ff8fab" />
         </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
+
+      {/* --- ĐÃ BỔ SUNG: MODAL MENU DROPDOWN KHI BẤM VÀO AVATAR --- */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={toggleMenu}
+      >
+        <TouchableWithoutFeedback onPress={toggleMenu}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.menuContainer}>
+                {/* Mũi tên chỉ lên Avatar */}
+                <View style={styles.menuArrow} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/profile/profile'); }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#E8F9ED' }]}>
+                    <Ionicons name="person-outline" size={18} color="#2E7D32" />
+                  </View>
+                  <Text style={styles.menuText}>Hồ sơ của bé</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/setting/setting'); }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
+                    <Ionicons name="settings-outline" size={18} color="#2196F3" />
+                  </View>
+                  <Text style={styles.menuText}>Cài đặt</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.replace('/auth/login'); }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
+                    <Ionicons name="log-out-outline" size={18} color="#F44336" />
+                  </View>
+                  <Text style={[styles.menuText, { color: '#F44336' }]}>Đăng xuất</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -125,7 +168,7 @@ export default function AppHomeScreen() {
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContainer: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 60, marginBottom: 25 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 70, marginBottom: 25 }, // Tăng marginTop né notch
   greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
   name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
   avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
@@ -135,32 +178,31 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.3)', // Nền mờ phía sau menu
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 135, // Đẩy menu xuống dưới Avatar
+    paddingTop: 145, 
     paddingRight: 20,
   },
   menuContainer: {
-    width: width * 0.6,
+    width: width * 0.55,
     backgroundColor: '#FFF',
-    borderRadius: 25,
+    borderRadius: 20,
     padding: 10,
-    shadowColor: '#000',
+    shadowColor: '#FFB6C1',
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
   },
   menuArrow: {
     position: 'absolute',
-    top: -10,
-    right: 25,
-    width: 20,
-    height: 20,
+    top: -8,
+    right: 22,
+    width: 16,
+    height: 16,
     backgroundColor: '#FFF',
     transform: [{ rotate: '45deg' }],
-    borderRadius: 4,
   },
   menuItem: {
     flexDirection: 'row',
@@ -177,24 +219,25 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   menuText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#5C7A8A',
   },
   menuDivider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 5,
+    height: 1.5,
+    backgroundColor: '#F0F4F8',
+    marginVertical: 2,
     marginHorizontal: 10,
   },
 
-  alertCard: { backgroundColor: '#FFB6C1', padding: 18, borderRadius: 30, marginBottom: 25, flexDirection: 'row', alignItems: 'center' },
+  alertCard: { backgroundColor: '#FFB6C1', padding: 18, borderRadius: 30, marginBottom: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 },
   alertIconAnime: { width: 50, height: 50, marginRight: 12 },
   alertTextContent: { flex: 1 },
   alertTitle: { fontSize: 17, fontWeight: '900', color: '#FFF' },
   alertSubtitle: { fontSize: 13, color: '#FFF', marginBottom: 5 },
   alertDateBadge: { backgroundColor: '#FFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },
+  
   sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
   gridItem: {
@@ -207,9 +250,12 @@ const styles = StyleSheet.create({
     elevation: 3,
     shadowColor: '#A7E4F5',
     shadowOpacity: 0.1,
+    borderWidth: 1,
+    borderColor: '#f0f4f8'
   },
   mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
+  
   horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
   slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
   slideIconCircle: {
@@ -222,14 +268,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.05
+    shadowOpacity: 0.05,
+    borderWidth: 1,
+    borderColor: '#f0f4f8'
   },
   slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
   slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
+  
   tipCard: { backgroundColor: '#E8F9ED', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   tipSticker: { width: 40, height: 40, marginRight: 12 },
   tipText: { flex: 1, fontSize: 13, color: '#2E7D32', fontWeight: '600' },
-  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5 },
+  
+  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 8 },
   aiSparkleContainer: { backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 },
   aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 16 },
 });
