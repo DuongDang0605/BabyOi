@@ -1,21 +1,21 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Stack,router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 
 export default function LoginScreen() {
   return (
-    
-    <KeyboardAvoidingView 
+
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* --- KHU VỰC TIÊU ĐỀ & LOGO --- */}
         <View style={styles.headerContainer}>
-          <Image 
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3144/3144883.png' }} 
-            style={styles.logo} 
+          <Image
+            source={require('../../assets/images/logo1.png')}
+            style={styles.logo}
           />
           <Text style={styles.title}>Đăng Nhập</Text>
           <Text style={styles.subtitle}>Chào mừng mẹ đã quay lại với BabyOi! ✨</Text>
@@ -24,22 +24,22 @@ export default function LoginScreen() {
         {/* --- KHU VỰC NHẬP LIỆU --- */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>📧 Email của mẹ</Text>
-          <TextInput 
-            style={styles.inputRounded} 
-            placeholder="VD: mebau@gmail.com" 
+          <TextInput
+            style={styles.inputRounded}
+            placeholder="VD: mebau@gmail.com"
             placeholderTextColor="#b0bec5"
-            keyboardType="email-address" 
+            keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>🔒 Mật khẩu</Text>
-          <TextInput 
-            style={styles.inputRounded} 
-            placeholder="Nhập mật khẩu..." 
+          <TextInput
+            style={styles.inputRounded}
+            placeholder="Nhập mật khẩu..."
             placeholderTextColor="#b0bec5"
-            secureTextEntry={true} 
+            secureTextEntry={true}
           />
           {/* Nút quên mật khẩu */}
           <TouchableOpacity style={styles.forgotPassword}>
@@ -48,8 +48,8 @@ export default function LoginScreen() {
         </View>
 
         {/* --- NÚT XÁC NHẬN CHÍNH --- */}
-        <TouchableOpacity 
-          style={styles.loginButton} 
+        <TouchableOpacity
+          style={styles.loginButton}
           onPress={() => router.push('/home/home')} // Nhớ sửa đường dẫn này đúng với file home của bạn
         >
           <Text style={styles.loginButtonText}>Đăng Nhập 💖</Text>
@@ -66,18 +66,18 @@ export default function LoginScreen() {
         <View style={styles.socialContainer}>
           {/* Nút Google */}
           <TouchableOpacity style={styles.socialButton}>
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' }} 
-              style={styles.socialIcon} 
+            <Image
+              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' }}
+              style={styles.socialIcon}
             />
             <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
 
           {/* Nút Facebook */}
           <TouchableOpacity style={styles.socialButton}>
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124010.png' }} 
-              style={styles.socialIcon} 
+            <Image
+              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124010.png' }}
+              style={styles.socialIcon}
             />
             <Text style={styles.socialText}>Facebook</Text>
           </TouchableOpacity>

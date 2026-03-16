@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-{ id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
+  { id: '1', title: 'Phát triển', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' }, { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
   { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
 ];
@@ -23,7 +23,7 @@ export default function AppHomeScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        
+
         {/* --- Header --- */}
         <View style={styles.header}>
           <View>
@@ -31,7 +31,8 @@ export default function AppHomeScreen() {
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
           <View style={styles.avatarFrame}>
-            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' }} style={styles.avatar} />
+            <Image source={require('../../assets/images/avt.png')}
+              style={styles.avatar} />
             <View style={styles.onlineDot} />
           </View>
         </View>
@@ -52,8 +53,8 @@ export default function AppHomeScreen() {
         <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
         <View style={styles.gridContainer}>
           {MAIN_FEATURES.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               style={styles.gridItem}
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
@@ -65,14 +66,14 @@ export default function AppHomeScreen() {
 
         {/* --- PHẦN 2: TIỆN ÍCH THÊM (ĐÃ SỬA LỖI BẤM) --- */}
         <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalScrollContent}
         >
           {MORE_FEATURES.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               style={styles.slideItem}
               // THÊM DÒNG NÀY ĐỂ BẤM ĐƯỢC:
               onPress={() => item.route !== '#' && router.push(item.route as any)}
@@ -87,15 +88,15 @@ export default function AppHomeScreen() {
 
         {/* --- Tip Box --- */}
         <View style={styles.tipCard}>
-            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
-            <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
+          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
+          <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
         </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
-     {/* --- Floating AI Button dùng Ionicons --- */}
+      {/* --- Floating AI Button dùng Ionicons --- */}
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
         <View style={{ backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 }}>
           <Ionicons name="sparkles" size={20} color="#ff8fab" />
@@ -127,12 +128,12 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
 
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  gridItem: { 
-    width: '47%', 
-    backgroundColor: '#FFF', 
-    paddingVertical: 20, 
-    borderRadius: 25, 
-    alignItems: 'center', 
+  gridItem: {
+    width: '47%',
+    backgroundColor: '#FFF',
+    paddingVertical: 20,
+    borderRadius: 25,
+    alignItems: 'center',
     marginBottom: 15,
     elevation: 3,
     shadowColor: '#A7E4F5',
@@ -143,12 +144,12 @@ const styles = StyleSheet.create({
 
   horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
   slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
-  slideIconCircle: { 
-    width: 70, 
-    height: 70, 
-    borderRadius: 25, 
-    backgroundColor: '#FFF', 
-    justifyContent: 'center', 
+  slideIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 25,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
     elevation: 2,
