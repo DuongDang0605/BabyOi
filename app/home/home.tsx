@@ -16,16 +16,17 @@ import {
 const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
- { id: '1', title: 'Sức khỏe', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
-  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
-  { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '#' },
+  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/tiemchung.png'), route: '/lichtiem/listlichtiem' },
+  { id: '3', title: 'Dinh dưỡng', icon:require('../../assets/images/doan.png'), route: '/dinhduong/listdoan' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
-  { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' },
-  { id: '7', title: 'Đặt lịch khám', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
+  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/shop.png'), route: '#' },
+  { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/camnangicon.png'), route: '/camnang/camnang' },
+  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/booking.png'), route: '/datlich/doctor-booking' },
+  { id: '8', title: 'Giáo trình', icon: require('../../assets/images/edu.png'), route: '/AI/lesson-list' },
 ];
 
 export default function AppHomeScreen() {
@@ -46,7 +47,6 @@ export default function AppHomeScreen() {
             <Text style={styles.name}>8 tháng tuổi</Text>
           </View>
           
-          {/* ĐÃ SỬA: Đổi View thành TouchableOpacity để bấm được */}
           <TouchableOpacity style={styles.avatarFrame} onPress={toggleMenu} activeOpacity={0.8}>
             <Image source={require('../../assets/images/avt.png')} style={styles.avatar} />
             <View style={styles.onlineDot} />
@@ -74,7 +74,7 @@ export default function AppHomeScreen() {
               style={styles.gridItem}
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
-              <Image source={{ uri: item.icon }} style={styles.mainIcon} />
+              <Image source={item.icon } style={styles.mainIcon} />
               <Text style={styles.gridText}>{item.title}</Text>
             </TouchableOpacity>
           ))}
@@ -94,7 +94,7 @@ export default function AppHomeScreen() {
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
               <View style={styles.slideIconCircle}>
-                <Image source={{ uri: item.icon }} style={styles.slideIcon} />
+                <Image source={ item.icon } style={styles.slideIcon} />
               </View>
               <Text style={styles.slideText}>{item.title}</Text>
             </TouchableOpacity>
@@ -118,7 +118,7 @@ export default function AppHomeScreen() {
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
 
-      {/* --- ĐÃ BỔ SUNG: MODAL MENU DROPDOWN KHI BẤM VÀO AVATAR --- */}
+      {/* --- MODAL MENU DROPDOWN KHI BẤM VÀO AVATAR --- */}
       <Modal
         visible={menuVisible}
         transparent={true}
@@ -129,7 +129,6 @@ export default function AppHomeScreen() {
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
               <View style={styles.menuContainer}>
-                {/* Mũi tên chỉ lên Avatar */}
                 <View style={styles.menuArrow} />
 
                 <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/profile/profile'); }}>
@@ -168,7 +167,7 @@ export default function AppHomeScreen() {
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContainer: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 70, marginBottom: 25 }, // Tăng marginTop né notch
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 70, marginBottom: 25 },
   greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
   name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
   avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
@@ -178,7 +177,7 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)', // Nền mờ phía sau menu
+    backgroundColor: 'rgba(0,0,0,0.3)', 
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingTop: 145, 
