@@ -16,16 +16,16 @@ import {
 const { width } = Dimensions.get('window');
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Sức khỏe', icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png', route: '/phattrien/growth-charts' },
-  { id: '2', title: 'Sổ tiêm', icon: 'https://static.vecteezy.com/system/resources/previews/004/256/068/non_2x/vaccine-icon-medicine-1-vector.jpg', route: '/lichtiem/listlichtiem' },
-  { id: '3', title: 'Dinh dưỡng', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyM-d0xIGJgj4Bdg8OubgrFz-DY01YHsvIYQ&s', route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: 'https://cdn-icons-png.flaticon.com/512/10052/10052984.png', route: '/nhatki/nhatki' },
+  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/tiemchung.png'), route: '/lichtiem/listlichtiem' },
+  { id: '3', title: 'Dinh dưỡng', icon:require('../../assets/images/doan.png'), route: '/dinhduong/listdoan' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
-  { id: '5', title: 'Cửa hàng', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png', route: '#' },
-  { id: '6', title: 'Cẩm nang', icon: 'https://cdn-icons-png.flaticon.com/512/3306/3306613.png', route: '/camnang/camnang' },
-  { id: '7', title: 'Đặt lịch', icon: 'https://cdn-icons-png.flaticon.com/512/3144/3144467.png', route: '/datlich/doctor-booking' },
+  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/shop.png'), route: '#' },
+  { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/camnangicon.png'), route: '/camnang/camnang' },
+  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/booking.png'), route: '/datlich/doctor-booking' },
   { id: '8', title: 'Giáo trình', icon: require('../../assets/images/edu.png'), route: '/AI/lesson-list' },
 ];
 
@@ -74,7 +74,7 @@ export default function AppHomeScreen() {
               style={styles.gridItem}
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
-              <Image source={{ uri: item.icon }} style={styles.mainIcon} />
+              <Image source={item.icon } style={styles.mainIcon} />
               <Text style={styles.gridText}>{item.title}</Text>
             </TouchableOpacity>
           ))}
@@ -94,7 +94,7 @@ export default function AppHomeScreen() {
               onPress={() => item.route !== '#' && router.push(item.route as any)}
             >
               <View style={styles.slideIconCircle}>
-                <Image source={{ uri: item.icon }} style={styles.slideIcon} />
+                <Image source={ item.icon } style={styles.slideIcon} />
               </View>
               <Text style={styles.slideText}>{item.title}</Text>
             </TouchableOpacity>
