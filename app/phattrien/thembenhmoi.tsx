@@ -85,13 +85,22 @@ export default function AddIllnessScreen() {
           />
         </View>
 
-        <View style={{ height: 120 }} />
+        {/* Khoảng trống này được tăng lên để không bị che bởi 2 nút bên dưới */}
+        <View style={{ height: 180 }} /> 
       </ScrollView>
 
-      {/* --- NÚT LƯU LẠI --- */}
+      {/* --- CỤM NÚT LƯU LẠI & AI --- */}
       <View style={styles.bottomBar}>
+        {/* Nút AI quét hình ảnh mới thêm */}
+        <TouchableOpacity style={styles.aiButton} onPress={() => router.push('/phattrien/AIquetbenhan')}>
+          <Ionicons name="camera" size={20} color="#ff8fab" style={{ marginRight: 8 }} />
+          <Text style={styles.aiButtonText}>AI thêm hồ sơ bằng hình ảnh</Text>
+          <Ionicons name="sparkles" size={16} color="#ff8fab" style={{ marginLeft: 5, marginTop: -10 }} />
+        </TouchableOpacity>
+
+        {/* Nút lưu thủ công hiện tại */}
         <TouchableOpacity style={styles.saveButton} onPress={() => router.back()}>
-          <Text style={styles.saveButtonText}> Lưu ghi chép</Text>
+          <Text style={styles.saveButtonText}>Lưu ghi chép</Text>
         </TouchableOpacity>
       </View>
 
@@ -170,6 +179,26 @@ const styles = StyleSheet.create({
     paddingBottom: 35,
     backgroundColor: 'rgba(254, 249, 243, 0.95)',
   },
+  
+  /* --- STYLE NÚT AI MỚI --- */
+  aiButton: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ff8fab',
+    marginBottom: 12, // Tạo khoảng cách với nút lưu bên dưới
+    shadowColor: '#ff8fab',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiButtonText: { color: '#ff8fab', fontSize: 16, fontWeight: '900' },
+
   saveButton: {
     backgroundColor: '#ff8fab',
     paddingVertical: 16,

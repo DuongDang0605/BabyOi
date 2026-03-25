@@ -15,6 +15,7 @@ import {
   Platform
 } from 'react-native';
 
+// Dữ liệu gốc
 const INITIAL_LESSONS = [
   {
     id: '1',
@@ -22,8 +23,7 @@ const INITIAL_LESSONS = [
     status: 'completed', 
     time: 'Hoàn thành trong 7 ngày',
     note: '',
-    iconName: 'accessibility', // Icon hình người vươn tay
-    iconColor: '#FF9800', // Màu cam
+    icon: 'https://cdn-icons-png.flaticon.com/512/8280/8280846.png',
   },
   {
     id: '2',
@@ -31,8 +31,7 @@ const INITIAL_LESSONS = [
     status: 'completed_with_note', 
     time: 'Hoàn thành trong 14 ngày',
     note: 'Bé hay khóc ré lên sau 2 phút, mẹ phải bế vỗ.',
-    iconName: 'fitness', // Icon tập thể dục
-    iconColor: '#E91E63', // Màu hồng đậm
+    icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png',
   },
   {
     id: '3',
@@ -40,8 +39,7 @@ const INITIAL_LESSONS = [
     status: 'in_progress', 
     time: 'Đang học ngày 3/7',
     note: '',
-    iconName: 'moon', // Icon mặt trăng
-    iconColor: '#2196F3', // Màu xanh dương
+    icon: 'https://cdn-icons-png.flaticon.com/512/3094/3094851.png',
   },
   {
     id: '4',
@@ -49,8 +47,7 @@ const INITIAL_LESSONS = [
     status: 'locked', 
     time: 'Cần vượt qua Cổng kiểm tra',
     note: '',
-    iconName: 'restaurant', // Icon nĩa và dao
-    iconColor: '#4CAF50', // Màu xanh lá
+    icon: 'https://cdn-icons-png.flaticon.com/512/2722/2722527.png',
   }
 ];
 
@@ -123,14 +120,9 @@ export default function LessonListScreen() {
               </View>
 
               <View style={[styles.lessonCard, lesson.status === 'locked' && styles.lessonCardLocked]}>
-             <View style={styles.lessonHeader}>
+                <View style={styles.lessonHeader}>
                   <View style={[styles.iconBg, lesson.status === 'locked' && { backgroundColor: '#F0F4F8' }]}>
-                    {/* --- ĐÃ THAY BẰNG IONICONS SIÊU ỔN ĐỊNH --- */}
-                    <Ionicons 
-                      name={lesson.iconName as any} 
-                      size={24} 
-                      color={lesson.status === 'locked' ? '#B0BEC5' : lesson.iconColor} 
-                    />
+                    <Image source={{ uri: lesson.icon }} style={[styles.lessonIcon, lesson.status === 'locked' && { opacity: 0.3 }]} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={[styles.lessonTitle, lesson.status === 'locked' && { color: '#B0BEC5' }]}>{lesson.title}</Text>
