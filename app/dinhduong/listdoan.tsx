@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
+import { Dimensions, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-
-import { Dimensions, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AiPlannerCard } from '../../components/dinhduong/AiPlannerCard';
+import { DishCard } from '../../components/dinhduong/DishCard';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 50) / 2;
@@ -36,47 +37,9 @@ export default function ListDoAnScreen() {
     setRestrictedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const renderDishCard = (item: any, isRestricted: boolean) => (
-    <View style={[styles.dishCard, isRestricted && styles.restrictedCardEffect]}>
-      <TouchableOpacity 
-        disabled={isRestricted}
-        onPress={() => router.push({ pathname: "/dinhduong/analyze-dish", params: { id: item.id, name: item.name, image: item.image } })}
-      >
-        <View style={styles.imageBox}>
-          <Image source={{ uri: item.image }} style={[styles.dishImage, isRestricted && { opacity: 0.5 }]} />
-          <View style={[styles.tagBadge, isRestricted && { backgroundColor: '#ABBEC8' }]}><Text style={styles.tagText}>{item.tag}</Text></View>
-        </View>
-
-        <View style={styles.infoBox}>
-          <Text style={[styles.dishName, isRestricted && { color: '#ABBEC8' }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.dishDesc} numberOfLines={2}>{item.desc}</Text>
-          
-          <View style={styles.cardFooter}>
-            <View style={styles.starRow}>
-              <Ionicons name="star" size={10} color={!isRestricted ? "#FFB800" : "#E0E0E0"} />
-              <Text style={[styles.ratingText, isRestricted && { color: '#ABBEC8' }]}>{item.rating}.0</Text>
-            </View>
-
-            <View style={styles.actionButtons}>
-              {/* Nút Hạn chế / Hoàn tác */}
-              <TouchableOpacity 
-                style={[styles.actionBtn, { backgroundColor: isRestricted ? '#FF8FAB' : '#F0F2F5' }]} 
-                onPress={() => toggleRestriction(item.id)}
-              >
-                <Ionicons name={isRestricted ? "refresh" : "remove"} size={18} color={isRestricted ? "white" : "#5C7A8A"} />
-              </TouchableOpacity>
-
-              {!isRestricted && (
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFB6C1', marginLeft: 8 }]}>
-                  <Ionicons name="add" size={20} color="white" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+  const handleDishPress = (item: any) => {
+    router.push({ pathname: "/dinhduong/analyze-dish", params: { id: item.id, name: item.name, image: item.image } });
+  };
 
   return (
     <View style={styles.mainContainer}>
@@ -84,7 +47,14 @@ export default function ListDoAnScreen() {
       <FlatList
         ref={flatListRef}
         data={filteredDishes}
-        renderItem={({ item }) => renderDishCard(item, false)}
+        renderItem={({ item }) => (
+          <DishCard
+            item={item}
+            isRestricted={false}
+            onPress={handleDishPress}
+            onToggleRestriction={toggleRestriction}
+          />
+        )}
         keyExtractor={item => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
@@ -106,14 +76,7 @@ export default function ListDoAnScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.aiPlannerBox} onPress={() => router.push('/dinhduong/ai-planner')}>
-              <View style={styles.aiInfo}>
-                <View style={styles.aiTag}><Text style={styles.aiTagText}>AI SMART</Text></View>
-                <Text style={styles.aiTitle}>Trợ Lý Lên Lịch Ăn</Text>
-                <Text style={styles.aiSub}>Tự động thiết kế thực đơn khoa học cho 7 ngày</Text>
-              </View>
-              <View style={styles.aiIconBg}><Ionicons name="sparkles" size={28} color="#FFF" /></View>
-            </TouchableOpacity>
+            <AiPlannerCard onPress={() => router.push('/dinhduong/ai-planner')} />
 
             <View style={styles.navSection}>
               <TouchableOpacity style={styles.navBtn} onPress={() => router.push({pathname: '/dinhduong/WeeklyView', params: {target: activeTab}})}>
@@ -121,7 +84,6 @@ export default function ListDoAnScreen() {
                 <Text style={styles.navBtnText}>Lịch ăn</Text>
               </TouchableOpacity>
               
-              {/* NÚT YÊU THÍCH ĐÃ SỬA ĐƯỜNG DẪN */}
               <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/dinhduong/favorite-dishes')}>
                 <View style={[styles.iconCircle, {backgroundColor: '#FFB6C1'}]}><Ionicons name="heart" size={20} color="#FFF" /></View>
                 <Text style={styles.navBtnText}>Yêu thích</Text>
@@ -144,7 +106,14 @@ export default function ListDoAnScreen() {
                  <Text style={styles.restrictedSectionTitle}>Món ăn đã hạn chế</Text>
                  <View style={styles.restrictedGrid}>
                    {restrictedDishes.map(item => (
-                     <View key={item.id} style={styles.gridItem}>{renderDishCard(item, true)}</View>
+                     <View key={item.id} style={styles.gridItem}>
+                       <DishCard
+                        item={item}
+                        isRestricted={true}
+                        onPress={handleDishPress}
+                        onToggleRestriction={toggleRestriction}
+                      />
+                     </View>
                    ))}
                  </View>
                </>
@@ -169,36 +138,15 @@ const styles = StyleSheet.create({
   tabBtnActive: { backgroundColor: '#FFF' },
   tabText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
   tabTextActive: { color: '#FF8FAB' },
-  aiPlannerBox: { backgroundColor: '#FF8FAB', marginHorizontal: 20, marginTop: 20, borderRadius: 25, padding: 20, flexDirection: 'row', alignItems: 'center', elevation: 8 },
-  aiInfo: { flex: 1 },
-  aiTag: { backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 6 },
-  aiTagText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
-  aiTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  aiSub: { color: '#FFF', fontSize: 11, fontWeight: '500', opacity: 0.9, marginTop: 2 },
-  aiIconBg: { width: 50, height: 50, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   navSection: { flexDirection: 'row', justifyContent: 'space-around', padding: 20 },
   navBtn: { alignItems: 'center' },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 6, elevation: 3 },
   navBtnText: { fontSize: 11, fontWeight: '800', color: '#5C7A8A' },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A', marginLeft: 25, marginBottom: 15 },
   row: { justifyContent: 'space-between', paddingHorizontal: 20 },
-  dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 3, overflow: 'hidden' },
-  imageBox: { height: 105 },
-  dishImage: { width: '100%', height: '100%' },
-  tagBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,143,171,0.9)', paddingHorizontal: 8, borderRadius: 8 },
-  tagText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
-  infoBox: { padding: 12 },
-  dishName: { fontSize: 13, fontWeight: '800', color: '#FF8FAB' },
-  dishDesc: { fontSize: 10, color: '#5C7A8A', height: 28, marginTop: 2 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  starRow: { flexDirection: 'row', alignItems: 'center' },
-  ratingText: { fontSize: 10, fontWeight: 'bold', color: '#FFB800', marginLeft: 3 },
-  actionButtons: { flexDirection: 'row', alignItems: 'center' },
-  actionBtn: { width: 30, height: 30, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   restrictedSection: { marginTop: 20 },
   divider: { height: 2, backgroundColor: '#FFE5EC', marginHorizontal: 40, marginBottom: 20 },
   restrictedSectionTitle: { fontSize: 16, fontWeight: '900', color: '#ABBEC8', marginLeft: 25, marginBottom: 15 },
   restrictedGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, justifyContent: 'space-between' },
   gridItem: { width: cardWidth },
-  restrictedCardEffect: { opacity: 0.8, elevation: 0, borderWidth: 1, borderColor: '#F0F0F0' }
 });

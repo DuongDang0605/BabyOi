@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { ClinicCard } from '../../components/clinic/ClinicCard';
+import { CustomHeader } from '../../components/common/CustomHeader';
 
 // DATA: Ưu tiên ưu đãi trước, sau đó sắp xếp theo khoảng cách (< 15km)
 const ALL_CLINICS = [
@@ -62,22 +65,17 @@ const ALL_CLINICS = [
 export default function ClinicListScreen() {
   const [searchText, setSearchText] = useState('');
 
+  const filteredClinics = ALL_CLINICS.filter(clinic =>
+    clinic.name.toLowerCase().includes(searchText.toLowerCase()) ||
+    clinic.address.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- HEADER CHUẨN ĐỒNG BỘ NÉ NOTCH --- */}
-      <View style={styles.customHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
-        </TouchableOpacity>
-        
-        <Text style={styles.headerTitle}>Chọn Cơ Sở</Text>
-        
-        {/* Bọc sticker vào 1 view width 45 để cân bằng với nút Back */}
-        <View style={styles.rightPlaceholder}>
-        </View>
-      </View>
+      {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+      <CustomHeader title="Chọn Cơ Sở" />
 
       {/* --- THANH TÌM KIẾM --- */}
       <View style={styles.searchContainer}>
@@ -98,36 +96,12 @@ export default function ClinicListScreen() {
         </View>
 
         {/* --- DANH SÁCH CƠ SỞ --- */}
-        {ALL_CLINICS.map((clinic) => (
-          <View key={clinic.id} style={styles.clinicCard}>
-            
-            <View style={styles.clinicInfo}>
-              <View style={styles.clinicNameRow}>
-                <Text style={styles.clinicName}>{clinic.name}</Text>
-                {clinic.hasDiscount && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountBadgeText}>{clinic.discountText}</Text>
-                  </View>
-                )}
-              </View>
-              
-              <Text style={styles.clinicAddress}>{clinic.address}</Text>
-              
-              <View style={styles.clinicMetaRow}>
-                <Text style={styles.distance}>🚗 Cách {clinic.distance} km</Text>
-                <Text style={styles.clinicCardPrice}>{clinic.price}</Text>
-              </View>
-            </View>
-
-            {/* Nút Chọn */}
-            <TouchableOpacity 
-              style={styles.selectButton}
-              onPress={() => router.back()} // Bấm Chọn thì lùi về trang trước
-            >
-              <Text style={styles.selectButtonText}>Chọn</Text>
-            </TouchableOpacity>
-            
-          </View>
+        {filteredClinics.map((clinic) => (
+          <ClinicCard
+            key={clinic.id}
+            clinic={clinic}
+            onSelect={() => router.back()}
+          />
         ))}
 
         <View style={{ height: 40 }}></View>
@@ -141,39 +115,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fef9f3', 
   },
-  
-  /* --- HEADER CHUẨN ĐỒNG BỘ --- */
-  customHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 70, // Tăng lên 70 để né camera đục lỗ sâu
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    width: 45, 
-  },
-  rightPlaceholder: {
-    width: 45, // Bằng kích thước nút back để cân bằng 2 bên
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1, 
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#ff8fab', 
-    letterSpacing: 0.5,
-  },
-  headerSticker: {
-    width: 40,
-    height: 40,
-  },
-
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -198,46 +139,7 @@ const styles = StyleSheet.create({
     color: '#333333',
     fontWeight: '600'
   },
-  
   scrollArea: { paddingHorizontal: 20 },
   sectionHeader: { marginBottom: 15, paddingHorizontal: 5 },
   sectionTitle: { fontSize: 16, fontWeight: '900', color: '#5c7a8a' },
-  
-  clinicCard: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 15,
-    alignItems: 'center', 
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
-    elevation: 3,
-    shadowColor: '#FFB6C1',
-    shadowOpacity: 0.1,
-  },
-  clinicInfo: { flex: 1, paddingRight: 10 },
-  clinicNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 },
-  clinicName: { fontSize: 16, fontWeight: '900', color: '#333333', marginRight: 8 },
-  
-  discountBadge: { backgroundColor: '#ffe08a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, marginTop: 2 },
-  discountBadgeText: { fontSize: 11, fontWeight: '900', color: '#d46b08' },
-  
-  clinicAddress: { fontSize: 13, color: '#8899aa', marginBottom: 10, lineHeight: 18, fontWeight: '600' },
-  clinicMetaRow: { flexDirection: 'row', alignItems: 'center' },
-  distance: { fontSize: 12, color: '#2e7d32', fontWeight: '800', marginRight: 15 },
-  clinicCardPrice: { fontSize: 14, fontWeight: '900', color: '#ff8fab' },
-  
-  selectButton: {
-    backgroundColor: '#ffb6c1', 
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 15,
-    shadowColor: '#ffb6c1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  selectButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
 });

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// DỮ LIỆU GIẢ LẬP: Các bài viết từ Admin/Staff
+import { HandbookCard } from '../../components/camnang/HandbookCard';
+
 const HANDBOOK_POSTS = [
   {
     id: 'p1',
@@ -44,26 +45,28 @@ export default function HandbookScreen() {
   const [activeCategory, setActiveCategory] = useState('Tất cả');
   const categories = ['Tất cả', 'Dinh dưỡng', 'Sức khỏe', 'Giấc ngủ', 'Mẹo vặt'];
 
+  const filteredPosts = activeCategory === 'Tất cả'
+    ? HANDBOOK_POSTS
+    : HANDBOOK_POSTS.filter(p => p.category === activeCategory);
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         
-        {/* --- HEADER CHUẨN ĐỒNG BỘ --- */}
+        {/* --- HEADER --- */}
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
           </TouchableOpacity>
-          
           <Text style={styles.headerTitle}>Cẩm Nang</Text>
-          
           <TouchableOpacity style={styles.searchButton}>
             <Ionicons name="search" size={24} color="#ff8fab" />
           </TouchableOpacity>
         </View>
 
-        {/* --- THANH PHÂN LOẠI (CATEGORIES) --- */}
+        {/* --- CATEGORIES --- */}
         <View style={styles.categoryWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {categories.map((cat) => (
@@ -80,63 +83,14 @@ export default function HandbookScreen() {
           </ScrollView>
         </View>
 
-        {/* --- DANH SÁCH BÀI VIẾT --- */}
-        {HANDBOOK_POSTS.map((post) => (
-          <View key={post.id} style={styles.articleCard}>
-            
-            {/* Ảnh cover của bài viết */}
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: post.image }} style={styles.coverImage} />
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{post.category}</Text>
-              </View>
-            </View>
-
-            {/* Thông tin tác giả & Tiêu đề */}
-            <View style={styles.cardContent}>
-              <View style={styles.authorRow}>
-                <View style={styles.authorAvatar}>
-                  <FontAwesome5 name="user-md" size={14} color="#fff" />
-                </View>
-                <View>
-                  <Text style={styles.authorName}>{post.author} <Text style={styles.authorRole}>• {post.role}</Text></Text>
-                  <Text style={styles.postDate}>{post.date}</Text>
-                </View>
-              </View>
-
-              <Text style={styles.articleTitle}>{post.title}</Text>
-              <Text style={styles.articleSnippet} numberOfLines={2}>{post.snippet}</Text>
-            </View>
-
-            {/* THANH TƯƠNG TÁC: Bình luận & Chia sẻ */}
-            <View style={styles.interactionBar}>
-              
-              <TouchableOpacity 
-                style={styles.interactionBtn}
-                onPress={() => {
-                  // Mở sang trang Bình luận (bạn nhớ check lại đường dẫn cho khớp với tên file của bạn nhé)
-                  router.push('/camnang/comment'); 
-                  
-                  // Nâng cao: Sau này nếu muốn truyền ID bài viết sang để tải data thật, bạn dùng dòng này:
-                  // router.push({ pathname: '/camnang/binh-luan', params: { id: post.id } });
-                }}
-              >
-                <Ionicons name="chatbubbles-outline" size={20} color="#5c7a8a" />
-                <Text style={styles.interactionText}>Bình luận ({post.comments})</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.interactionBtn}
-                onPress={() => {
-                  alert("Đang gọi API mở Facebook/Zalo để chia sẻ bài viết này...");
-                }}
-              >
-                <Ionicons name="share-social-outline" size={22} color="#ff8fab" />
-                <Text style={[styles.interactionText, { color: '#ff8fab' }]}>Chia sẻ</Text>
-              </TouchableOpacity>
-
-            </View>
-
-          </View>
+        {/* --- ARTICLE LIST --- */}
+        {filteredPosts.map((post) => (
+          <HandbookCard
+            key={post.id}
+            post={post}
+            onCommentPress={() => router.push('/camnang/comment')}
+            onSharePress={() => alert("Chia sẻ bài viết thành công!")}
+          />
         ))}
 
         <View style={{ height: 40 }} />
@@ -146,170 +100,16 @@ export default function HandbookScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fef9f3',
-  },
-  scrollArea: {
-    padding: 20, // Chuẩn layout đồng bộ
-  },
-  /* --- HEADER CHUẨN --- */
-  customHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 40,
-    marginBottom: 20,
-  },
-  backButton: {
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingVertical: 5,
-    width: 45, 
-  },
-  searchButton: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingVertical: 5,
-    width: 45, 
-  },
-  headerTitle: {
-    flex: 1, 
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#ff8fab', 
-    letterSpacing: 0.5,
-  },
-  /* --- THANH PHÂN LOẠI (CATEGORIES) --- */
-  categoryWrapper: {
-    marginBottom: 25,
-    marginHorizontal: -5, // Bù trừ nhẹ để vuốt trông mượt hơn
-  },
-  catPill: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    marginHorizontal: 5,
-    borderWidth: 1.5,
-  },
-  catPillActive: {
-    backgroundColor: '#ffb6c1',
-    borderColor: '#ffb6c1',
-  },
-  catPillInactive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#f0f4f8',
-  },
-  catTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  catTextInactive: {
-    color: '#7a8c99',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  /* --- BÀI VIẾT (ARTICLE CARD) --- */
-  articleCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    marginBottom: 25,
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
-    shadowColor: '#a7e4f5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3,
-    overflow: 'hidden', // Quan trọng để ảnh không tràn ra ngoài viền bo tròn
-  },
-  imageContainer: {
-    width: '100%',
-    height: 180,
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 15,
-    left: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  categoryBadgeText: {
-    color: '#d46b08',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  cardContent: {
-    padding: 18,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  authorAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#ff9c6e',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  authorName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#334455',
-  },
-  authorRole: {
-    fontSize: 12,
-    color: '#a3d9b1',
-    fontWeight: '700',
-  },
-  postDate: {
-    fontSize: 12,
-    color: '#8899aa',
-    marginTop: 2,
-  },
-  articleTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#2c3e50',
-    marginBottom: 8,
-    lineHeight: 24,
-  },
-  articleSnippet: {
-    fontSize: 14,
-    color: '#5c7a8a',
-    lineHeight: 22,
-  },
-  /* --- THANH TƯƠNG TÁC --- */
-  interactionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around', 
-    borderTopWidth: 1.5,
-    borderTopColor: '#f0f4f8',
-    paddingVertical: 12,
-    backgroundColor: '#fafbfc',
-  },
-  interactionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-  },
-  interactionText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#5c7a8a',
-    marginLeft: 8, 
-  },
+  container: { flex: 1, backgroundColor: '#fef9f3' },
+  scrollArea: { padding: 20 },
+  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 20 },
+  backButton: { width: 45 },
+  searchButton: { width: 45, alignItems: 'flex-end' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
+  categoryWrapper: { marginBottom: 25, marginHorizontal: -5 },
+  catPill: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 20, marginHorizontal: 5, borderWidth: 1.5 },
+  catPillActive: { backgroundColor: '#ffb6c1', borderColor: '#ffb6c1' },
+  catPillInactive: { backgroundColor: '#ffffff', borderColor: '#f0f4f8' },
+  catTextActive: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
+  catTextInactive: { color: '#7a8c99', fontWeight: '600', fontSize: 14 },
 });
