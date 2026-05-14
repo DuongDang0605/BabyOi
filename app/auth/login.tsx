@@ -1,96 +1,120 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Stack, router } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+import { ApiError, login } from '@/lib/api';
+import { setAuthSession } from '@/lib/auth-session';
 
 export default function LoginScreen() {
-  return (
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [formError, setFormError] = useState('');
 
+  async function handleLogin() {
+    setEmailError('');
+    setPasswordError('');
+    setFormError('');
+
+    try {
+      setSubmitting(true);
+      const response = await login({
+        email: email.trim(),
+        password,
+      });
+
+      await setAuthSession(response);
+      router.replace('/home/home');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        if (error.errors?.email || error.errors?.password) {
+          setEmailError(error.errors?.email ?? '');
+          setPasswordError(error.errors?.password ?? '');
+        } else {
+          setFormError(error.message);
+        }
+      } else {
+        setFormError('Dang nhap that bai.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        {/* --- KHU VỰC TIÊU ĐỀ & LOGO --- */}
         <View style={styles.headerContainer}>
-          <Image
-            source={require('../../assets/images/logo1.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.title}>Đăng Nhập</Text>
-          <Text style={styles.subtitle}>Chào mừng mẹ đã quay lại với BabyOi! ✨</Text>
+          <Image source={require('../../assets/images/logo1.png')} style={styles.logo} />
+          <Text style={styles.title}>Dang nhap</Text>
+          <Text style={styles.subtitle}>Dang nhap hoac tao tai khoan moi de vao BabyOi</Text>
         </View>
 
-        {/* --- KHU VỰC NHẬP LIỆU --- */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>📧 Email của mẹ</Text>
+          <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.inputRounded}
-            placeholder="VD: mebau@gmail.com"
+            placeholder="mebau@gmail.com"
             placeholderTextColor="#b0bec5"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
           />
+          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>🔒 Mật khẩu</Text>
+          <Text style={styles.label}>Mat khau</Text>
           <TextInput
             style={styles.inputRounded}
-            placeholder="Nhập mật khẩu..."
+            placeholder="Nhap mat khau"
             placeholderTextColor="#b0bec5"
-            secureTextEntry={true}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
           />
-          {/* Nút quên mật khẩu */}
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotText}>Quên mật khẩu?</Text>
-          </TouchableOpacity>
+          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
 
-        {/* --- NÚT XÁC NHẬN CHÍNH --- */}
+        {!!formError && !emailError && !passwordError && <Text style={styles.formErrorText}>{formError}</Text>}
+
         <TouchableOpacity
-          style={styles.loginButton}
-          onPress={() => router.push('/home/home')} // Nhớ sửa đường dẫn này đúng với file home của bạn
+          style={[styles.loginButton, submitting && styles.disabledButton]}
+          onPress={handleLogin}
+          disabled={submitting}
         >
-          <Text style={styles.loginButtonText}>Đăng Nhập 💖</Text>
+          {submitting ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Dang nhap</Text>
+          )}
         </TouchableOpacity>
 
-        {/* --- DẢI PHÂN CÁCH --- */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.line} />
-          <Text style={styles.orText}>Hoặc đăng nhập bằng</Text>
-          <View style={styles.line} />
-        </View>
-
-        {/* --- NÚT ĐĂNG NHẬP MẠNG XÃ HỘI --- */}
-        <View style={styles.socialContainer}>
-          {/* Nút Google */}
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Google</Text>
-          </TouchableOpacity>
-
-          {/* Nút Facebook */}
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124010.png' }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Facebook</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* --- NÚT ĐĂNG KÝ (DÀNH CHO NGƯỜI MỚI) --- */}
         <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>Mẹ chưa có tài khoản? </Text>
-          <TouchableOpacity>
-            <Text style={styles.registerLink}>Đăng ký ngay</Text>
+          <Text style={styles.registerText}>Chua co tai khoan? </Text>
+          <TouchableOpacity onPress={() => router.push('/auth/register')}>
+            <Text style={styles.registerLink}>Dang ky ngay</Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -99,144 +123,111 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fef9f3', // Nền kem sữa pastel đồng bộ
+    backgroundColor: '#fef9f3',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 25,
+    padding: 24,
   },
-  /* --- TIÊU ĐỀ --- */
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 28,
   },
   logo: {
     width: 120,
     height: 120,
-    marginBottom: 5,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '900',
-    color: '#ff8fab', // Hồng pastel đậm
+    color: '#ff8fab',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#5c7a8a', // Xanh xám dịu mắt
+    fontSize: 14,
+    color: '#5c7a8a',
     textAlign: 'center',
     fontWeight: '600',
   },
-  /* --- NHẬP LIỆU --- */
+  baseUrl: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#8899aa',
+  },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   label: {
     fontSize: 15,
     fontWeight: '700',
     color: '#5c7a8a',
     marginBottom: 8,
-    marginLeft: 5,
+    marginLeft: 4,
   },
   inputRounded: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 15,
-    borderRadius: 25, // Bo tròn mạnh
+    borderRadius: 22,
     fontSize: 16,
     color: '#333333',
     borderWidth: 2,
     borderColor: '#f0f4f8',
-    // Bóng đổ nhẹ
-    shadowColor: '#a7e4f5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  errorText: {
     marginTop: 8,
-    marginRight: 5,
+    marginLeft: 4,
+    color: '#d64545',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  forgotText: {
-    fontSize: 14,
-    color: '#ff8fab',
-    fontWeight: 'bold',
+  formErrorText: {
+    marginBottom: 6,
+    color: '#d64545',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  /* --- NÚT ĐĂNG NHẬP --- */
   loginButton: {
-    backgroundColor: '#ff8fab', // Nút hồng phấn
+    backgroundColor: '#ff8fab',
     paddingVertical: 16,
-    borderRadius: 30,
+    borderRadius: 28,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#ffb6c1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 4,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '900',
-    letterSpacing: 0.5,
   },
-  /* --- DẢI PHÂN CÁCH --- */
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  line: {
-    flex: 1,
-    height: 1.5,
-    backgroundColor: '#f0f4f8',
-  },
-  orText: {
-    marginHorizontal: 15,
-    color: '#8899aa',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  /* --- MẠNG XÃ HỘI --- */
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  hintBox: {
+    marginTop: 24,
     backgroundColor: '#ffffff',
-    width: '47%',
-    paddingVertical: 14,
-    borderRadius: 20,
-    borderWidth: 2,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
     borderColor: '#f0f4f8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
-  socialIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 10,
-  },
-  socialText: {
-    fontSize: 15,
-    fontWeight: '700',
+  hintTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: '#5c7a8a',
+    marginBottom: 8,
   },
-  /* --- ĐĂNG KÝ --- */
+  hintText: {
+    fontSize: 13,
+    color: '#5c7a8a',
+    marginBottom: 4,
+  },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 40,
+    marginTop: 28,
   },
   registerText: {
     fontSize: 15,
@@ -244,7 +235,7 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     fontSize: 15,
-    fontWeight: 'bold',
-    color: '#ff8fab', // Chữ Đăng ký màu hồng nhấn mạnh
+    fontWeight: '800',
+    color: '#ff8fab',
   },
 });
