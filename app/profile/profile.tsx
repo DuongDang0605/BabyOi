@@ -1,103 +1,114 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { getCurrentUser, logout } from '@/lib/api';
-import { clearAuthSession, getAccessToken, hydrateAuthSession } from '@/lib/auth-session';
-
-type ProfileData = {
-  id: number;
-  userName: string;
-  email: string;
-  role: string | null;
-};
+import { CustomHeader } from '../../components/common/CustomHeader';
+import { ProfileInfo } from '../../components/profile/ProfileInfo';
+import { StatCard } from '../../components/profile/StatCard';
 
 export default function ProfileScreen() {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const babyData = {
+    name: "Bé Ốc (Gia Bảo)",
+    dob: "01/07/2025",
+    gender: "Nam",
+    avatar: require('../../assets/images/avt.png'),
+    weight: 8.5,
+    height: 72,
+    vaccineDone: 4,
+  };
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile() {
-      try {
-        const session = await hydrateAuthSession();
-        if (!session?.accessToken) {
-          router.replace('/auth/login');
-          return;
-        }
-
-        const user = await getCurrentUser(session.accessToken);
-        if (mounted) {
-          setProfile(user);
-        }
-      } catch (error) {
-        await clearAuthSession();
-        if (mounted) {
-          Alert.alert('Phien dang nhap het han', 'Vui long dang nhap lai.');
-          router.replace('/auth/login');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadProfile();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  async function handleLogout() {
-    try {
-      setLoggingOut(true);
-      const token = getAccessToken();
-      if (token) {
-        await logout(token);
-      }
-    } catch {
-    } finally {
-      await clearAuthSession();
-      router.replace('/auth/login');
-      setLoggingOut(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#ff8fab" />
-        <Text style={styles.loadingText}>Dang tai thong tin tai khoan...</Text>
-      </View>
-    );
-  }
+  const menuOptions = [
+    { id: '1', title: 'Sổ tiêm chủng', icon: 'shield-checkmark-outline', color: '#4CAF50', route: '/lichtiem/listlichtiem' },
+    { id: '2', title: 'Lịch sử sức khỏe', icon: 'pulse-outline', color: '#2196F3', route: '/phattrien/health-history' },
+    { id: '3', title: 'Nhật ký khoảnh khắc', icon: 'book-outline', color: '#FF9800', route: '/nhatki/nhatki' },
+    { id: '4', title: 'Cài đặt tài khoản', icon: 'settings-outline', color: '#7a8c99', route: '/setting/setting' },
+  ];
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Ho so', headerShadowVisible: false }} />
-      <View style={styles.card}>
-        <Text style={styles.title}>Thong tin tai khoan</Text>
-        <Text style={styles.label}>User name</Text>
-        <Text style={styles.value}>{profile?.userName ?? '-'}</Text>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{profile?.email ?? '-'}</Text>
-        <Text style={styles.label}>Role</Text>
-        <Text style={styles.value}>{profile?.role ?? '-'}</Text>
+      <Stack.Screen options={{ headerShown: false }} />
 
+      {/* --- HEADER --- */}
+      <CustomHeader
+        title="Hồ Sơ Của Bé"
+        rightElement={
+          <TouchableOpacity onPress={() => router.push('/setting/setting')}>
+            <Ionicons name="settings-outline" size={24} color="#ff8fab" />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* --- THÔNG TIN CƠ BẢN --- */}
+        <ProfileInfo
+          name={babyData.name}
+          dob={babyData.dob}
+          gender={babyData.gender}
+          avatarSource={babyData.avatar}
+          onEditPress={() => console.log("Edit Avatar")}
+        />
+
+        {/* --- THỐNG KÊ NHANH --- */}
+        <View style={styles.statsRow}>
+          <StatCard
+            label="Cân nặng"
+            value={`${babyData.weight}kg`}
+            icon="speedometer-outline"
+            color="#FF8FAB"
+          />
+          <StatCard
+            label="Chiều cao"
+            value={`${babyData.height}cm`}
+            icon="resize-outline"
+            color="#FFD166"
+          />
+        </View>
+        <View style={[styles.statsRow, { marginTop: 15 }]}>
+          <StatCard
+            label="Mũi đã tiêm"
+            value={babyData.vaccineDone}
+            icon="checkmark-circle-outline"
+            color="#4CAF50"
+          />
+          <StatCard
+            label="BMI"
+            value="16.4"
+            icon="bar-chart-outline"
+            color="#A7E4F5"
+          />
+        </View>
+
+        {/* --- DANH SÁCH TÙY CHỌN --- */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Tiện ích & Quản lý</Text>
+          {menuOptions.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.menuItem}
+              onPress={() => router.push(item.route as any)}
+            >
+              <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
+                <Ionicons name={item.icon as any} size={22} color={item.color} />
+              </View>
+              <Text style={styles.menuText}>{item.title}</Text>
+              <Ionicons name="chevron-forward" size={18} color="#CCC" />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* --- NÚT ĐĂNG XUẤT --- */}
         <TouchableOpacity
-          style={[styles.logoutButton, loggingOut && styles.disabledButton]}
-          onPress={handleLogout}
-          disabled={loggingOut}
+          style={styles.logoutBtn}
+          onPress={() => router.replace('/auth/login')}
         >
-          <Text style={styles.logoutButtonText}>
-            {loggingOut ? 'Dang dang xuat...' : 'Dang xuat'}
-          </Text>
+          <Ionicons name="log-out-outline" size={20} color="#F44336" />
+          <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
-      </View>
+
+        <View style={{ height: 50 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -105,59 +116,62 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fef9f3',
-    padding: 24,
-    justifyContent: 'center',
+    backgroundColor: '#FEF9F3',
   },
-  centered: {
-    flex: 1,
-    backgroundColor: '#fef9f3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  loadingText: {
-    marginTop: 16,
-    color: '#5c7a8a',
-    fontWeight: '700',
+  statsRow: {
+    flexDirection: 'row',
+    gap: 15,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#f0f4f8',
+  menuSection: {
+    marginTop: 35,
   },
-  title: {
-    fontSize: 24,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '900',
-    color: '#ff8fab',
-    marginBottom: 20,
+    color: '#5C7A8A',
+    marginBottom: 15,
+    marginLeft: 5,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8899aa',
-    marginTop: 12,
-  },
-  value: {
-    fontSize: 17,
-    color: '#334155',
-    marginTop: 4,
-  },
-  logoutButton: {
-    marginTop: 28,
-    backgroundColor: '#ff8fab',
-    paddingVertical: 14,
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 15,
     borderRadius: 20,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 15,
   },
-  disabledButton: {
-    opacity: 0.7,
+  menuText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#334455',
   },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '900',
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingVertical: 15,
+    gap: 8,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#F44336',
   },
 });

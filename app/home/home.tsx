@@ -3,7 +3,6 @@ import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Dimensions,
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,12 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+
+import { AlertCard } from '../../components/home/AlertCard';
+import { FeatureGrid } from '../../components/home/FeatureGrid';
+import { HomeHeader } from '../../components/home/HomeHeader';
+import { MoreFeatures } from '../../components/home/MoreFeatures';
+import { TipBox } from '../../components/home/TipBox';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +39,12 @@ export default function AppHomeScreen() {
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
 
+  const handleFeaturePress = (route: string) => {
+    if (route !== '#') {
+      router.push(route as any);
+    }
+  };
+
   return (
     <View style={styles.mainContainer}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -41,71 +52,38 @@ export default function AppHomeScreen() {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
 
         {/* --- Header --- */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Chào mẹ bé Ốc! ✨</Text>
-            <Text style={styles.name}>8 tháng tuổi</Text>
-          </View>
-          
-          <TouchableOpacity style={styles.avatarFrame} onPress={toggleMenu} activeOpacity={0.8}>
-            <Image source={require('../../assets/images/avt.png')} style={styles.avatar} />
-            <View style={styles.onlineDot} />
-          </TouchableOpacity>
-        </View>
+        <HomeHeader
+          babyName="bé Ốc"
+          babyAge="8 tháng tuổi"
+          avatarSource={require('../../assets/images/avt.png')}
+          onAvatarPress={toggleMenu}
+        />
 
         {/* --- ALERT CARD --- */}
-        <View style={styles.alertCard}>
-          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }} style={styles.alertIconAnime} />
-          <View style={styles.alertTextContent}>
-            <Text style={styles.alertTitle}>Lịch tiêm nhắc bé</Text>
-            <Text style={styles.alertSubtitle}>Mũi Sởi đơn (Lúc 9 tháng)</Text>
-            <View style={styles.alertDateBadge}>
-              <Text style={styles.alertDateText}>Còn 30 ngày nữa!</Text>
-            </View>
-          </View>
-        </View>
+        <AlertCard
+          title="Lịch tiêm nhắc bé"
+          subtitle="Mũi Sởi đơn (Lúc 9 tháng)"
+          badgeText="Còn 30 ngày nữa!"
+        />
 
         {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
-        <Text style={styles.sectionTitle}>Chăm sóc bé 🧸</Text>
-        <View style={styles.gridContainer}>
-          {MAIN_FEATURES.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.gridItem}
-              onPress={() => item.route !== '#' && router.push(item.route as any)}
-            >
-              <Image source={item.icon } style={styles.mainIcon} />
-              <Text style={styles.gridText}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <FeatureGrid
+          title="Chăm sóc bé 🧸"
+          features={MAIN_FEATURES}
+          onFeaturePress={handleFeaturePress}
+        />
 
         {/* --- PHẦN 2: TIỆN ÍCH THÊM --- */}
-        <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Tiện ích thêm ✨</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScrollContent}
-        >
-          {MORE_FEATURES.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.slideItem}
-              onPress={() => item.route !== '#' && router.push(item.route as any)}
-            >
-              <View style={styles.slideIconCircle}>
-                <Image source={ item.icon } style={styles.slideIcon} />
-              </View>
-              <Text style={styles.slideText}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <MoreFeatures
+          title="Tiện ích thêm ✨"
+          features={MORE_FEATURES}
+          onFeaturePress={handleFeaturePress}
+        />
 
         {/* --- TIP BOX --- */}
-        <View style={styles.tipCard}>
-          <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.tipSticker} />
-          <Text style={styles.tipText}>Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!</Text>
-        </View>
+        <TipBox
+          tip="Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!"
+        />
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -167,12 +145,6 @@ export default function AppHomeScreen() {
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContainer: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 70, marginBottom: 25 },
-  greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
-  name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
-  avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
-  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#4CAF50', borderWidth: 2, borderColor: '#FEF9F3' },
-  avatarFrame: { position: 'relative' },
 
   // MODAL STYLES
   modalOverlay: {
@@ -229,55 +201,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
-  alertCard: { backgroundColor: '#FFB6C1', padding: 18, borderRadius: 30, marginBottom: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 },
-  alertIconAnime: { width: 50, height: 50, marginRight: 12 },
-  alertTextContent: { flex: 1 },
-  alertTitle: { fontSize: 17, fontWeight: '900', color: '#FFF' },
-  alertSubtitle: { fontSize: 13, color: '#FFF', marginBottom: 5 },
-  alertDateBadge: { backgroundColor: '#FFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
-  alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },
-  
-  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 15 },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  gridItem: {
-    width: '47%',
-    backgroundColor: '#FFF',
-    paddingVertical: 20,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#A7E4F5',
-    shadowOpacity: 0.1,
-    borderWidth: 1,
-    borderColor: '#f0f4f8'
-  },
-  mainIcon: { width: 60, height: 60, marginBottom: 8, resizeMode: 'contain' },
-  gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
-  
-  horizontalScrollContent: { paddingRight: 20, paddingBottom: 10 },
-  slideItem: { width: 100, alignItems: 'center', marginRight: 15 },
-  slideIconCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 25,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    borderWidth: 1,
-    borderColor: '#f0f4f8'
-  },
-  slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
-  slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
-  
-  tipCard: { backgroundColor: '#E8F9ED', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  tipSticker: { width: 40, height: 40, marginRight: 12 },
-  tipText: { flex: 1, fontSize: 13, color: '#2E7D32', fontWeight: '600' },
-  
   floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 8 },
   aiSparkleContainer: { backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 },
   aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 16 },

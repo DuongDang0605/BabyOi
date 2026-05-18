@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Modal,
   ScrollView,
@@ -14,6 +13,8 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+
+import { LessonCard } from '../../components/ai/LessonCard';
 
 // Dữ liệu gốc
 const INITIAL_LESSONS = [
@@ -52,16 +53,12 @@ const INITIAL_LESSONS = [
 ];
 
 export default function LessonListScreen() {
-  // Đưa dữ liệu vào State để có thể cập nhật
   const [lessons, setLessons] = useState(INITIAL_LESSONS);
-  
-  // Các state quản lý việc Edit (Cập nhật)
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNote, setEditNote] = useState('');
 
-  // Mở bảng cập nhật
   const handleOpenEdit = (lesson: any) => {
     setEditingLesson(lesson);
     setEditStatus(lesson.status);
@@ -69,7 +66,6 @@ export default function LessonListScreen() {
     setEditModalVisible(true);
   };
 
-  // Lưu lại cập nhật
   const handleSaveEdit = () => {
     setLessons(lessons.map(l => 
       l.id === editingLesson.id 
@@ -107,63 +103,13 @@ export default function LessonListScreen() {
         
         <View style={styles.timelineContainer}>
           {lessons.map((lesson, index) => (
-            <View key={lesson.id} style={styles.lessonRow}>
-              
-              <View style={styles.timelineLine}>
-                <View style={[
-                  styles.dot, 
-                  lesson.status === 'completed' ? styles.dotCompleted :
-                  lesson.status === 'completed_with_note' ? styles.dotWarning :
-                  lesson.status === 'in_progress' ? styles.dotProgress : styles.dotLocked
-                ]} />
-                {index !== lessons.length - 1 && <View style={styles.line} />}
-              </View>
-
-              <View style={[styles.lessonCard, lesson.status === 'locked' && styles.lessonCardLocked]}>
-                <View style={styles.lessonHeader}>
-                  <View style={[styles.iconBg, lesson.status === 'locked' && { backgroundColor: '#F0F4F8' }]}>
-                    <Image source={{ uri: lesson.icon }} style={[styles.lessonIcon, lesson.status === 'locked' && { opacity: 0.3 }]} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[styles.lessonTitle, lesson.status === 'locked' && { color: '#B0BEC5' }]}>{lesson.title}</Text>
-                    <Text style={styles.lessonTime}>{lesson.time}</Text>
-                  </View>
-                  
-                  {/* Trạng thái Icon */}
-                  {lesson.status === 'completed' && <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />}
-                  {lesson.status === 'completed_with_note' && <Ionicons name="warning" size={24} color="#FF9800" />}
-                  {lesson.status === 'in_progress' && <ActivityIndicator size="small" color="#2196F3" />}
-                  {lesson.status === 'locked' && <Ionicons name="lock-closed" size={24} color="#B0BEC5" />}
-
-                 {/* --- KHU VỰC NÚT BẤM (Sửa & Lịch sử) --- */}
-                  {lesson.status !== 'locked' && (
-                    <View style={{ flexDirection: 'row', marginLeft: 10 }}>
-                      {/* Nút Xem Lịch Sử */}
-                      <TouchableOpacity 
-                        style={[styles.editBtn, { backgroundColor: '#E3F2FD', marginRight: 8 }]} 
-                        onPress={() => router.push('/AI/lesson-history')}
-                      >
-                        <Ionicons name="time-outline" size={18} color="#2196F3" />
-                      </TouchableOpacity>
-
-                      {/* Nút Cập nhật (Sửa) */}
-                      <TouchableOpacity style={styles.editBtn} onPress={() => handleOpenEdit(lesson)}>
-                        <Ionicons name="pencil" size={18} color="#FF8FAB" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-
-                {/* Ghi chú */}
-                {lesson.note ? (
-                  <View style={styles.noteBox}>
-                    <Ionicons name="document-text-outline" size={16} color="#FF9800" style={{ marginRight: 5 }} />
-                    <Text style={styles.noteText}>Ghi chú: {lesson.note}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-            </View>
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              isLast={index === lessons.length - 1}
+              onEditPress={handleOpenEdit}
+              onHistoryPress={() => router.push('/AI/lesson-history')}
+            />
           ))}
         </View>
 
@@ -234,61 +180,33 @@ export default function LessonListScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ... Các style cũ giữ nguyên ...
   container: { flex: 1, backgroundColor: '#FEF9F3' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 60, paddingHorizontal: 20, paddingBottom: 15 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2 },
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB' },
   scrollContent: { paddingHorizontal: 20 },
-  
   summaryCard: { backgroundColor: '#FFF0F5', padding: 20, borderRadius: 25, marginBottom: 25, borderWidth: 1, borderColor: '#FFB6C1' },
   summaryHeader: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#FFF' },
   summaryTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 5 },
   summaryText: { fontSize: 13, color: '#5C7A8A', lineHeight: 20, fontWeight: '600' },
-
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A', marginBottom: 15, marginLeft: 5 },
   timelineContainer: { paddingLeft: 10 },
-  lessonRow: { flexDirection: 'row', marginBottom: 15 },
-  timelineLine: { width: 30, alignItems: 'center', marginRight: 10 },
-  dot: { width: 14, height: 14, borderRadius: 7, zIndex: 1 },
-  dotCompleted: { backgroundColor: '#4CAF50', borderWidth: 3, borderColor: '#E8F9ED' },
-  dotWarning: { backgroundColor: '#FF9800', borderWidth: 3, borderColor: '#FFF3E0' },
-  dotProgress: { backgroundColor: '#2196F3', borderWidth: 3, borderColor: '#E3F2FD' },
-  dotLocked: { backgroundColor: '#B0BEC5', borderWidth: 3, borderColor: '#F0F4F8' },
-  line: { flex: 1, width: 2, backgroundColor: '#E0E0E0', marginTop: -5, marginBottom: -15 },
-
-  lessonCard: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 20, elevation: 2 },
-  lessonCardLocked: { backgroundColor: '#F9FAFB', elevation: 0, borderWidth: 1, borderColor: '#F0F4F8' },
-  lessonHeader: { flexDirection: 'row', alignItems: 'center' },
-  iconBg: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#FFF0F5', justifyContent: 'center', alignItems: 'center' },
-  lessonIcon: { width: 28, height: 28 },
-  lessonTitle: { fontSize: 15, fontWeight: '800', color: '#333', marginBottom: 3 },
-  lessonTime: { fontSize: 12, color: '#8899AA', fontWeight: '600' },
-  noteBox: { marginTop: 12, padding: 10, backgroundColor: '#FFF3E0', borderRadius: 10, flexDirection: 'row', alignItems: 'flex-start' },
-  noteText: { flex: 1, fontSize: 13, color: '#E65100', lineHeight: 18, fontWeight: '600' },
   bottomBar: { position: 'absolute', bottom: 0, width: '100%', padding: 20, backgroundColor: '#FEF9F3', borderTopWidth: 1, borderColor: '#F0F4F8' },
   aiAssessButton: { flexDirection: 'row', backgroundColor: '#FF8FAB', paddingVertical: 18, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
   aiAssessText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-
-  // --- STYLE MỚI CHO EDIT ---
-  editBtn: { marginLeft: 15, padding: 8, backgroundColor: '#FFF0F5', borderRadius: 12 },
-  
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBox: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, elevation: 10 },
   modalTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB', marginBottom: 5 },
   modalSubtitle: { fontSize: 15, color: '#5C7A8A', fontWeight: '700', marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '800', color: '#333', marginBottom: 10, marginTop: 10 },
-  
   statusGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statusPill: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#F0F4F8', borderRadius: 20 },
   pillText: { fontSize: 13, fontWeight: '800', color: '#8899AA' },
   pillCompleted: { backgroundColor: '#4CAF50' },
   pillWarning: { backgroundColor: '#FF9800' },
   pillProgress: { backgroundColor: '#2196F3' },
-
   textInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F0F4F8', borderRadius: 15, padding: 15, minHeight: 80, textAlignVertical: 'top', fontSize: 14, color: '#333', marginTop: 5 },
-  
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 25, gap: 10 },
   cancelBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 20, backgroundColor: '#F0F4F8' },
   cancelText: { color: '#8899AA', fontWeight: '800' },
