@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { clearAuthSession } from './auth-session';
+import { clearAuthSession, getAccessToken } from './auth-session';
 
 export type AuthResponse = {
   accessToken: string;
@@ -21,6 +21,13 @@ export type RegisterPayload = {
   userName: string;
   email: string;
   password: string;
+};
+
+export type VaccineTypeResponse = {
+  id: number;
+  name: string;
+  description: string | null;
+  requiredAge: number | null;
 };
 
 type ErrorPayload = {
@@ -93,13 +100,20 @@ async function parseError(response: Response) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -131,16 +145,13 @@ export function register(payload: RegisterPayload) {
   });
 }
 
-export function logout(token: string) {
+export function logout() {
   return request<void>('/api/auth/logout', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
 }
 
-export function getCurrentUser(token: string) {
+export function getCurrentUser() {
   return request<{
     id: number;
     userName: string;
@@ -148,8 +159,29 @@ export function getCurrentUser(token: string) {
     role: string | null;
   }>('/api/users/me', {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  });
+}
+
+export function getVaccineTypes(keyword?: string) {
+  const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : '';
+  return request<VaccineTypeResponse[]>(`/api/vaccine-types${query}`, {
+    method: 'GET',
+  });
+}
+
+export type VaccineRecordRequest = {
+  profileId: number;
+  vaccineTypeId: number;
+  injectionDate: string;
+  location?: string;
+  note?: string;
+  price?: number;
+  status: number;
+};
+
+export function createVaccineRecord(payload: VaccineRecordRequest) {
+  return request<any>('/api/vaccine-records', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
