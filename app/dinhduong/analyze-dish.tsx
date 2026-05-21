@@ -185,7 +185,7 @@ export default function AnalyzeDishScreen() {
 
           <View style={styles.analyzeCard}>
             <View style={styles.imageCircleContainer}>
-              {/* Vòng quay nguyên liệu cũ */}
+              {/* Vòng quay nguyên liệu  ắiruiweriwi  cũ */}
               {ingredients.map((ing, index) => {
                 const initialAngle = (index * (360 / ingredients.length));
                 const rotation = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: [`${initialAngle}deg`, `${initialAngle + 360}deg`] });

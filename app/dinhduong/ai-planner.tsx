@@ -8,7 +8,7 @@ type Step = 'WHO' | 'CURRENT_GOAL' | 'DATA_SOURCE' | 'INPUT_METRICS' | 'FUTURE_G
 
 export default function AIPlannerScreen() {
   const [step, setStep] = useState<Step>('WHO');
-  const [target, setTarget] = useState<'Mẹ' | 'Bé' | ''>('');
+  const [target, setTarget] =    useState<'Mẹ' | 'Bé' | ''>('');
   const [currentGoal, setCurrentGoal] = useState(''); // Mục tiêu loại hình thực đơn
   const [futureGoal, setFutureGoal] = useState('');   // Mục tiêu con số mong muốn
   const [messages, setMessages] = useState([
