@@ -37,6 +37,13 @@
             "backgroundColor": "#FEF9F3" 
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BabyOi cần quyền truy cập thư viện ảnh để chọn ảnh hồ sơ.",
+          "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ."
+        }
       ]
     ],
     "experiments": {

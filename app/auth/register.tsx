@@ -48,7 +48,7 @@ export default function RegisterScreen() {
       });
 
       await setAuthSession(response);
-      router.replace('/home/home');
+      router.replace('/profile/select-profile');
     } catch (error) {
       if (error instanceof ApiError) {
         setUserNameError(error.errors?.userName ?? '');

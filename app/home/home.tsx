@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   Dimensions,
   Modal,
@@ -17,8 +17,24 @@ import { FeatureGrid } from '../../components/home/FeatureGrid';
 import { HomeHeader } from '../../components/home/HomeHeader';
 import { MoreFeatures } from '../../components/home/MoreFeatures';
 import { TipBox } from '../../components/home/TipBox';
+import { ProfileResponse } from '../../lib/api';
+import { clearAuthSession } from '../../lib/auth-session';
+import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const { width } = Dimensions.get('window');
+
+function parseProfileDate(dateOfBirth: string) {
+  const value = dateOfBirth.trim();
+  const usDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (usDate) {
+    return new Date(Number(usDate[3]), Number(usDate[1]) - 1, Number(usDate[2]));
+  }
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (isoDate) {
+    return new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+  }
+  return new Date(Number.NaN);
+}
 
 const MAIN_FEATURES = [
   { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
@@ -36,14 +52,43 @@ const MORE_FEATURES = [
 
 export default function AppHomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
+
+  useFocusEffect(useCallback(() => {
+    let mounted = true;
+
+    async function loadSelectedProfile() {
+      const profile = getSelectedProfile() || await hydrateSelectedProfile();
+      if (mounted) {
+        setActiveProfile(profile);
+      }
+    }
+
+    loadSelectedProfile();
+    return () => {
+      mounted = false;
+    };
+  }, []));
 
   const handleFeaturePress = (route: string) => {
     if (route !== '#') {
       router.push(route as any);
     }
   };
+
+  const handleLogout = async () => {
+    await clearSelectedProfile();
+    await clearAuthSession();
+    router.replace('/auth/login');
+  };
+
+  const profileName = activeProfile?.name || 'Mẹ';
+  const profileAge = activeProfile ? getProfileSubtitle(activeProfile) : 'Chọn hồ sơ để bắt đầu';
+  const profileAvatar = activeProfile?.imageUrl
+    ? { uri: activeProfile.imageUrl }
+    : require('../../assets/images/avt.png');
 
   return (
     <View style={styles.mainContainer}>
@@ -53,9 +98,9 @@ export default function AppHomeScreen() {
 
         {/* --- Header --- */}
         <HomeHeader
-          babyName="bé Ốc"
-          babyAge="8 tháng tuổi"
-          avatarSource={require('../../assets/images/avt.png')}
+          babyName={profileName}
+          babyAge={profileAge}
+          avatarSource={profileAvatar}
           onAvatarPress={toggleMenu}
         />
 
@@ -118,6 +163,15 @@ export default function AppHomeScreen() {
 
                 <View style={styles.menuDivider} />
 
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/profile/select-profile'); }}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#FFF4D6' }]}>
+                    <Ionicons name="people-outline" size={18} color="#FF9800" />
+                  </View>
+                  <Text style={styles.menuText}>Đổi hồ sơ</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
                 <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/setting/setting'); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
                     <Ionicons name="settings-outline" size={18} color="#2196F3" />
@@ -127,7 +181,7 @@ export default function AppHomeScreen() {
 
                 <View style={styles.menuDivider} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.replace('/auth/login'); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); handleLogout(); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
                     <Ionicons name="log-out-outline" size={18} color="#F44336" />
                   </View>
@@ -140,6 +194,22 @@ export default function AppHomeScreen() {
       </Modal>
     </View>
   );
+}
+
+function getProfileSubtitle(profile: ProfileResponse) {
+  const dob = parseProfileDate(profile.dateOfBirth);
+  if (Number.isNaN(dob.getTime())) {
+    return profile.profileType === 'MOTHER' ? 'Hồ sơ mẹ' : 'Hồ sơ bé';
+  }
+
+  const now = new Date();
+  const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth());
+  if (profile.profileType === 'CHILD') {
+    return months < 24 ? `${months} tháng tuổi` : '2 tuổi';
+  }
+
+  const years = now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+  return `${years} tuổi`;
 }
 
 const styles = StyleSheet.create({

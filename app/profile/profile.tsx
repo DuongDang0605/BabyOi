@@ -1,22 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React from 'react';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { ProfileInfo } from '../../components/profile/ProfileInfo';
 import { StatCard } from '../../components/profile/StatCard';
+import { ProfileResponse } from '../../lib/api';
+import { clearAuthSession } from '../../lib/auth-session';
+import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 export default function ProfileScreen() {
-  const babyData = {
-    name: "Bé Ốc (Gia Bảo)",
-    dob: "01/07/2025",
-    gender: "Nam",
-    avatar: require('../../assets/images/avt.png'),
-    weight: 8.5,
-    height: 72,
-    vaccineDone: 4,
-  };
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    let mounted = true;
+
+    async function loadProfile() {
+      const selected = getSelectedProfile() || await hydrateSelectedProfile();
+      if (mounted) {
+        setProfile(selected);
+      }
+    }
+
+    loadProfile();
+    return () => {
+      mounted = false;
+    };
+  }, []));
 
   const menuOptions = [
     { id: '1', title: 'Sổ tiêm chủng', icon: 'shield-checkmark-outline', color: '#4CAF50', route: '/lichtiem/listlichtiem' },
@@ -24,6 +35,17 @@ export default function ProfileScreen() {
     { id: '3', title: 'Nhật ký khoảnh khắc', icon: 'book-outline', color: '#FF9800', route: '/nhatki/nhatki' },
     { id: '4', title: 'Cài đặt tài khoản', icon: 'settings-outline', color: '#7a8c99', route: '/setting/setting' },
   ];
+
+  const displayName = profile?.name || 'Chưa chọn hồ sơ';
+  const displayDob = profile?.dateOfBirth || 'Chưa có ngày sinh';
+  const displayGender = profile?.sex === 'MALE' ? 'Nam' : profile?.sex === 'FEMALE' ? 'Nữ' : 'Khác';
+  const displayAvatar = profile?.imageUrl ? { uri: profile.imageUrl } : require('../../assets/images/avt.png');
+
+  const handleLogout = async () => {
+    await clearSelectedProfile();
+    await clearAuthSession();
+    router.replace('/auth/login');
+  };
 
   return (
     <View style={styles.container}>
@@ -43,24 +65,24 @@ export default function ProfileScreen() {
 
         {/* --- THÔNG TIN CƠ BẢN --- */}
         <ProfileInfo
-          name={babyData.name}
-          dob={babyData.dob}
-          gender={babyData.gender}
-          avatarSource={babyData.avatar}
-          onEditPress={() => console.log("Edit Avatar")}
+          name={displayName}
+          dob={displayDob}
+          gender={displayGender}
+          avatarSource={displayAvatar}
+          onEditPress={() => router.push('/profile/select-profile')}
         />
 
         {/* --- THỐNG KÊ NHANH --- */}
         <View style={styles.statsRow}>
           <StatCard
             label="Cân nặng"
-            value={`${babyData.weight}kg`}
+            value="-"
             icon="speedometer-outline"
             color="#FF8FAB"
           />
           <StatCard
             label="Chiều cao"
-            value={`${babyData.height}cm`}
+            value="-"
             icon="resize-outline"
             color="#FFD166"
           />
@@ -68,7 +90,7 @@ export default function ProfileScreen() {
         <View style={[styles.statsRow, { marginTop: 15 }]}>
           <StatCard
             label="Mũi đã tiêm"
-            value={babyData.vaccineDone}
+            value="-"
             icon="checkmark-circle-outline"
             color="#4CAF50"
           />
@@ -101,7 +123,7 @@ export default function ProfileScreen() {
         {/* --- NÚT ĐĂNG XUẤT --- */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => router.replace('/auth/login')}
+          onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#F44336" />
           <Text style={styles.logoutText}>Đăng xuất</Text>

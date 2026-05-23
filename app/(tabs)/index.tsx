@@ -19,10 +19,10 @@ export default function WelcomeScreen() {
           return;
         }
 
-        await getCurrentUser(savedSession.accessToken);
+        await getCurrentUser();
 
         if (mounted) {
-          router.replace('/home/home');
+          router.replace('/profile/select-profile');
         }
       } catch {
         await clearAuthSession();
