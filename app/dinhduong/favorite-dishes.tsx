@@ -4,6 +4,7 @@ import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { CustomHeader } from '../../components/common/CustomHeader';
 import { FoodResponse, deleteFavoriteFood, getFavoriteFoods, getFoodDetail, resolveAssetUrl } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 
@@ -112,7 +113,8 @@ export default function FavoriteDishesScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerTitle: 'Món Yêu Thích', headerTintColor: '#FF8FAB' }} />
+      <Stack.Screen options={{ headerShown: false }} />
+      <CustomHeader title="Món Yêu Thích" />
       {loading ? (
         <View style={styles.stateBox}>
           <ActivityIndicator color="#FF8FAB" />

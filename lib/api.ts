@@ -23,6 +23,34 @@ export type RegisterPayload = {
   password: string;
 };
 
+export type ProfileResponse = {
+  id: number;
+  userId: number;
+  name: string;
+  dateOfBirth: string;
+  sex: 'MALE' | 'FEMALE' | 'OTHER' | string;
+  profileType: 'MOTHER' | 'CHILD' | string;
+  profileCode: string | null;
+  functionCode: string | null;
+  imageUrl: string | null;
+  status: number | null;
+  createdAt: string | null;
+  createdBy: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
+export type ProfilePayload = {
+  userId: number;
+  name: string;
+  dateOfBirth: string;
+  sex: 'MALE' | 'FEMALE' | 'OTHER';
+  profileType: 'MOTHER' | 'CHILD';
+  profileCode?: string | null;
+  functionCode?: string | null;
+  imageUrl?: string | null;
+};
+
 /* =========================
    VACCINE TYPES
 ========================= */
@@ -343,6 +371,36 @@ export function getCurrentUser() {
     role: string | null;
   }>('/api/users/me', {
     method: 'GET',
+  });
+}
+
+/* =========================
+   PROFILE API
+========================= */
+
+export function getProfilesByUserId(userId: number | string) {
+  return request<ProfileResponse[]>(`/api/profiles/user/${userId}`, {
+    method: 'GET',
+  });
+}
+
+export function createProfile(payload: ProfilePayload) {
+  return request<ProfileResponse>('/api/profiles', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateProfile(profileId: number | string, payload: ProfilePayload) {
+  return request<ProfileResponse>(`/api/profiles/${profileId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteProfile(profileId: number | string) {
+  return request<void>(`/api/profiles/${profileId}`, {
+    method: 'DELETE',
   });
 }
 

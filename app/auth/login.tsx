@@ -37,7 +37,7 @@ export default function LoginScreen() {
       });
 
       await setAuthSession(response);
-      router.replace('/home/home');
+      router.replace('/profile/select-profile');
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.errors?.email || error.errors?.password) {
