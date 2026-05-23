@@ -1,9 +1,10 @@
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
 
 import { getCurrentUser } from '@/lib/api';
 import { clearAuthSession, hydrateAuthSession } from '@/lib/auth-session';
+import { ensureCurrentUserSelectedProfile } from '@/lib/profile-session';
 
 export default function WelcomeScreen() {
   const [checkingSession, setCheckingSession] = useState(true);
@@ -20,9 +21,10 @@ export default function WelcomeScreen() {
         }
 
         await getCurrentUser();
+        await ensureCurrentUserSelectedProfile();
 
         if (mounted) {
-          router.replace('/profile/select-profile');
+          router.replace('/home/home');
         }
       } catch {
         await clearAuthSession();
