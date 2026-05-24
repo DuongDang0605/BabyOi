@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -13,14 +12,21 @@ import {
     View
 } from 'react-native';
 
+import { useNotification } from '../../lib/notification';
+
 export default function UpdateIndexScreen() {
   // Quản lý trạng thái nhập liệu
+  const { showNotification } = useNotification();
   const [height, setHeight] = useState('100');
   const [weight, setWeight] = useState('15');
   const [headCircumference, setHeadCircumference] = useState('45');
 
   const handleSave = () => {
-    Alert.alert("Thành công", "Chỉ số của bé đã được cập nhật!");
+    showNotification({
+      type: 'success',
+      title: 'Cập nhật thành công',
+      message: 'Chỉ số của bé đã được cập nhật!',
+    });
     router.back();
   };
 
