@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getCurrentUser, getProfilesByUserId, type ProfileResponse } from './api';
+import {
+  getCurrentUser,
+  getProfilesByUserId,
+  type ProfileResponse,
+} from './api';
 import { getAuthSession, hydrateAuthSession } from './auth-session';
 
 const SELECTED_PROFILE_STORAGE_KEY = 'babyoi_selected_profile';
@@ -11,7 +15,10 @@ export async function setSelectedProfile(profile: ProfileResponse | null) {
   selectedProfile = profile;
 
   if (profile) {
-    await AsyncStorage.setItem(SELECTED_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    await AsyncStorage.setItem(
+      SELECTED_PROFILE_STORAGE_KEY,
+      JSON.stringify(profile)
+    );
     return;
   }
 
@@ -46,10 +53,14 @@ export async function clearSelectedProfile() {
 }
 
 export async function ensureCurrentUserSelectedProfile() {
-  const session = getAuthSession() || await hydrateAuthSession();
-  const storedProfile = getSelectedProfile() || await hydrateSelectedProfile();
+  const session = getAuthSession() || (await hydrateAuthSession());
+  const storedProfile = getSelectedProfile() || (await hydrateSelectedProfile());
 
-  if (storedProfile && session?.userId && storedProfile.userId === session.userId) {
+  if (
+    storedProfile &&
+    session?.userId &&
+    storedProfile.userId === session.userId
+  ) {
     return storedProfile;
   }
 
@@ -57,14 +68,15 @@ export async function ensureCurrentUserSelectedProfile() {
     await clearSelectedProfile();
   }
 
-  if (!session?.userId) {
-    return null;
-  }
+  let userId = session?.userId;
 
-  let userId = session.userId;
   if (!userId) {
-    const currentUser = await getCurrentUser();
-    userId = currentUser.id;
+    try {
+      const currentUser = await getCurrentUser();
+      userId = currentUser.id;
+    } catch {
+      return null;
+    }
   }
 
   const profiles = await getProfilesByUserId(userId);

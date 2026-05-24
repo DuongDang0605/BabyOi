@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity,
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { FoodResponse, deleteRestrictedFood, getFoodDetail, getRestrictedFoods, resolveAssetUrl } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const LOCAL_RESTRICTED_IDS_KEY = 'babyoi_guest_restricted_food_ids';
 
@@ -26,6 +27,11 @@ async function readLocalRestrictedIds() {
 
 async function writeLocalRestrictedIds(ids: string[]) {
   await AsyncStorage.setItem(LOCAL_RESTRICTED_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
+}
+
+async function getCurrentProfileId() {
+  const profile = getSelectedProfile() || await hydrateSelectedProfile();
+  return profile?.id ?? null;
 }
 
 function foodDescription(item: FoodResponse) {
@@ -52,6 +58,7 @@ export default function RestrictedDishesScreen() {
         setLoading(true);
         setError(null);
         const session = getAuthSession() || await hydrateAuthSession();
+        const profileId = session?.userId ? await getCurrentProfileId() : null;
         if (!session?.userId) {
           const localIds = await readLocalRestrictedIds();
           const localFoods = await Promise.all(
@@ -69,8 +76,14 @@ export default function RestrictedDishesScreen() {
           }
           return;
         }
+        if (!profileId) {
+          if (mounted) {
+            setError('Vui lòng chọn hồ sơ để xem món hạn chế.');
+          }
+          return;
+        }
 
-        const data = await getRestrictedFoods(session.userId);
+        const data = await getRestrictedFoods(profileId);
         if (mounted) {
           setRestrictedFoods(data);
         }
@@ -93,10 +106,15 @@ export default function RestrictedDishesScreen() {
 
   const removeRestrictedFood = async (foodId: number) => {
     const session = getAuthSession() || await hydrateAuthSession();
+    const profileId = session?.userId ? await getCurrentProfileId() : null;
     if (!session?.userId) {
       const nextFoods = restrictedFoods.filter((item) => item.id !== foodId);
       setRestrictedFoods(nextFoods);
       await writeLocalRestrictedIds(nextFoods.map((item) => String(item.id)));
+      return;
+    }
+    if (!profileId) {
+      setError('Vui lòng chọn hồ sơ để bỏ hạn chế món ăn.');
       return;
     }
 
@@ -104,7 +122,7 @@ export default function RestrictedDishesScreen() {
     setRestrictedFoods((current) => current.filter((item) => item.id !== foodId));
 
     try {
-      await deleteRestrictedFood(session.userId, foodId);
+      await deleteRestrictedFood(profileId, foodId);
     } catch (err) {
       setRestrictedFoods(previous);
       setError(err instanceof Error ? err.message : 'Không thể bỏ hạn chế món ăn.');

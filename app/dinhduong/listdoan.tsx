@@ -27,6 +27,7 @@ import {
   resolveAssetUrl,
 } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const MOM_FUNCTION_CODE = 1;
 const BABY_FUNCTION_CODE = 2;
@@ -86,6 +87,11 @@ function mapFoodToDish(food: FoodResponse): Dish {
 
 async function getCurrentSession() {
   return getAuthSession() || await hydrateAuthSession();
+}
+
+async function getCurrentProfileId() {
+  const profile = getSelectedProfile() || await hydrateSelectedProfile();
+  return profile?.id ?? null;
 }
 
 async function readLocalIds(key: string) {
@@ -184,6 +190,7 @@ export default function ListDoAnScreen() {
 
     async function loadUserFoodState() {
       const session = await getCurrentSession();
+      const profileId = session?.userId ? await getCurrentProfileId() : null;
       if (!session?.userId) {
         const [localFavoriteIds, localRestrictedIds] = await Promise.all([
           readLocalIds(LOCAL_FAVORITE_IDS_KEY),
@@ -196,11 +203,17 @@ export default function ListDoAnScreen() {
         }
         return;
       }
+      if (!profileId) {
+        if (mounted) {
+          setActionMessage('Vui lòng chọn hồ sơ trước khi xem yêu thích/hạn chế.');
+        }
+        return;
+      }
 
       try {
         const [favorites, restricted] = await Promise.all([
-          getFavoriteFoods(session.userId),
-          getRestrictedFoods(session.userId),
+          getFavoriteFoods(profileId),
+          getRestrictedFoods(profileId),
         ]);
 
         if (mounted) {
@@ -225,6 +238,7 @@ export default function ListDoAnScreen() {
 
   const toggleFavorite = async (id: string) => {
     const session = await getCurrentSession();
+    const profileId = session?.userId ? await getCurrentProfileId() : null;
     if (!session?.userId) {
       const nextIds = favoriteIds.includes(id)
         ? favoriteIds.filter((item) => item !== id)
@@ -233,15 +247,19 @@ export default function ListDoAnScreen() {
       await writeLocalIds(LOCAL_FAVORITE_IDS_KEY, nextIds);
       return;
     }
+    if (!profileId) {
+      setActionMessage('Vui lòng chọn hồ sơ trước khi cập nhật món yêu thích.');
+      return;
+    }
 
     const wasFavorite = favoriteIds.includes(id);
     setFavoriteIds((prev) => wasFavorite ? prev.filter((item) => item !== id) : [...prev, id]);
 
     try {
       if (wasFavorite) {
-        await deleteFavoriteFood(session.userId, id);
+        await deleteFavoriteFood(profileId, id);
       } else {
-        await addFavoriteFood(session.userId, id);
+        await addFavoriteFood(profileId, id);
       }
     } catch (err) {
       setFavoriteIds((prev) => wasFavorite ? [...prev, id] : prev.filter((item) => item !== id));
@@ -251,6 +269,7 @@ export default function ListDoAnScreen() {
 
   const toggleRestriction = async (id: string) => {
     const session = await getCurrentSession();
+    const profileId = session?.userId ? await getCurrentProfileId() : null;
     if (!session?.userId) {
       const wasRestricted = restrictedIds.includes(id);
       const nextIds = wasRestricted ? restrictedIds.filter((item) => item !== id) : [...restrictedIds, id];
@@ -259,15 +278,19 @@ export default function ListDoAnScreen() {
       await writeLocalIds(LOCAL_RESTRICTED_IDS_KEY, nextIds);
       return;
     }
+    if (!profileId) {
+      setActionMessage('Vui lòng chọn hồ sơ trước khi cập nhật món hạn chế.');
+      return;
+    }
 
     const wasRestricted = restrictedIds.includes(id);
     setRestrictedIds((prev) => wasRestricted ? prev.filter((item) => item !== id) : [...prev, id]);
 
     try {
       if (wasRestricted) {
-        await deleteRestrictedFood(session.userId, id);
+        await deleteRestrictedFood(profileId, id);
       } else {
-        await addRestrictedFood(session.userId, id);
+        await addRestrictedFood(profileId, id);
       }
     } catch (err) {
       setRestrictedIds((prev) => wasRestricted ? [...prev, id] : prev.filter((item) => item !== id));

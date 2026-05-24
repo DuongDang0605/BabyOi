@@ -165,6 +165,7 @@ export type FoodResponse = {
 export type FavoriteFoodResponse = {
   id: number;
   userId: number | null;
+  profileId: number | null;
   foodId: number | null;
   createdAt: string | null;
   updatedAt: string | null;
@@ -462,20 +463,20 @@ export function getFoodIngredients(foodId: number | string) {
    FAVORITE FOOD API
 ========================= */
 
-export function getFavoriteFoods(userId: number | string) {
-  return request<FoodResponse[]>(`/api/foods/favorites/user/${userId}`, {
+export function getFavoriteFoods(profileId: number | string) {
+  return request<FoodResponse[]>(`/api/foods/favorites/profile/${profileId}`, {
     method: 'GET',
   });
 }
 
-export function addFavoriteFood(userId: number | string, foodId: number | string) {
-  return request<FavoriteFoodResponse>(`/api/foods/favorites/user/${userId}/food/${foodId}`, {
+export function addFavoriteFood(profileId: number | string, foodId: number | string) {
+  return request<FavoriteFoodResponse>(`/api/foods/favorites/profile/${profileId}/food/${foodId}`, {
     method: 'POST',
   });
 }
 
-export function deleteFavoriteFood(userId: number | string, foodId: number | string) {
-  return request<void>(`/api/foods/favorites/user/${userId}/food/${foodId}`, {
+export function deleteFavoriteFood(profileId: number | string, foodId: number | string) {
+  return request<void>(`/api/foods/favorites/profile/${profileId}/food/${foodId}`, {
     method: 'DELETE',
   });
 }
@@ -484,20 +485,20 @@ export function deleteFavoriteFood(userId: number | string, foodId: number | str
    RESTRICTED FOOD API
 ========================= */
 
-export function getRestrictedFoods(userId: number | string) {
-  return request<FoodResponse[]>(`/api/foods/restricted/user/${userId}`, {
+export function getRestrictedFoods(profileId: number | string) {
+  return request<FoodResponse[]>(`/api/foods/restricted/profile/${profileId}`, {
     method: 'GET',
   });
 }
 
-export function addRestrictedFood(userId: number | string, foodId: number | string) {
-  return request<FavoriteFoodResponse>(`/api/foods/restricted/user/${userId}/food/${foodId}`, {
+export function addRestrictedFood(profileId: number | string, foodId: number | string) {
+  return request<FavoriteFoodResponse>(`/api/foods/restricted/profile/${profileId}/food/${foodId}`, {
     method: 'POST',
   });
 }
 
-export function deleteRestrictedFood(userId: number | string, foodId: number | string) {
-  return request<void>(`/api/foods/restricted/user/${userId}/food/${foodId}`, {
+export function deleteRestrictedFood(profileId: number | string, foodId: number | string) {
+  return request<void>(`/api/foods/restricted/profile/${profileId}/food/${foodId}`, {
     method: 'DELETE',
   });
 }

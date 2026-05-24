@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity,
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { FoodResponse, deleteFavoriteFood, getFavoriteFoods, getFoodDetail, resolveAssetUrl } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const LOCAL_FAVORITE_IDS_KEY = 'babyoi_guest_favorite_food_ids';
 
@@ -26,6 +27,11 @@ async function readLocalFavoriteIds() {
 
 async function writeLocalFavoriteIds(ids: string[]) {
   await AsyncStorage.setItem(LOCAL_FAVORITE_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
+}
+
+async function getCurrentProfileId() {
+  const profile = getSelectedProfile() || await hydrateSelectedProfile();
+  return profile?.id ?? null;
 }
 
 function foodDescription(item: FoodResponse) {
@@ -52,6 +58,7 @@ export default function FavoriteDishesScreen() {
         setLoading(true);
         setError(null);
         const session = getAuthSession() || await hydrateAuthSession();
+        const profileId = session?.userId ? await getCurrentProfileId() : null;
         if (!session?.userId) {
           const localIds = await readLocalFavoriteIds();
           const localFoods = await Promise.all(
@@ -69,8 +76,14 @@ export default function FavoriteDishesScreen() {
           }
           return;
         }
+        if (!profileId) {
+          if (mounted) {
+            setError('Vui lòng chọn hồ sơ để xem món yêu thích.');
+          }
+          return;
+        }
 
-        const data = await getFavoriteFoods(session.userId);
+        const data = await getFavoriteFoods(profileId);
         if (mounted) {
           setFavorites(data);
         }
@@ -93,10 +106,15 @@ export default function FavoriteDishesScreen() {
 
   const removeFavorite = async (foodId: number) => {
     const session = getAuthSession() || await hydrateAuthSession();
+    const profileId = session?.userId ? await getCurrentProfileId() : null;
     if (!session?.userId) {
       const nextFavorites = favorites.filter((item) => item.id !== foodId);
       setFavorites(nextFavorites);
       await writeLocalFavoriteIds(nextFavorites.map((item) => String(item.id)));
+      return;
+    }
+    if (!profileId) {
+      setError('Vui lòng chọn hồ sơ để xóa món yêu thích.');
       return;
     }
 
@@ -104,7 +122,7 @@ export default function FavoriteDishesScreen() {
     setFavorites((current) => current.filter((item) => item.id !== foodId));
 
     try {
-      await deleteFavoriteFood(session.userId, foodId);
+      await deleteFavoriteFood(profileId, foodId);
     } catch (err) {
       setFavorites(previous);
       setError(err instanceof Error ? err.message : 'Không thể xóa món yêu thích.');
