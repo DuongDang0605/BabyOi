@@ -1,20 +1,21 @@
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { ApiError, login } from '@/lib/api';
 import { setAuthSession } from '@/lib/auth-session';
+import { ensureCurrentUserSelectedProfile } from '@/lib/profile-session';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -36,8 +37,12 @@ export default function LoginScreen() {
         password,
       });
 
-      await setAuthSession(response);
-      router.replace('/profile/select-profile');
+      await setAuthSession(response, {
+        email: email.trim(),
+        password,
+      });
+      await ensureCurrentUserSelectedProfile();
+      router.replace('/home/home');
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.errors?.email || error.errors?.password) {

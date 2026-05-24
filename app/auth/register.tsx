@@ -1,19 +1,20 @@
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { ApiError, register } from '@/lib/api';
 import { setAuthSession } from '@/lib/auth-session';
+import { ensureCurrentUserSelectedProfile } from '@/lib/profile-session';
 
 export default function RegisterScreen() {
   const [userName, setUserName] = useState('');
@@ -47,8 +48,12 @@ export default function RegisterScreen() {
         password,
       });
 
-      await setAuthSession(response);
-      router.replace('/profile/select-profile');
+      await setAuthSession(response, {
+        email: email.trim(),
+        password,
+      });
+      await ensureCurrentUserSelectedProfile();
+      router.replace('/home/home');
     } catch (error) {
       if (error instanceof ApiError) {
         setUserNameError(error.errors?.userName ?? '');
