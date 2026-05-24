@@ -72,6 +72,25 @@ export type VaccineRecordRequest = {
   status: number;
 };
 
+export type VaccineRecordResponse = {
+  id: number;
+  profileId: number;
+  vaccineTypeId: number;
+  vaccineTypeName: string;
+  vaccineTypeDescription: string | null;
+  injectionDate: string;
+  location: string | null;
+  price: number | null;
+  note: string | null;
+  status: number | null;
+};
+
+export type VaccineStatisticsResponse = {
+  pending: number;
+  canceled: number;
+  success: number;
+};
+
 /* =========================
    FOOD TYPES
 ========================= */
@@ -422,6 +441,34 @@ export function createVaccineRecord(payload: VaccineRecordRequest) {
   return request<any>('/api/vaccine-records', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateVaccineRecord(recordId: number | string, payload: VaccineRecordRequest) {
+  return request<VaccineRecordResponse>(`/api/vaccine-records/${recordId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteVaccineRecord(recordId: number | string) {
+  return request<void>(`/api/vaccine-records/${recordId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getVaccineRecordsByProfile(profileId: number | string, params?: { status: number; limit?: number }) {
+  return request<VaccineRecordResponse[]>(`/api/vaccine-records/profile/${profileId}${buildQueryString({
+    status: params?.status,
+    limit: params?.limit,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getVaccineStatistics(profileId: number | string) {
+  return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
+    method: 'GET',
   });
 }
 
