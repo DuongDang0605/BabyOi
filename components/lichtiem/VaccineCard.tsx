@@ -7,6 +7,8 @@ interface Vaccine {
   desc: string;
   status: 'upcoming' | 'completed' | 'oral_completed';
   date: string;
+  vaccineTypeId?: number | string;
+  injectionDate?: string;
   location?: string;
   cost?: string;
   note?: string;
@@ -14,11 +16,11 @@ interface Vaccine {
 
 interface VaccineCardProps {
   vaccine: Vaccine;
-  onPress?: (vaccine: Vaccine) => void;
-  onBookPress?: (vaccine: Vaccine) => void;
+  onConfirmPress?: (vaccine: Vaccine) => void;
+  onCancelPress?: (vaccine: Vaccine) => void;
 }
 
-export const VaccineCard = ({ vaccine, onPress, onBookPress }: VaccineCardProps) => {
+export const VaccineCard = ({ vaccine, onConfirmPress, onCancelPress }: VaccineCardProps) => {
   const isUpcoming = vaccine.status === 'upcoming';
 
   const getStatusBadge = () => {
@@ -29,6 +31,7 @@ export const VaccineCard = ({ vaccine, onPress, onBookPress }: VaccineCardProps)
         </View>
       );
     }
+
     return (
       <View style={styles.statusBadge_Done}>
         <Text style={styles.statusText_Done}>
@@ -77,13 +80,22 @@ export const VaccineCard = ({ vaccine, onPress, onBookPress }: VaccineCardProps)
         </Text>
       </View>
 
-      {isUpcoming && onBookPress && (
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={() => onBookPress(vaccine)}
-        >
-          <Text style={styles.bookButtonText}>💉 Đặt lịch tiêm ngay</Text>
-        </TouchableOpacity>
+      {isUpcoming && (
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={() => onConfirmPress?.(vaccine)}
+          >
+            <Text style={styles.confirmButtonText}>✅ Xác nhận đã tiêm</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => onCancelPress?.(vaccine)}
+          >
+            <Text style={styles.cancelButtonText}>❌ Hủy lịch</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -121,6 +133,9 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef9f3', padding: 12, borderRadius: 12 },
   dateIcon: { marginRight: 8, fontSize: 14 },
   dateText: { fontSize: 14, color: '#5c7a8a', fontWeight: '600' },
-  bookButton: { backgroundColor: '#ff9c6e', paddingVertical: 12, borderRadius: 15, alignItems: 'center', marginTop: 15, elevation: 2 },
-  bookButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
+  actionRow: { marginTop: 15, gap: 10 },
+  confirmButton: { backgroundColor: '#8fd3a7', paddingVertical: 12, borderRadius: 15, alignItems: 'center' },
+  confirmButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
+  cancelButton: { backgroundColor: '#ff8fab', paddingVertical: 12, borderRadius: 15, alignItems: 'center' },
+  cancelButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
 });

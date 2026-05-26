@@ -1,27 +1,79 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
-import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-/**
- * API: VaccineRecordResponse (Đã có vaccineTypeDescription từ BE)
- * status = -1: Pending
- */
+import { deleteVaccineRecord, getVaccineRecordsByProfile, type VaccineRecordResponse } from '../../lib/api';
+import { useNotification } from '../../lib/notification';
 
 export default function UpcomingVaccinesScreen() {
-  const [upcomingVaccines, setUpcomingVaccines] = useState([]);
+  const { showNotification } = useNotification();
+  const { profileId } = useLocalSearchParams<{ profileId?: string }>();
+  const [upcomingVaccines, setUpcomingVaccines] = useState<VaccineRecordResponse[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Logic: Fetch upcoming vaccines
-    // GET /api/vaccine-records/profile/1?status=-1
-  }, []);
+    const loadUpcomingVaccines = async () => {
+      const parsedProfileId = Number(Array.isArray(profileId) ? profileId[0] : profileId);
+
+      if (!Number.isFinite(parsedProfileId)) {
+        setUpcomingVaccines([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const data = await getVaccineRecordsByProfile(parsedProfileId, { status: -1 });
+        setUpcomingVaccines([...data].sort((left, right) => new Date(left.injectionDate).getTime() - new Date(right.injectionDate).getTime()));
+      } catch (error) {
+        console.error('Lỗi tải danh sách sắp tới:', error);
+        setUpcomingVaccines([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUpcomingVaccines();
+  }, [profileId]);
+
+  const handleCancelVaccine = async (recordId: number) => {
+    Alert.alert('Hủy lịch tiêm', 'Bạn có chắc chắn muốn hủy lịch này?', [
+      { text: 'Không', style: 'cancel' },
+      {
+        text: 'Hủy lịch',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteVaccineRecord(recordId);
+            setUpcomingVaccines((current) => current.filter((item) => item.id !== recordId));
+            showNotification({
+              type: 'success',
+              title: 'Đã hủy lịch tiêm',
+              message: 'Lịch tiêm đã được xoá thành công.',
+            });
+          } catch (error) {
+            console.error('Lỗi hủy lịch tiêm:', error);
+            showNotification({
+              type: 'error',
+              title: 'Không thể hủy lịch',
+              message: 'Vui lòng thử lại sau.',
+            });
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
+  }
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
-        
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
@@ -35,45 +87,57 @@ export default function UpcomingVaccinesScreen() {
           <Text style={styles.heroSubtext}>Mẹ nhớ đặt lịch để bảo vệ sức khỏe cho con nhé.</Text>
         </View>
 
-        {upcomingVaccines.length > 0 ? upcomingVaccines.map((vaccine: any) => (
-          <View key={vaccine.id} style={styles.vaccineCard}>
-            
-            <View style={styles.cardHeader}>
-              <Text style={styles.vaccineName}>{vaccine.vaccineTypeName}</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Sắp tới</Text>
+        {upcomingVaccines.length > 0 ? (
+          upcomingVaccines.map((vaccine) => (
+            <View key={vaccine.id} style={styles.vaccineCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.vaccineName}>{vaccine.vaccineTypeName}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>Sắp tới</Text>
+                </View>
+              </View>
+
+              <Text style={styles.vaccineDesc}>{vaccine.vaccineTypeDescription || 'Phòng bệnh theo chỉ định của bác sĩ.'}</Text>
+
+              <View style={styles.dateRow}>
+                <Text style={styles.dateIcon}>📅</Text>
+                <Text style={styles.dateText}>Dự kiến: {vaccine.injectionDate}</Text>
+              </View>
+
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/lichtiem/themmuitiem',
+                      params: {
+                        profileId,
+                        mode: 'confirm',
+                        recordId: vaccine.id,
+                        vaccineTypeId: vaccine.vaccineTypeId,
+                        vaccineName: vaccine.vaccineTypeName,
+                        injectionDate: vaccine.injectionDate,
+                      },
+                    })
+                  }
+                >
+                  <Text style={styles.confirmButtonText}>✅ Xác nhận đã tiêm</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => handleCancelVaccine(vaccine.id)}
+                >
+                  <Text style={styles.cancelButtonText}>❌ Hủy lịch</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            
-            {/* Sử dụng vaccineTypeDescription từ BE */}
-            <Text style={styles.vaccineDesc}>
-              {vaccine.vaccineTypeDescription || "Phòng bệnh theo chỉ định của bác sĩ."}
-            </Text>
-
-            <View style={styles.dateRow}>
-              <Text style={styles.dateIcon}>📅</Text>
-              <Text style={styles.dateText}>Dự kiến: {vaccine.injectionDate}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.bookButton}
-              onPress={() => router.push({
-                pathname: '/lichtiem/datlichtiem',
-                params: {
-                  vaccineTypeId: vaccine.vaccineTypeId,
-                  vaccineName: vaccine.vaccineTypeName
-                }
-              })}
-            >
-              <Text style={styles.bookButtonText}>💉 Đặt lịch tiêm ngay</Text>
-            </TouchableOpacity>
-
-          </View>
-        )) : (
-          <Text style={{ textAlign: 'center', color: '#8899aa', marginTop: 20 }}>Không có lịch tiêm sắp tới.</Text>
+          ))
+        ) : (
+          <Text style={styles.emptyText}>Không có lịch tiêm sắp tới.</Text>
         )}
 
-        <View style={{ height: 40 }} /> 
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -98,6 +162,10 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12 },
   dateIcon: { marginRight: 8, fontSize: 15 },
   dateText: { fontSize: 14, color: '#5c7a8a', fontWeight: '800' },
-  bookButton: { backgroundColor: '#ff9c6e', paddingVertical: 14, borderRadius: 15, alignItems: 'center', marginTop: 15, elevation: 2 },
-  bookButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
+  actionRow: { marginTop: 15, gap: 10 },
+  confirmButton: { backgroundColor: '#8fd3a7', paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
+  confirmButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
+  cancelButton: { backgroundColor: '#ff8fab', paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
+  cancelButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
+  emptyText: { textAlign: 'center', color: '#8899aa', marginTop: 20 },
 });
