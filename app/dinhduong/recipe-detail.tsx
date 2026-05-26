@@ -33,7 +33,7 @@ function scaledValue(value: number | null | undefined, amount: number, baseAmoun
 }
 
 const TARGET_LABELS: Record<string, string> = {
-  FOR_MOTHER_DIET: 'mẹ muốn giảm cân hoặc lấy lại vóc dáng',
+  FOR_MOTHER_DIET: 'mẹ đang ăn kiêng hoặc muốn lấy lại vóc dáng',
   FOR_MOTHER_CHANGE_DIET: 'mẹ muốn thay đổi chế độ ăn để bữa ăn đỡ lặp lại',
   FOR_MOTHER_POSTPARTUM_BREASTFEEDING: 'mẹ sau sinh đang cho con bú',
   FOR_MOTHER_HEALTHY_ENERGY: 'mẹ cần bữa ăn khỏe, đủ no và không quá nặng bụng',

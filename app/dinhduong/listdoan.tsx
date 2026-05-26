@@ -17,7 +17,6 @@ import { AiPlannerCard } from '../../components/dinhduong/AiPlannerCard';
 import { DishCard, type Dish } from '../../components/dinhduong/DishCard';
 import {
   FoodResponse,
-  ProfileResponse,
   addFavoriteFood,
   addRestrictedFood,
   deleteFavoriteFood,
@@ -36,12 +35,10 @@ const PAGE_SIZE = 10;
 const LOCAL_FAVORITE_IDS_KEY = 'babyoi_guest_favorite_food_ids';
 const LOCAL_RESTRICTED_IDS_KEY = 'babyoi_guest_restricted_food_ids';
 
-type AudienceTab = 'mom' | 'baby';
-
 const FILTERS = {
-  mom: [
+  Mẹ: [
     { label: 'Tất cả', value: null },
-    { label: 'Giảm cân', value: 'FOR_MOTHER_DIET' },
+    { label: 'Ăn kiêng', value: 'FOR_MOTHER_DIET' },
     { label: 'Đổi chế độ ăn', value: 'FOR_MOTHER_CHANGE_DIET' },
     { label: 'Sau sinh cho bú', value: 'FOR_MOTHER_POSTPARTUM_BREASTFEEDING' },
     { label: 'Tăng sữa', value: 'FOR_MOTHER_INCREASE_MILK_SUPPLY' },
@@ -49,21 +46,18 @@ const FILTERS = {
     { label: 'Năng lượng khỏe', value: 'FOR_MOTHER_HEALTHY_ENERGY' },
     { label: 'Dễ tiêu', value: 'FOR_MOTHER_DIGESTION_RECOVERY' },
   ],
-  baby: [
+  Bé: [
     { label: 'Tất cả', value: null },
     { label: '6-8 tháng', value: 'FOR_BABY_6_8_MONTHS' },
     { label: '9-11 tháng', value: 'FOR_BABY_9_11_MONTHS' },
     { label: '12-18 tháng', value: 'FOR_BABY_12_18_MONTHS' },
     { label: '19-24 tháng', value: 'FOR_BABY_19_24_MONTHS' },
+    { label: '6-8 tháng phát triển', value: 'FOR_BABY_6_8_MONTHS_DEVELOPMENT' },
+    { label: '9-11 tháng phát triển', value: 'FOR_BABY_9_11_MONTHS_DEVELOPMENT' },
+    { label: '12-18 tháng phát triển', value: 'FOR_BABY_12_18_MONTHS_DEVELOPMENT' },
+    { label: '19-24 tháng phát triển', value: 'FOR_BABY_19_24_MONTHS_DEVELOPMENT' },
   ],
 } as const;
-
-const BABY_ADVANCE_FOR_ALIASES: Record<string, string[]> = {
-  FOR_BABY_6_8_MONTHS: ['FOR_BABY_6_8_MONTHS', 'FOR_BABY_6_8_MONTHS_DEVELOPMENT'],
-  FOR_BABY_9_11_MONTHS: ['FOR_BABY_9_11_MONTHS', 'FOR_BABY_9_11_MONTHS_DEVELOPMENT'],
-  FOR_BABY_12_18_MONTHS: ['FOR_BABY_12_18_MONTHS', 'FOR_BABY_12_18_MONTHS_DEVELOPMENT'],
-  FOR_BABY_19_24_MONTHS: ['FOR_BABY_19_24_MONTHS', 'FOR_BABY_19_24_MONTHS_DEVELOPMENT'],
-};
 
 function formatNutritionSummary(food: FoodResponse) {
   const nutrition = food.nutrition;
@@ -89,10 +83,6 @@ function mapFoodToDish(food: FoodResponse): Dish {
     tag: isMomFood ? 'Cho Mẹ' : 'Cho Bé',
     food,
   };
-}
-
-function getAudienceTabFromProfile(profile: ProfileResponse | null): AudienceTab {
-  return profile?.profileType === 'MOTHER' ? 'mom' : 'baby';
 }
 
 async function getCurrentSession() {
@@ -123,8 +113,7 @@ async function writeLocalIds(key: string, ids: string[]) {
 }
 
 export default function ListDoAnScreen() {
-  const [activeTab, setActiveTab] = useState<AudienceTab>('baby');
-  const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'Mẹ' | 'Bé'>('Bé');
   const [activeAdvanceFor, setActiveAdvanceFor] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [restrictedIds, setRestrictedIds] = useState<string[]>([]);
@@ -139,35 +128,13 @@ export default function ListDoAnScreen() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<Dish>>(null);
 
-  const targetCode = activeTab === 'mom' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
+  const targetCode = activeTab === 'Mẹ' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
   const filterOptions = FILTERS[activeTab];
-  const audienceLabel = activeTab === 'mom' ? 'Mẹ' : 'Bé';
-  const profileAudienceText = selectedProfile
-    ? `${selectedProfile.name} - món dành cho ${audienceLabel.toLowerCase()}`
-    : `Chưa chọn hồ sơ - đang hiển thị món cho ${audienceLabel.toLowerCase()}`;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  useFocusEffect(useCallback(() => {
-    let mounted = true;
-
-    async function loadSelectedProfileAudience() {
-      const profile = getSelectedProfile() || await hydrateSelectedProfile();
-
-      if (mounted) {
-        setSelectedProfileState(profile);
-        setActiveTab(getAudienceTabFromProfile(profile));
-      }
-    }
-
-    loadSelectedProfileAudience();
-    return () => {
-      mounted = false;
-    };
-  }, []));
 
   useEffect(() => {
     setActiveAdvanceFor(null);
@@ -179,39 +146,24 @@ export default function ListDoAnScreen() {
   }, [activeAdvanceFor, debouncedSearch]);
 
   useEffect(() => {
-    requestAnimationFrame(() => {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    });
-  }, [page]);
-
-  useEffect(() => {
     let mounted = true;
 
     async function loadFoods() {
       try {
         setLoading(true);
         setError(null);
-        const advanceForValues = activeTab === 'baby' && activeAdvanceFor
-          ? BABY_ADVANCE_FOR_ALIASES[activeAdvanceFor] || [activeAdvanceFor]
-          : [activeAdvanceFor];
-
-        const pages = await Promise.all(advanceForValues.map((advanceFor) => getFoodsPage({
+        const data = await getFoodsPage({
           page,
           size: PAGE_SIZE,
           functionCode: targetCode,
-          advanceFor,
+          advanceFor: activeAdvanceFor,
           search: debouncedSearch,
-        })));
-
-        const uniqueFoods = Array.from(
-          new Map(pages.flatMap((item) => item.content || []).map((food) => [food.id, food])).values()
-        ).slice(0, PAGE_SIZE);
-        const total = pages.reduce((sum, item) => sum + (item.totalElements || 0), 0);
+        });
 
         if (mounted) {
-          setFoods(uniqueFoods);
-          setTotalPages(Math.ceil(total / PAGE_SIZE));
-          setTotalElements(total);
+          setFoods(data.content || []);
+          setTotalPages(data.totalPages || 0);
+          setTotalElements(data.totalElements || 0);
         }
       } catch (err) {
         if (mounted) {
@@ -231,7 +183,7 @@ export default function ListDoAnScreen() {
     return () => {
       mounted = false;
     };
-  }, [activeAdvanceFor, activeTab, debouncedSearch, page, targetCode]);
+  }, [activeAdvanceFor, debouncedSearch, page, targetCode]);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
@@ -408,9 +360,7 @@ export default function ListDoAnScreen() {
         keyExtractor={item => item.id}
         numColumns={2}
         columnWrapperStyle={filteredDishes.length > 0 ? styles.row : undefined}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
-        ListHeaderComponent={
+        ListHeaderComponent={() => (
           <View>
             <View style={styles.headerPinkBg}>
               <View style={styles.customHeader}>
@@ -425,9 +375,6 @@ export default function ListDoAnScreen() {
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   style={styles.searchInput}
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  returnKeyType="search"
                 />
                 {!!searchQuery && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -435,33 +382,33 @@ export default function ListDoAnScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={styles.profileAudienceBox}>
-                <Ionicons name={activeTab === 'mom' ? 'person' : 'body'} size={18} color="#FF8FAB" />
-                <Text style={styles.profileAudienceText}>{profileAudienceText}</Text>
+              <View style={styles.tabContainer}>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'Mẹ' && styles.tabBtnActive]} onPress={() => setActiveTab('Mẹ')}><Text style={[styles.tabText, activeTab === 'Mẹ' && styles.tabTextActive]}>Cho Mẹ</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'Bé' && styles.tabBtnActive]} onPress={() => setActiveTab('Bé')}><Text style={[styles.tabText, activeTab === 'Bé' && styles.tabTextActive]}>Cho Bé</Text></TouchableOpacity>
               </View>
             </View>
 
             <AiPlannerCard onPress={() => router.push('/dinhduong/ai-planner')} />
 
             <View style={styles.navSection}>
-              <TouchableOpacity style={styles.navBtn} onPress={() => router.push({pathname: '/dinhduong/WeeklyView', params: {target: audienceLabel}})}>
-                <View style={[styles.iconCircle, {backgroundColor: activeTab === 'mom' ? '#FF8FAB' : '#89CFF0'}]}><Ionicons name={activeTab === 'mom' ? 'person' : 'body'} size={20} color="#FFF" /></View>
+              <TouchableOpacity style={styles.navBtn} onPress={() => router.push({pathname: '/dinhduong/WeeklyView', params: {target: activeTab}})}>
+                <View style={[styles.iconCircle, {backgroundColor: activeTab === 'Mẹ' ? '#FF8FAB' : '#89CFF0'}]}><Ionicons name={activeTab === 'Mẹ' ? 'person' : 'body'} size={20} color="#FFF" /></View>
                 <Text style={styles.navBtnText}>Lịch ăn</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/dinhduong/favorite-dishes')}>
-                <View style={[styles.iconCircle, {backgroundColor: '#FFD166'}]}><Ionicons name="heart" size={20} color="#FFF" /></View>
+                <View style={[styles.iconCircle, {backgroundColor: '#FFB6C1'}]}><Ionicons name="heart" size={20} color="#FFF" /></View>
                 <Text style={styles.navBtnText}>Yêu thích</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/dinhduong/restricted-dishes')}>
-                <View style={[styles.iconCircle, {backgroundColor: '#7CCBC1'}]}><Ionicons name="eye-off" size={20} color="#FFF" /></View>
+                <View style={[styles.iconCircle, {backgroundColor: '#ABBEC8'}]}><Ionicons name="eye-off" size={20} color="#FFF" /></View>
                 <Text style={styles.navBtnText}>Hạn chế</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Phân loại cho {audienceLabel.toLowerCase()}</Text>
+              <Text style={styles.filterLabel}>Phân loại {activeTab === 'Mẹ' ? 'cho mẹ' : 'cho bé'}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
                 {filterOptions.map((option) => {
                   const selected = activeAdvanceFor === option.value;
@@ -481,11 +428,11 @@ export default function ListDoAnScreen() {
             )}
 
             <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Gợi ý cho {audienceLabel}</Text>
+              <Text style={styles.sectionTitle}>Gợi ý cho {activeTab}</Text>
               <Text style={styles.pageMeta}>{totalElements} món</Text>
             </View>
           </View>
-        }
+        )}
         ListEmptyComponent={renderListState}
         ListFooterComponent={() => (
            <View style={styles.restrictedSection}>
@@ -510,13 +457,16 @@ export default function ListDoAnScreen() {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
-  headerPinkBg: { backgroundColor: '#FFB6C1', paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, borderBottomWidth: 3, borderBottomColor: '#A7E4F5' },
+  headerPinkBg: { backgroundColor: '#FFB6C1', paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
   customHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 50, marginBottom: 15, paddingHorizontal: 20, justifyContent: 'space-between' },
   headerTitle: { fontSize: 22, fontWeight: '900', color: '#FFF' },
-  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#FFE5EC' },
+  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15 },
   searchInput: { flex: 1, marginLeft: 10, fontWeight: '700', color: '#5C7A8A' },
-  profileAudienceBox: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 28, backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1.5, borderColor: '#FFE5EC' },
-  profileAudienceText: { flex: 1, marginLeft: 8, color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
+  tabContainer: { flexDirection: 'row', marginHorizontal: 40, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 15, padding: 4 },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 12 },
+  tabBtnActive: { backgroundColor: '#FFF' },
+  tabText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
+  tabTextActive: { color: '#FF8FAB' },
   navSection: { flexDirection: 'row', justifyContent: 'space-around', padding: 20 },
   navBtn: { alignItems: 'center' },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 6, elevation: 3 },
@@ -524,19 +474,19 @@ const styles = StyleSheet.create({
   filterSection: { marginBottom: 14 },
   filterLabel: { marginHorizontal: 25, marginBottom: 8, color: '#5C7A8A', fontSize: 13, fontWeight: '900' },
   filterScroll: { paddingHorizontal: 20, paddingRight: 30 },
-  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E9F8FD', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginRight: 8 },
+  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginRight: 8 },
   filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB' },
   filterChipText: { color: '#7D95A1', fontSize: 12, fontWeight: '800' },
   filterChipTextActive: { color: '#FFF' },
-  messageBox: { marginHorizontal: 24, backgroundColor: '#FFF', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: '#A7E4F5', marginBottom: 12 },
+  messageBox: { marginHorizontal: 24, backgroundColor: '#FFF', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: '#FFE5EC', marginBottom: 12 },
   messageText: { color: '#FF8FAB', fontSize: 12, fontWeight: '800', textAlign: 'center' },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 25, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A' },
-  pageMeta: { color: '#7CCBC1', fontSize: 12, fontWeight: '900' },
+  pageMeta: { color: '#ABBEC8', fontSize: 12, fontWeight: '900' },
   row: { justifyContent: 'space-between', paddingHorizontal: 20 },
   restrictedSection: { marginTop: 20 },
   paginationBox: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  pageBtn: { width: 38, height: 38, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2, borderWidth: 1, borderColor: '#FFE5EC' },
+  pageBtn: { width: 38, height: 38, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2 },
   pageBtnDisabled: { backgroundColor: '#F4F6F7', elevation: 0 },
   pageText: { marginHorizontal: 16, color: '#5C7A8A', fontWeight: '900' },
   stateBox: { alignItems: 'center', paddingHorizontal: 30, paddingVertical: 28 },
