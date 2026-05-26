@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 /**
  * API endpoints:
@@ -9,19 +9,31 @@ import { Ionicons } from '@expo/vector-icons';
  * 2. POST /api/vaccine-records -> VaccineRecordRequest (Bổ sung trường price)
  */
 
+type ClinicItem = {
+  id: number;
+  name: string;
+  address: string;
+  distance: number;
+  discountPrice: number;
+  price: number;
+};
+
 export default function BookingVaccineScreen() {
-  const { vaccineTypeId = '101', vaccineName = 'Viêm não Nhật Bản (Imojev)' } = useLocalSearchParams();
+  const { vaccineTypeId = '101', vaccineName = 'Viêm não Nhật Bản (Imojev)' } = useLocalSearchParams<{
+    vaccineTypeId?: string;
+    vaccineName?: string;
+  }>();
 
   // Dữ liệu centers sẽ được fetch từ API 1
-  const [clinics, setClinics] = useState([]);
-  const [selectedClinicId, setSelectedClinicId] = useState<number | string | null>(null);
+  const [clinics, setClinics] = useState<ClinicItem[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState<number | null>(null);
 
   useEffect(() => {
     console.log(`Gọi API GET /api/vaccination-centers/vaccine-type/${vaccineTypeId}`);
     // Giả định sau khi fetch: setClinics(response.data)
   }, [vaccineTypeId]);
 
-  const selectedClinic = clinics.find((c: any) => c.id === selectedClinicId);
+  const selectedClinic = clinics.find((clinic) => clinic.id === selectedClinicId) ?? null;
 
   const handleConfirm = () => {
     // API 2: Tạo bản ghi VaccineRecordRequest
@@ -79,7 +91,7 @@ export default function BookingVaccineScreen() {
         </View>
         
         {/* Render từ VaccinationCenterResponse */}
-        {clinics.length > 0 ? clinics.map((clinic: any) => {
+        {clinics.length > 0 ? clinics.map((clinic) => {
           const isSelected = selectedClinicId === clinic.id;
           return (
             <TouchableOpacity 
@@ -103,7 +115,7 @@ export default function BookingVaccineScreen() {
                 <Text style={styles.clinicAddress}>{clinic.address}</Text>
                 <View style={styles.clinicMetaRow}>
                   <Text style={styles.distance}>🚗 Cách bạn {clinic.distance} km</Text>
-                  <Text style={styles.clinicCardPrice}>{(clinic.discountPrice || clinic.price).toLocaleString()}đ</Text>
+                  <Text style={styles.clinicCardPrice}>{clinic.discountPrice.toLocaleString()}đ</Text>
                 </View>
               </View>
             </TouchableOpacity>

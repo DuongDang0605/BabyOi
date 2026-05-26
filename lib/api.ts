@@ -1,7 +1,7 @@
     import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { clearAuthSession, getAccessToken } from './auth-session';
+import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
 
 export type AuthResponse = {
   accessToken: string;
@@ -96,6 +96,25 @@ export type VaccineRecordRequest = {
   note?: string;
   price?: number;
   status: number;
+};
+
+export type VaccineRecordResponse = {
+  id: number;
+  profileId: number;
+  vaccineTypeId: number;
+  vaccineTypeName: string;
+  vaccineTypeDescription: string | null;
+  injectionDate: string;
+  location: string | null;
+  price: number | null;
+  note: string | null;
+  status: number | null;
+};
+
+export type VaccineStatisticsResponse = {
+  pending: number;
+  canceled: number;
+  success: number;
 };
 
 /* =========================
@@ -320,7 +339,7 @@ async function parseError(response: Response): Promise<never> {
 }
 
 function buildHeaders(init?: RequestInit): Record<string, string> {
-  const token = getAccessToken();
+  const authorizationHeader = getAuthorizationHeader();
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -328,15 +347,16 @@ function buildHeaders(init?: RequestInit): Record<string, string> {
     ...((init?.headers as Record<string, string>) ?? {}),
   };
 
-  // Nếu caller chưa truyền Authorization thì tự lấy token trong auth-session
-  if (token && !headers.Authorization) {
-    headers.Authorization = `Bearer ${token}`;
+  if (authorizationHeader && !headers.Authorization) {
+    headers.Authorization = authorizationHeader;
   }
 
   return headers;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  await hydrateAuthSession();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: buildHeaders(init),
@@ -496,6 +516,34 @@ export function createVaccineRecord(payload: VaccineRecordRequest) {
   return request<any>('/api/vaccine-records', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateVaccineRecord(recordId: number | string, payload: VaccineRecordRequest) {
+  return request<VaccineRecordResponse>(`/api/vaccine-records/${recordId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteVaccineRecord(recordId: number | string) {
+  return request<void>(`/api/vaccine-records/${recordId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getVaccineRecordsByProfile(profileId: number | string, params?: { status: number; limit?: number }) {
+  return request<VaccineRecordResponse[]>(`/api/vaccine-records/profile/${profileId}${buildQueryString({
+    status: params?.status,
+    limit: params?.limit,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getVaccineStatistics(profileId: number | string) {
+  return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
+    method: 'GET',
   });
 }
 
