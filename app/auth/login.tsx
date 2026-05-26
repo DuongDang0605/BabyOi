@@ -19,7 +19,6 @@ import {
 
 import { ApiError, login, socialLogin } from '@/lib/api';
 import { setAuthSession } from '@/lib/auth-session';
-import { ensureCurrentUserSelectedProfile } from '@/lib/profile-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -77,9 +76,12 @@ export default function LoginScreen() {
       });
 
       await setAuthSession(response);
-      await ensureCurrentUserSelectedProfile();
-      router.replace('/home/home');
+      router.replace('/profile/select-profile');
     } catch (error) {
+      if (__DEV__) {
+        console.error('[Login] Email login failed', error);
+      }
+
       if (error instanceof ApiError) {
         if (error.errors?.email || error.errors?.password) {
           setEmailError(error.errors?.email ?? '');

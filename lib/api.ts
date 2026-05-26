@@ -231,6 +231,14 @@ type ErrorPayload = {
   errors?: Record<string, string | string[]>;
 };
 
+type ApiRequestInit = RequestInit & {
+  skipAuth?: boolean;
+};
+
+type ProfileAvatarUploadResponse = {
+  imageUrl: string;
+};
+
 export class ApiError extends Error {
   status?: string;
   errors?: Record<string, string>;
@@ -287,6 +295,10 @@ export function resolveAssetUrl(url?: string | null) {
 
   const normalizedPath = rawValue.replace(/^file:\/\//i, '').replace(/\\/g, '/');
 
+  if (/^\/?(Ingredient|Food)\//i.test(normalizedPath)) {
+    return '';
+  }
+
   const staticMarker = '/src/main/resources/static/';
   const staticMarkerIndex = normalizedPath.toLowerCase().indexOf(staticMarker);
 
@@ -338,29 +350,53 @@ async function parseError(response: Response): Promise<never> {
   });
 }
 
-function buildHeaders(init?: RequestInit): Record<string, string> {
+function buildHeaders(init?: ApiRequestInit, options?: { jsonContentType?: boolean }): Record<string, string> {
   const authorizationHeader = getAuthorizationHeader();
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
     ...((init?.headers as Record<string, string>) ?? {}),
   };
 
-  if (authorizationHeader && !headers.Authorization) {
+  if (options?.jsonContentType !== false && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (!init?.skipAuth && authorizationHeader && !headers.Authorization) {
     headers.Authorization = authorizationHeader;
   }
 
   return headers;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: buildHeaders(init),
-  });
+  const { skipAuth, ...fetchInit } = init ?? {};
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log('[API]', fetchInit.method ?? 'GET', url);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...fetchInit,
+      headers: buildHeaders(init),
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[API] Network error', fetchInit.method ?? 'GET', url, error);
+    }
+
+    throw error;
+  }
+
+  if (__DEV__ && !response.ok) {
+    console.warn('[API] Failed', fetchInit.method ?? 'GET', url, response.status);
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -372,6 +408,48 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+async function requestMultipart<T>(path: string, formData: FormData, init?: ApiRequestInit): Promise<T> {
+  await hydrateAuthSession();
+
+  const { skipAuth, ...fetchInit } = init ?? {};
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log('[API]', fetchInit.method ?? 'POST', url);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...fetchInit,
+      method: fetchInit.method ?? 'POST',
+      body: formData,
+      headers: buildHeaders(init, { jsonContentType: false }),
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[API] Network error', fetchInit.method ?? 'POST', url, error);
+    }
+
+    throw error;
+  }
+
+  if (__DEV__ && !response.ok) {
+    console.warn('[API] Failed', fetchInit.method ?? 'POST', url, response.status);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      await clearAuthSession();
+    }
+
+    await parseError(response);
   }
 
   return (await response.json()) as T;
@@ -392,6 +470,7 @@ function buildQueryString(params: Record<string, string | number | null | undefi
 
 export function login(payload: LoginPayload) {
   return request<AuthResponse>('/api/auth/login', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -399,6 +478,7 @@ export function login(payload: LoginPayload) {
 
 export function socialLogin(payload: SocialLoginPayload) {
   return request<AuthResponse>('/api/auth/social-login', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -406,6 +486,7 @@ export function socialLogin(payload: SocialLoginPayload) {
 
 export function register(payload: RegisterPayload) {
   return request<OtpResponse>('/api/auth/register', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -413,6 +494,7 @@ export function register(payload: RegisterPayload) {
 
 export function resendRegistrationOtp(payload: OtpPayload) {
   return request<OtpResponse>('/api/auth/register/resend-otp', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -420,6 +502,7 @@ export function resendRegistrationOtp(payload: OtpPayload) {
 
 export function cancelRegistration(payload: OtpPayload) {
   return request<void>('/api/auth/register/cancel', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -427,6 +510,7 @@ export function cancelRegistration(payload: OtpPayload) {
 
 export function verifyRegistration(payload: VerifyOtpPayload) {
   return request<AuthResponse>('/api/auth/register/verify', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -434,6 +518,7 @@ export function verifyRegistration(payload: VerifyOtpPayload) {
 
 export function forgotPassword(payload: OtpPayload) {
   return request<OtpResponse>('/api/auth/forgot-password', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -441,6 +526,7 @@ export function forgotPassword(payload: OtpPayload) {
 
 export function verifyPasswordResetCode(payload: VerifyOtpPayload) {
   return request<void>('/api/auth/forgot-password/verify', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -448,6 +534,7 @@ export function verifyPasswordResetCode(payload: VerifyOtpPayload) {
 
 export function resetPassword(payload: ResetPasswordPayload) {
   return request<void>('/api/auth/reset-password', {
+    skipAuth: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -492,6 +579,43 @@ export function updateProfile(profileId: number | string, payload: ProfilePayloa
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+export function updateProfileAvatar(profileId: number | string, imageUrl: string) {
+  return request<ProfileResponse>(`/api/profiles/${profileId}/avatar`, {
+    method: 'PATCH',
+    body: JSON.stringify({ imageUrl }),
+  });
+}
+
+function getUploadFileName(uri: string) {
+  const cleanUri = uri.split('?')[0] || uri;
+  const extension = cleanUri.split('.').pop()?.toLowerCase();
+  const safeExtension = extension && extension.length <= 5 ? extension : 'jpg';
+  return `profile-avatar-${Date.now()}.${safeExtension}`;
+}
+
+function getUploadMimeType(uri: string) {
+  const extension = (uri.split('?')[0] || uri).split('.').pop()?.toLowerCase();
+  if (extension === 'png') {
+    return 'image/png';
+  }
+  if (extension === 'webp') {
+    return 'image/webp';
+  }
+  return 'image/jpeg';
+}
+
+export async function uploadProfileAvatar(uri: string) {
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    name: getUploadFileName(uri),
+    type: getUploadMimeType(uri),
+  } as any);
+
+  const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData);
+  return response.imageUrl;
 }
 
 export function deleteProfile(profileId: number | string) {

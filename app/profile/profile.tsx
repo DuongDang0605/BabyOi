@@ -19,9 +19,8 @@ import {
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { ProfileInfo } from '../../components/profile/ProfileInfo';
 import { StatCard } from '../../components/profile/StatCard';
-import { ApiError, ProfilePayload, ProfileResponse, updateProfile } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, updateProfile, updateProfileAvatar, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
-import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
 function parseProfileDate(dateOfBirth: string) {
@@ -97,6 +96,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [editError, setEditError] = useState('');
   const [form, setForm] = useState<ProfilePayload | null>(null);
 
@@ -162,11 +162,21 @@ export default function ProfileScreen() {
     const uri = result.assets[0]?.uri;
     if (uri) {
       try {
-        const persistentUri = await persistProfileImage(uri);
-        setForm((current) => current ? { ...current, imageUrl: persistentUri } : current);
+        setImageUploading(true);
+        const imageUrl = await uploadProfileAvatar(uri);
+        setForm((current) => current ? { ...current, imageUrl } : current);
+        if (profile?.id) {
+          const updated = await updateProfileAvatar(profile.id, imageUrl);
+          setProfile(updated);
+          await setSelectedProfile(updated);
+          setForm((current) => current ? { ...current, imageUrl: updated.imageUrl } : current);
+        }
         setEditError('');
-      } catch {
-        setEditError('Không thể lưu ảnh hồ sơ. Bạn thử chọn lại ảnh nhé.');
+      } catch (err) {
+        console.error('Không thể upload ảnh hồ sơ:', err);
+        setEditError(err instanceof Error ? err.message : 'Không thể tải ảnh hồ sơ lên máy chủ. Bạn thử chọn lại ảnh nhé.');
+      } finally {
+        setImageUploading(false);
       }
     }
   };
@@ -334,7 +344,9 @@ export default function ProfileScreen() {
                 <Text style={styles.label}>Ảnh hồ sơ</Text>
                 <View style={styles.photoPickerBox}>
                   <View style={styles.photoPreview}>
-                    {form.imageUrl ? (
+                    {imageUploading ? (
+                      <ActivityIndicator color="#FF8FAB" />
+                    ) : form.imageUrl ? (
                       <Image source={{ uri: form.imageUrl }} style={styles.photoPreviewImage} />
                     ) : (
                       <Ionicons name="camera-outline" size={34} color="#FF8FAB" />
@@ -388,8 +400,8 @@ export default function ProfileScreen() {
 
                 {!!editError && <Text style={styles.modalError}>{editError}</Text>}
 
-                <TouchableOpacity style={[styles.saveButton, submitting && styles.disabledButton]} onPress={submitUpdateProfile} disabled={submitting}>
-                  {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Lưu thay đổi</Text>}
+                <TouchableOpacity style={[styles.saveButton, (submitting || imageUploading) && styles.disabledButton]} onPress={submitUpdateProfile} disabled={submitting || imageUploading}>
+                  {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>{imageUploading ? 'Đang tải ảnh...' : 'Lưu thay đổi'}</Text>}
                 </TouchableOpacity>
               </ScrollView>
             )}

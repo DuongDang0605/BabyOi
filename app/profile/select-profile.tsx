@@ -16,9 +16,8 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
-import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
 function parseProfileDate(dateOfBirth: string) {
@@ -113,6 +112,7 @@ export default function SelectProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState<ProfilePayload>({
     userId: 0,
@@ -191,11 +191,15 @@ export default function SelectProfileScreen() {
     const uri = result.assets[0]?.uri;
     if (uri) {
       try {
-        const persistentUri = await persistProfileImage(uri);
-        setForm((current) => ({ ...current, imageUrl: persistentUri }));
+        setImageUploading(true);
+        const imageUrl = await uploadProfileAvatar(uri);
+        setForm((current) => ({ ...current, imageUrl }));
         setError('');
-      } catch {
-        setError('Không thể lưu ảnh hồ sơ. Bạn thử chọn lại ảnh nhé.');
+      } catch (err) {
+        console.error('Không thể upload ảnh hồ sơ:', err);
+        setError(err instanceof Error ? err.message : 'Không thể tải ảnh hồ sơ lên máy chủ. Bạn thử chọn lại ảnh nhé.');
+      } finally {
+        setImageUploading(false);
       }
     }
   };
@@ -361,7 +365,9 @@ export default function SelectProfileScreen() {
               <Text style={styles.label}>Ảnh hồ sơ</Text>
               <View style={styles.photoPickerBox}>
                 <View style={styles.photoPreview}>
-                  {form.imageUrl ? (
+                  {imageUploading ? (
+                    <ActivityIndicator color="#FF8FAB" />
+                  ) : form.imageUrl ? (
                     <Image source={{ uri: form.imageUrl }} style={styles.photoPreviewImage} />
                   ) : (
                     <Ionicons name="camera-outline" size={34} color="#FF8FAB" />
@@ -415,8 +421,8 @@ export default function SelectProfileScreen() {
 
               {!!error && <Text style={styles.modalError}>{error}</Text>}
 
-              <TouchableOpacity style={[styles.createButton, submitting && styles.disabledButton]} onPress={handleCreateProfile} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.createButtonText}>Tạo hồ sơ</Text>}
+              <TouchableOpacity style={[styles.createButton, (submitting || imageUploading) && styles.disabledButton]} onPress={handleCreateProfile} disabled={submitting || imageUploading}>
+                {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.createButtonText}>{imageUploading ? 'Đang tải ảnh...' : 'Tạo hồ sơ'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -1,4 +1,6 @@
 import type { ProfileResponse } from './api';
+import { getProfilesByUserId } from './api';
+import { getAuthSession, hydrateAuthSession } from './auth-session';
 import { deleteSecureItem, getSecureItem, setSecureItem } from './secure-storage';
 
 const SELECTED_PROFILE_STORAGE_KEY = 'babyoi_selected_profile';
@@ -40,4 +42,29 @@ export function getSelectedProfile() {
 export async function clearSelectedProfile() {
   selectedProfile = null;
   await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+}
+
+export async function ensureCurrentUserSelectedProfile() {
+  const currentProfile = selectedProfile || (await hydrateSelectedProfile());
+  if (currentProfile) {
+    return currentProfile;
+  }
+
+  const session = getAuthSession() || (await hydrateAuthSession());
+  if (!session?.userId) {
+    return null;
+  }
+
+  const profiles = await getProfilesByUserId(session.userId);
+  const nextProfile =
+    profiles.find((profile) => profile.status === 2) ||
+    profiles.find((profile) => profile.status === 1) ||
+    profiles[0] ||
+    null;
+
+  if (nextProfile) {
+    await setSelectedProfile(nextProfile);
+  }
+
+  return nextProfile;
 }

@@ -195,7 +195,7 @@ export default function RecipeDetailScreen() {
 
   const renderContent = () => {
     if (loading) {
-      return <StateBox icon="restaurant-outline" text="Đang tải chi tiết món ăn..." loading />;
+      return <DetailLoadingSkeleton />;
     }
 
     if (error || !food) {
@@ -328,6 +328,50 @@ export default function RecipeDetailScreen() {
   );
 }
 
+function DetailLoadingSkeleton() {
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Phân Tích Chi Tiết</Text>
+        <View style={{ width: 45 }} />
+      </View>
+
+      <View style={styles.loadingAnalyzeCard}>
+        <View style={styles.skeletonCircle}>
+          <ActivityIndicator color="#FF8FAB" />
+        </View>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonPill} />
+      </View>
+
+      <View style={styles.skeletonGrid}>
+        {[0, 1, 2, 3].map((item) => (
+          <View key={item} style={styles.skeletonStatCard}>
+            <View style={styles.skeletonIcon} />
+            <View style={styles.skeletonLineShort} />
+            <View style={styles.skeletonLine} />
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.skeletonPanel}>
+        {[0, 1, 2].map((item) => (
+          <View key={item} style={styles.skeletonIngredientRow}>
+            <View style={styles.skeletonIngredientIcon} />
+            <View style={{ flex: 1 }}>
+              <View style={styles.skeletonLine} />
+              <View style={styles.skeletonLineShort} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
 function StateBox({ icon, text, loading }: { icon: string; text: string; loading?: boolean }) {
   return (
     <View style={styles.stateBox}>
@@ -357,6 +401,18 @@ const styles = StyleSheet.create({
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 70, marginBottom: 20 },
   backButton: { width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
+  loadingAnalyzeCard: { alignItems: 'center', marginTop: 30, marginBottom: 30 },
+  skeletonCircle: { width: 170, height: 170, borderRadius: 85, backgroundColor: '#FFF5F8', borderWidth: 5, borderColor: '#FFB6C1', alignItems: 'center', justifyContent: 'center' },
+  skeletonTitle: { width: '72%', height: 24, borderRadius: 12, backgroundColor: '#FFE5EC', marginTop: 22 },
+  skeletonPill: { width: 160, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FFE5EC', marginTop: 12 },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 25 },
+  skeletonStatCard: { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 2, borderColor: '#FFE5EC', padding: 16, alignItems: 'center', marginBottom: 12 },
+  skeletonIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFE5EC', marginBottom: 10 },
+  skeletonLine: { width: '82%', height: 12, borderRadius: 6, backgroundColor: '#F1E8E2', marginTop: 8 },
+  skeletonLineShort: { width: '54%', height: 10, borderRadius: 5, backgroundColor: '#FFE5EC', marginTop: 8 },
+  skeletonPanel: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 16, borderWidth: 1, borderColor: '#FFE5EC', marginBottom: 120 },
+  skeletonIngredientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  skeletonIngredientIcon: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FFF5F8' },
   analyzeCard: { alignItems: 'center', marginTop: 30, marginBottom: 30 },
   imageCircleContainer: { width: 350, height: 350, justifyContent: 'center', alignItems: 'center' },
   floatingWrapper: { position: 'absolute', width: 320, height: 50, justifyContent: 'center', alignItems: 'flex-end' },
