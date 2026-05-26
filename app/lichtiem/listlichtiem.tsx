@@ -1,56 +1,148 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { VaccineCard } from '../../components/lichtiem/VaccineCard';
 import { VaccineSummary } from '../../components/lichtiem/VaccineSummary';
+import { API_BASE_URL, getCurrentUser, getProfilesByUserId, type ProfileResponse } from '../../lib/api';
+import { getAuthorizationHeader, hydrateAuthSession } from '../../lib/auth-session';
+import { getSelectedProfile, hydrateSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
+
+const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/3532/3532361.png';
+
+async function fetchVaccineRecords(profileId: number, status: number) {
+  await hydrateAuthSession();
+
+  const authorizationHeader = getAuthorizationHeader();
+  if (!authorizationHeader) {
+    throw new Error('Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại.');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/vaccine-records/profile/${profileId}?status=${status}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: authorizationHeader,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(errorText || `Lỗi API ${response.status}`);
+  }
+
+  return response.json();
+}
 
 export default function VaccineScheduleScreen() {
-  const [profiles, setProfiles] = useState([]);
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profiles, setProfiles] = useState<ProfileResponse[]>([]);
+  const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
   const [stats, setStats] = useState({ pending: 0, success: 0, canceled: 0 });
-  const [upcomingVaccines, setUpcomingVaccines] = useState([]);
-  const [completedVaccines, setCompletedVaccines] = useState([]);
+  const [upcomingVaccines, setUpcomingVaccines] = useState<any[]>([]);
+  const [completedVaccines, setCompletedVaccines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // userId thực tế từ session/auth
-  const userId = 1;
-
-  // 1. Tải danh sách hồ sơ (Profiles)
+  // 1. Tải danh sách hồ sơ theo user đang đăng nhập
   useEffect(() => {
     const loadProfiles = async () => {
       try {
         setLoading(true);
-        // GET /api/profiles/user/${userId}
-        // Giả lập dữ liệu trả về từ API thực tế
-        const data = [
-          { id: 10, name: "Bé Ốc", profileType: "CHILD", avatar: 'https://cdn-icons-png.flaticon.com/512/3532/3532361.png' },
-          { id: 11, name: "Mẹ Lan", profileType: "MOTHER", avatar: 'https://cdn-icons-png.flaticon.com/512/4392/4392171.png' }
-        ];
+
+        const currentUser = await getCurrentUser();
+
+        if (!currentUser?.id) {
+          throw new Error('Không tìm thấy userId hợp lệ từ /api/users/me');
+        }
+
+        const data = await getProfilesByUserId(currentUser.id);
+
+        if (!Array.isArray(data) || data.length === 0) {
+          setProfiles([]);
+          setSelectedProfileState(null);
+          await setSelectedProfile(null);
+          return;
+        }
+
+        const storedProfile = getSelectedProfile() || await hydrateSelectedProfile();
+        const matchedStoredProfile = storedProfile && data.find((profile) => profile.id === storedProfile.id);
+        const nextProfile = matchedStoredProfile ?? data[0];
+
         setProfiles(data);
-        if (data.length > 0) setSelectedProfile(data[0]);
+        setSelectedProfileState(nextProfile);
+        await setSelectedProfile(nextProfile);
       } catch (error) {
-        console.error("Lỗi tải hồ sơ:", error);
+        console.error('Lỗi tải hồ sơ:', error);
+        setProfiles([]);
+        setSelectedProfileState(null);
+        await setSelectedProfile(null);
       } finally {
         setLoading(false);
       }
     };
+
     loadProfiles();
-  }, [userId]);
+  }, []);
 
   // 2. Tải dữ liệu tiêm chủng khi đổi hồ sơ
   useEffect(() => {
-    if (selectedProfile) {
-      const fetchVaccineData = async () => {
-        // GET /api/vaccine-records/profile/${selectedProfile.id}/statistics
-        // GET /api/vaccine-records/profile/${selectedProfile.id}?status=-1
-        // GET /api/vaccine-records/profile/${selectedProfile.id}?status=3
-        console.log(`Đang tải dữ liệu cho hồ sơ: ${selectedProfile.name}`);
-      };
-      fetchVaccineData();
+    if (!selectedProfile || profiles.length === 0) {
+      return;
     }
-  }, [selectedProfile]);
+
+    let cancelled = false;
+
+    const fetchVaccineData = async () => {
+      const orderedProfiles = [selectedProfile, ...profiles.filter((profile) => profile.id !== selectedProfile.id)];
+      let lastError: unknown;
+
+      for (const profile of orderedProfiles) {
+        try {
+          const [pendingData, completedData] = await Promise.all([
+            fetchVaccineRecords(profile.id, -1),
+            fetchVaccineRecords(profile.id, 3),
+          ]);
+
+          if (cancelled) {
+            return;
+          }
+
+          const pendingVaccines = Array.isArray(pendingData) ? pendingData : [];
+          const completed = Array.isArray(completedData) ? completedData : [];
+
+          if (profile.id !== selectedProfile.id) {
+            setSelectedProfileState(profile);
+            await setSelectedProfile(profile);
+          }
+
+          setUpcomingVaccines(pendingVaccines);
+          setCompletedVaccines(completed);
+          setStats({
+            pending: pendingVaccines.length,
+            success: completed.length,
+            canceled: 0,
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          console.warn(`Lỗi tải dữ liệu cho hồ sơ ${profile.id}, thử hồ sơ khác nếu có.`, error);
+        }
+      }
+
+      if (!cancelled) {
+        console.error('Không thể tải dữ liệu tiêm chủng cho bất kỳ hồ sơ nào.', lastError);
+        setUpcomingVaccines([]);
+        setCompletedVaccines([]);
+        setStats({ pending: 0, success: 0, canceled: 0 });
+      }
+    };
+
+    fetchVaccineData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfile, profiles]);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
 
@@ -74,9 +166,12 @@ export default function VaccineScheduleScreen() {
               <TouchableOpacity
                 key={p.id}
                 style={[styles.profileItem, selectedProfile?.id === p.id && styles.profileItemActive]}
-                onPress={() => setSelectedProfile(p)}
+                onPress={async () => {
+                  setSelectedProfileState(p);
+                  await setSelectedProfile(p);
+                }}
               >
-                <Image source={{ uri: p.avatar }} style={styles.profileAvatar} />
+                <Image source={{ uri: p.imageUrl || DEFAULT_AVATAR }} style={styles.profileAvatar} />
                 <Text style={[styles.profileName, selectedProfile?.id === p.id && styles.profileNameActive]}>{p.name}</Text>
               </TouchableOpacity>
             ))}
@@ -97,20 +192,24 @@ export default function VaccineScheduleScreen() {
           </TouchableOpacity>
         </View>
         
-        {upcomingVaccines.length > 0 ? upcomingVaccines.map(item => (
-          <VaccineCard
-            key={item.id}
-            vaccine={{
-              ...item,
-              name: item.vaccineTypeName,
-              desc: item.vaccineTypeDescription,
-              date: item.injectionDate,
-              status: 'upcoming'
-            }}
-            onBookPress={() => router.push({ pathname: '/lichtiem/datlichtiem', params: { profileId: selectedProfile?.id, vaccineTypeId: item.vaccineTypeId } })}
-          />
-        )) : (
-          <Text style={styles.emptyText}>Chưa có lịch tiêm cho {selectedProfile?.name}</Text>
+        {selectedProfile ? (
+          upcomingVaccines.length > 0 ? upcomingVaccines.map(item => (
+            <VaccineCard
+              key={item.id}
+              vaccine={{
+                ...item,
+                name: item.vaccineTypeName,
+                desc: item.vaccineTypeDescription,
+                date: item.injectionDate,
+                status: 'upcoming'
+              }}
+              onBookPress={() => router.push({ pathname: '/lichtiem/datlichtiem', params: { profileId: selectedProfile?.id, vaccineTypeId: item.vaccineTypeId } })}
+            />
+          )) : (
+            <Text style={styles.emptyText}>Chưa có lịch tiêm cho {selectedProfile?.name}</Text>
+          )
+        ) : (
+          <Text style={styles.emptyText}>Bạn chưa có hồ sơ nào. Hãy thêm hồ sơ để xem lịch tiêm.</Text>
         )}
 
         <View style={styles.sectionHeader}>

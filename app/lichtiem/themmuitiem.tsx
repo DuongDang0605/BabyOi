@@ -1,8 +1,10 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useEffect } from 'react';
-import { Buffer } from 'buffer'; // Đảm bảo đã cài đặt 'buffer' hoặc dùng btoa nếu môi trường hỗ trợ
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { API_BASE_URL } from '../../lib/api';
+import { getAuthorizationHeader, hydrateAuthSession } from '../../lib/auth-session';
 
 export default function AddVaccineScreen() {
   const { profileId } = useLocalSearchParams();
@@ -35,13 +37,16 @@ export default function AddVaccineScreen() {
       setLoading(true);
       setShowDropdown(true);
 
-      // 1. Xác định Host (10.0.2.2 cho Android Emulator, localhost cho iOS/Web)
-      const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-      const url = `http://${host}:8085/api/vaccine-types?keyword=${encodeURIComponent(query)}`;
+      await hydrateAuthSession();
+      const authorizationHeader = getAuthorizationHeader();
 
-      // 2. Cấu hình Basic Auth (Dựa trên hình ảnh Postman của bạn)
-      // Username: mother@babyoi.local | Password: Bạn hãy thay '123456' bằng pass thực tế
-      const auth = Buffer.from('mother@babyoi.local:123456').toString('base64');
+      if (!authorizationHeader) {
+        setVaccineTypes([]);
+        setShowDropdown(false);
+        return;
+      }
+
+      const url = `${API_BASE_URL}/api/vaccine-types?keyword=${encodeURIComponent(query)}`;
 
       console.log(`Đang gọi API: ${url}`);
 
@@ -50,7 +55,7 @@ export default function AddVaccineScreen() {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${auth}`
+          Authorization: authorizationHeader,
         },
       });
 

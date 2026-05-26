@@ -1,7 +1,7 @@
     import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { clearAuthSession, getAccessToken } from './auth-session';
+import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
 
 export type AuthResponse = {
   accessToken: string;
@@ -320,7 +320,7 @@ async function parseError(response: Response): Promise<never> {
 }
 
 function buildHeaders(init?: RequestInit): Record<string, string> {
-  const token = getAccessToken();
+  const authorizationHeader = getAuthorizationHeader();
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -328,15 +328,16 @@ function buildHeaders(init?: RequestInit): Record<string, string> {
     ...((init?.headers as Record<string, string>) ?? {}),
   };
 
-  // Nếu caller chưa truyền Authorization thì tự lấy token trong auth-session
-  if (token && !headers.Authorization) {
-    headers.Authorization = `Bearer ${token}`;
+  if (authorizationHeader && !headers.Authorization) {
+    headers.Authorization = authorizationHeader;
   }
 
   return headers;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  await hydrateAuthSession();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: buildHeaders(init),
