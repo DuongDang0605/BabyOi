@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import type { ProfileResponse } from './api';
-import { deleteSecureItem, getSecureItem, setSecureItem } from './secure-storage';
 
 const SELECTED_PROFILE_STORAGE_KEY = 'babyoi_selected_profile';
 
@@ -9,15 +10,15 @@ export async function setSelectedProfile(profile: ProfileResponse | null) {
   selectedProfile = profile;
 
   if (profile) {
-    await setSecureItem(SELECTED_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    await AsyncStorage.setItem(SELECTED_PROFILE_STORAGE_KEY, JSON.stringify(profile));
     return;
   }
 
-  await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+  await AsyncStorage.removeItem(SELECTED_PROFILE_STORAGE_KEY);
 }
 
 export async function hydrateSelectedProfile() {
-  const rawValue = await getSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+  const rawValue = await AsyncStorage.getItem(SELECTED_PROFILE_STORAGE_KEY);
   if (!rawValue) {
     selectedProfile = null;
     return null;
@@ -28,7 +29,7 @@ export async function hydrateSelectedProfile() {
     return selectedProfile;
   } catch {
     selectedProfile = null;
-    await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+    await AsyncStorage.removeItem(SELECTED_PROFILE_STORAGE_KEY);
     return null;
   }
 }
@@ -39,5 +40,5 @@ export function getSelectedProfile() {
 
 export async function clearSelectedProfile() {
   selectedProfile = null;
-  await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+  await AsyncStorage.removeItem(SELECTED_PROFILE_STORAGE_KEY);
 }

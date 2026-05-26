@@ -4,17 +4,16 @@
     "slug": "BabyOi",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo1.png",
+    "icon": "./assets/images/logo1.png", 
     "scheme": "babyoi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.duongdang2526.BabyOi"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FEF9F3",
+        "backgroundColor": "#FEF9F3", 
         "foregroundImage": "./assets/images/logo1.png"
       },
       "edgeToEdgeEnabled": true,
@@ -23,19 +22,19 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo1.png"
+      "favicon": "./assets/images/logo1.png" 
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo2.png",
+          "image": "./assets/images/logo2.png", 
           "imageWidth": 250,
           "resizeMode": "contain",
-          "backgroundColor": "#FEF9F3",
+          "backgroundColor": "#FEF9F3", 
           "dark": {
-            "backgroundColor": "#FEF9F3"
+            "backgroundColor": "#FEF9F3" 
           }
         }
       ],
@@ -45,8 +44,7 @@
           "photosPermission": "BabyOi cần quyền truy cập thư viện ảnh để chọn ảnh hồ sơ.",
           "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ."
         }
-      ],
-      "expo-secure-store"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -54,9 +52,6 @@
     },
     "extra": {
       "router": {},
-      "googleWebClientId": "795446588674-54v3f5u19t9tii8hu5vp9763i78g8dpd.apps.googleusercontent.com",
-      "googleAndroidClientId": "795446588674-54v3f5u19t9tii8hu5vp9763i78g8dpd.apps.googleusercontent.com",
-      "googleIosClientId": "795446588674-55cfglrm1lf78s46j09ghhif31lu5ni5.apps.googleusercontent.com",
       "eas": {
         "projectId": "76d67dab-c4c6-4c89-8404-49bfec9a91d7"
       }
