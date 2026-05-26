@@ -4,21 +4,82 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import {
-  ApiError,
-  LOCATION_SUGGESTIONS,
-  VACCINE_STATUS,
-  createVaccineRecord,
-  formatApiDate,
-  formatApiDateToDisplay,
-  formatDateInput,
-  formatDisplayDate,
-  getVaccineTypes,
-  parseDisplayDate,
-  type VaccineTypeResponse,
-  updateVaccineRecord,
-} from '../../lib/vaccine';
+import { ApiError, createVaccineRecord, getVaccineTypes, updateVaccineRecord, type VaccineTypeResponse } from '../../lib/api';
 import { useNotification } from '../../lib/notification';
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+const parseDisplayDate = (value: string): Date | null => {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, dayRaw, monthRaw, yearRaw] = match;
+  const day = Number(dayRaw);
+  const month = Number(monthRaw);
+  const year = Number(yearRaw);
+
+  const parsedDate = new Date(year, month - 1, day);
+
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+};
+
+const formatDisplayDate = (date: Date) => `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
+const formatApiDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const formatDateInput = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  }
+
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+};
+const formatApiDateToDisplay = (value: string) => {
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) {
+    return '';
+  }
+
+  const [, year, month, day] = match;
+  return `${day}-${month}-${year}`;
+};
+
+const LOCATION_SUGGESTIONS = [
+  'VNVC Sơn Tây',
+  'VNVC Hà Nội',
+  'Bệnh viện Nhi Đồng 1',
+  'Bệnh viện Nhi Đồng 2',
+  'Phòng khám tư',
+  'Trạm y tế xã',
+  'Khoa Nhi',
+  'Cơ sở y tế tư nhân',
+];
+
+const TABLE_STATUS = {
+  SUCCESS: 3,
+  PENDING: -1,
+  CANCELED: -2,
+};
 
 export default function AddVaccineScreen() {
   const { profileId, mode, recordId, vaccineTypeId: routeVaccineTypeId, vaccineName, injectionDate: routeInjectionDate } = useLocalSearchParams();
@@ -40,13 +101,13 @@ export default function AddVaccineScreen() {
   const [injectionDate, setInjectionDate] = useState(isConfirmMode ? defaultInjectionDate : '');
   const [dateError, setDateError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [status, setStatus] = useState(isConfirmMode ? VACCINE_STATUS.COMPLETED : VACCINE_STATUS.PENDING);
+  const [status, setStatus] = useState(isConfirmMode ? 3 : -1);
   const [note, setNote] = useState('');
   const [location, setLocation] = useState('');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [price, setPrice] = useState('');
 
-  const isCompleted = status === VACCINE_STATUS.COMPLETED;
+  const isCompleted = status === 3;
   const filteredLocationSuggestions = LOCATION_SUGGESTIONS.filter((item) => {
     if (!location.trim()) {
       return true;
@@ -86,7 +147,7 @@ export default function AddVaccineScreen() {
 
     setVaccineTypeId(parsedVaccineTypeId);
     setInjectionDate(defaultInjectionDate);
-    setStatus(VACCINE_STATUS.COMPLETED);
+    setStatus(3);
     setSearchText(lockedVaccineName);
   }, [defaultInjectionDate, isConfirmMode, lockedVaccineName, parsedVaccineTypeId]);
 
@@ -149,7 +210,7 @@ export default function AddVaccineScreen() {
       vaccineTypeId,
       injectionDate: formatApiDate(parsedDate),
       note: note.trim() || undefined,
-      status: isCompleted ? VACCINE_STATUS.COMPLETED : VACCINE_STATUS.PENDING,
+      status: isCompleted ? TABLE_STATUS.SUCCESS : TABLE_STATUS.PENDING,
       ...(isCompleted
         ? {
             location: location.trim() || undefined,
@@ -372,17 +433,17 @@ export default function AddVaccineScreen() {
           ) : (
             <View style={styles.pillContainer}>
               <TouchableOpacity
-                style={[styles.pillButton, status === VACCINE_STATUS.COMPLETED ? styles.pillActive : styles.pillInactive]}
-                onPress={() => setStatus(VACCINE_STATUS.COMPLETED)}
+                style={[styles.pillButton, status === 3 ? styles.pillActive : styles.pillInactive]}
+                onPress={() => setStatus(3)}
               >
-                <Text style={status === VACCINE_STATUS.COMPLETED ? styles.pillActiveText : styles.pillInactiveText}>Đã tiêm ✅</Text>
+                <Text style={status === 3 ? styles.pillActiveText : styles.pillInactiveText}>Đã tiêm ✅</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.pillButton, status === VACCINE_STATUS.PENDING ? styles.pillActive : styles.pillInactive]}
-                onPress={() => setStatus(VACCINE_STATUS.PENDING)}
+                style={[styles.pillButton, status === -1 ? styles.pillActive : styles.pillInactive]}
+                onPress={() => setStatus(-1)}
               >
-                <Text style={status === VACCINE_STATUS.PENDING ? styles.pillActiveText : styles.pillInactiveText}>Sắp tới ⏳</Text>
+                <Text style={status === -1 ? styles.pillActiveText : styles.pillInactiveText}>Sắp tới ⏳</Text>
               </TouchableOpacity>
             </View>
           )}
