@@ -27,6 +27,8 @@ interface DishCardProps {
 }
 
 export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onToggleRestriction, onToggleFavorite }: DishCardProps) => {
+  const accentColor = item.food?.functionCode === 2 ? '#89CFF0' : '#FF8FAB';
+
   return (
     <View style={[styles.dishCard, isRestricted && styles.restrictedCardEffect]}>
       <TouchableOpacity
@@ -42,7 +44,7 @@ export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onTo
               <Text style={styles.imagePlaceholderText}>Thiếu ảnh DB</Text>
             </View>
           )}
-          <View style={[styles.tagBadge, isRestricted && { backgroundColor: '#ABBEC8' }]}>
+          <View style={[styles.tagBadge, { backgroundColor: accentColor }, isRestricted && { backgroundColor: '#ABBEC8' }]}>
             <Text style={styles.tagText}>{item.tag}</Text>
           </View>
         </View>
@@ -59,15 +61,15 @@ export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onTo
 
             <View style={styles.actionButtons}>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: isRestricted ? '#FF8FAB' : '#F0F2F5' }]}
+                style={[styles.actionBtn, { backgroundColor: isRestricted ? '#FF8FAB' : '#E9F8FD' }]}
                 onPress={() => onToggleRestriction(item.id)}
               >
-                <Ionicons name={isRestricted ? 'refresh' : 'eye-off'} size={18} color={isRestricted ? 'white' : '#5C7A8A'} />
+                <Ionicons name={isRestricted ? 'refresh' : 'eye-off'} size={18} color={isRestricted ? 'white' : '#4E9F98'} />
               </TouchableOpacity>
 
               {!isRestricted && (
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: isFavorite ? '#FF8FAB' : '#FFB6C1', marginLeft: 8 }]}
+                    style={[styles.actionBtn, { backgroundColor: isFavorite ? '#FF8FAB' : '#FFD166', marginLeft: 8 }]}
                     onPress={() => onToggleFavorite?.(item.id)}
                 >
                   <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={18} color="white" />
@@ -82,15 +84,15 @@ export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onTo
 };
 
 const styles = StyleSheet.create({
-  dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 3, overflow: 'hidden' },
+  dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 3, overflow: 'hidden', borderWidth: 1, borderColor: '#F4EEF2' },
   imageBox: { height: 105 },
   dishImage: { width: '100%', height: '100%' },
-  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF5F8' },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1FBFA' },
   imagePlaceholderText: { color: '#FF8FAB', fontSize: 10, fontWeight: '800', marginTop: 4 },
-  tagBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,143,171,0.9)', paddingHorizontal: 8, borderRadius: 8 },
+  tagBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, borderRadius: 8 },
   tagText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
   infoBox: { padding: 12 },
-  dishName: { fontSize: 13, fontWeight: '800', color: '#FF8FAB' },
+  dishName: { fontSize: 13, fontWeight: '800', color: '#5C7A8A' },
   dishDesc: { fontSize: 10, color: '#5C7A8A', height: 28, marginTop: 2 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   starRow: { flexDirection: 'row', alignItems: 'center' },
