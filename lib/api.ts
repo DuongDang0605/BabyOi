@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+    import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
@@ -21,6 +21,32 @@ export type RegisterPayload = {
   userName: string;
   email: string;
   password: string;
+};
+
+export type OtpResponse = {
+  email: string;
+  message: string;
+  expiresInMinutes: number;
+};
+
+export type OtpPayload = {
+  email: string;
+};
+
+export type VerifyOtpPayload = {
+  email: string;
+  code: string;
+};
+
+export type ResetPasswordPayload = {
+  email: string;
+  code: string;
+  newPassword: string;
+};
+
+export type SocialLoginPayload = {
+  provider: 'GOOGLE';
+  idToken?: string;
 };
 
 export type ProfileResponse = {
@@ -371,8 +397,57 @@ export function login(payload: LoginPayload) {
   });
 }
 
+export function socialLogin(payload: SocialLoginPayload) {
+  return request<AuthResponse>('/api/auth/social-login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function register(payload: RegisterPayload) {
-  return request<AuthResponse>('/api/auth/register', {
+  return request<OtpResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function resendRegistrationOtp(payload: OtpPayload) {
+  return request<OtpResponse>('/api/auth/register/resend-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function cancelRegistration(payload: OtpPayload) {
+  return request<void>('/api/auth/register/cancel', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyRegistration(payload: VerifyOtpPayload) {
+  return request<AuthResponse>('/api/auth/register/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function forgotPassword(payload: OtpPayload) {
+  return request<OtpResponse>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyPasswordResetCode(payload: VerifyOtpPayload) {
+  return request<void>('/api/auth/forgot-password/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function resetPassword(payload: ResetPasswordPayload) {
+  return request<void>('/api/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

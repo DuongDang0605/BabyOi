@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 
 import { ApiError, register } from '@/lib/api';
-import { setAuthSession } from '@/lib/auth-session';
 
 export default function RegisterScreen() {
   const [userName, setUserName] = useState('');
@@ -35,7 +34,7 @@ export default function RegisterScreen() {
     setFormError('');
 
     if (password !== confirmPassword) {
-      setConfirmPasswordError('Mat khau xac nhan khong khop.');
+        setConfirmPasswordError('Mật khẩu xác nhận không khớp.');
       return;
     }
 
@@ -47,8 +46,12 @@ export default function RegisterScreen() {
         password,
       });
 
-      await setAuthSession(response);
-      router.replace('/profile/select-profile');
+      router.push({
+        pathname: '/auth/verify-registration',
+        params: {
+          email: response.email,
+        },
+      });
     } catch (error) {
       if (error instanceof ApiError) {
         setUserNameError(error.errors?.userName ?? '');
@@ -56,7 +59,7 @@ export default function RegisterScreen() {
         setPasswordError(error.errors?.password ?? '');
         setFormError(error.message);
       } else {
-        setFormError('Dang ky that bai.');
+        setFormError('Tạo tài khoản thất bại.');
       }
     } finally {
       setSubmitting(false);
@@ -68,18 +71,18 @@ export default function RegisterScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Stack.Screen options={{ title: 'Dang ky', headerShadowVisible: false }} />
+      <Stack.Screen options={{ title: 'Tạo tài khoản', headerShadowVisible: false }} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Tao tai khoan BabyOi</Text>
+        <Text style={styles.title}>Tạo tài khoản BabyOi</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>User name</Text>
+          <Text style={styles.label}>Tên người dùng</Text>
           <TextInput
             style={styles.input}
             value={userName}
             onChangeText={setUserName}
             autoCapitalize="none"
-            placeholder="ten me"
+            placeholder="Tên của mẹ"
             placeholderTextColor="#aab7c2"
           />
           {!!userNameError && <Text style={styles.errorText}>{userNameError}</Text>}
@@ -101,26 +104,26 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Mat khau</Text>
+          <Text style={styles.label}>Mật khẩu</Text>
           <TextInput
             style={styles.input}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="it nhat 8 ky tu"
+            placeholder="Ít nhất 8 ký tự"
             placeholderTextColor="#aab7c2"
           />
           {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Xac nhan mat khau</Text>
+          <Text style={styles.label}>Xác nhận mật khẩu</Text>
           <TextInput
             style={styles.input}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
-            placeholder="nhap lai mat khau"
+            placeholder="Nhập lại mật khẩu"
             placeholderTextColor="#aab7c2"
           />
           {!!confirmPasswordError && <Text style={styles.errorText}>{confirmPasswordError}</Text>}
@@ -135,11 +138,11 @@ export default function RegisterScreen() {
           onPress={handleRegister}
           disabled={submitting}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Dang ky</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Tạo tài khoản</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/auth/login')}>
-          <Text style={styles.secondaryButtonText}>Da co tai khoan? Dang nhap</Text>
+          <Text style={styles.secondaryButtonText}>Đã có tài khoản? Đăng nhập</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

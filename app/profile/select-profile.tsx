@@ -18,6 +18,7 @@ import {
 
 import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
 function parseProfileDate(dateOfBirth: string) {
@@ -182,15 +183,20 @@ export default function SelectProfileScreen() {
     }));
   };
 
-  const applyPickedImage = (result: ImagePicker.ImagePickerResult) => {
+  const applyPickedImage = async (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled) {
       return;
     }
 
     const uri = result.assets[0]?.uri;
     if (uri) {
-      setForm((current) => ({ ...current, imageUrl: uri }));
-      setError('');
+      try {
+        const persistentUri = await persistProfileImage(uri);
+        setForm((current) => ({ ...current, imageUrl: persistentUri }));
+        setError('');
+      } catch {
+        setError('Không thể lưu ảnh hồ sơ. Bạn thử chọn lại ảnh nhé.');
+      }
     }
   };
 
@@ -207,7 +213,7 @@ export default function SelectProfileScreen() {
       aspect: [1, 1],
       quality: 0.82,
     });
-    applyPickedImage(result);
+    await applyPickedImage(result);
   };
 
   const takeProfilePhoto = async () => {
@@ -222,7 +228,7 @@ export default function SelectProfileScreen() {
       aspect: [1, 1],
       quality: 0.82,
     });
-    applyPickedImage(result);
+    await applyPickedImage(result);
   };
 
   const handleCreateProfile = async () => {
