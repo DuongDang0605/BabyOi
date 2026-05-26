@@ -1,13 +1,16 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useNotification } from '../../lib/notification';
 
 /**
  * REFACTOR: Sử dụng profileId động từ params điều hướng
  */
 
 export default function AddVaccineSelectedScreen() {
+  const { showNotification } = useNotification();
   const { profileId, vaccineTypeId, vaccineName } = useLocalSearchParams();
 
   const [injectionDate, setInjectionDate] = useState('');
@@ -18,7 +21,11 @@ export default function AddVaccineSelectedScreen() {
 
   const handleSave = () => {
     if (!profileId) {
-      alert("Lỗi: Không tìm thấy thông tin hồ sơ!");
+      showNotification({
+        type: 'error',
+        title: 'Không tìm thấy hồ sơ',
+        message: 'Vui lòng chọn hồ sơ trước khi lưu mũi tiêm.',
+      });
       return;
     }
 

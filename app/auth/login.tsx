@@ -76,10 +76,7 @@ export default function LoginScreen() {
         password,
       });
 
-      await setAuthSession(response, {
-        email: email.trim(),
-        password,
-      });
+      await setAuthSession(response);
       await ensureCurrentUserSelectedProfile();
       router.replace('/home/home');
     } catch (error) {

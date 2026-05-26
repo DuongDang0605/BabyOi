@@ -1,29 +1,95 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { API_BASE_URL } from '../../lib/api';
-import { getAuthorizationHeader, hydrateAuthSession } from '../../lib/auth-session';
+import {
+  ApiError,
+  LOCATION_SUGGESTIONS,
+  VACCINE_STATUS,
+  createVaccineRecord,
+  formatApiDate,
+  formatApiDateToDisplay,
+  formatDateInput,
+  formatDisplayDate,
+  getVaccineTypes,
+  parseDisplayDate,
+  type VaccineTypeResponse,
+  updateVaccineRecord,
+} from '../../lib/vaccine';
+import { useNotification } from '../../lib/notification';
 
 export default function AddVaccineScreen() {
-  const { profileId } = useLocalSearchParams();
+  const { profileId, mode, recordId, vaccineTypeId: routeVaccineTypeId, vaccineName, injectionDate: routeInjectionDate } = useLocalSearchParams();
+  const { showNotification } = useNotification();
 
-  // State cho tìm kiếm vắc-xin từ API
-  const [vaccineTypes, setVaccineTypes] = useState<any[]>([]);
+  const parsedProfileId = Array.isArray(profileId) ? profileId[0] : profileId;
+  const isConfirmMode = mode === 'confirm';
+  const parsedRecordId = Array.isArray(recordId) ? recordId[0] : recordId;
+  const parsedVaccineTypeId = Number.isFinite(Number(routeVaccineTypeId)) ? Number(routeVaccineTypeId) : null;
+  const lockedVaccineName = typeof vaccineName === 'string' ? vaccineName : '';
+  const defaultInjectionDate = typeof routeInjectionDate === 'string' ? formatApiDateToDisplay(routeInjectionDate) : '';
+
+  const [vaccineTypes, setVaccineTypes] = useState<VaccineTypeResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // State cho form
-  const [vaccineTypeId, setHoldVaccineTypeId] = useState<number | null>(null);
-  const [injectionDate, setInjectionDate] = useState('');
-  const [status, setStatus] = useState(-1);
+  const [vaccineTypeId, setVaccineTypeId] = useState<number | null>(isConfirmMode ? parsedVaccineTypeId : null);
+  const [injectionDate, setInjectionDate] = useState(isConfirmMode ? defaultInjectionDate : '');
+  const [dateError, setDateError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [status, setStatus] = useState(isConfirmMode ? VACCINE_STATUS.COMPLETED : VACCINE_STATUS.PENDING);
   const [note, setNote] = useState('');
   const [location, setLocation] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [price, setPrice] = useState('');
 
-  // Hàm gọi API tìm kiếm vắc-xin thực tế
+  const isCompleted = status === VACCINE_STATUS.COMPLETED;
+  const filteredLocationSuggestions = LOCATION_SUGGESTIONS.filter((item) => {
+    if (!location.trim()) {
+      return true;
+    }
+
+    return item.toLowerCase().includes(location.trim().toLowerCase());
+  }).slice(0, 5);
+
+  const handleDateInputChange = (value: string) => {
+    const formattedValue = formatDateInput(value);
+    setInjectionDate(formattedValue);
+
+    if (formattedValue.trim() === '') {
+      setDateError('');
+      return;
+    }
+
+    const parsedDate = parseDisplayDate(formattedValue);
+    setDateError(parsedDate ? '' : 'Ngày không hợp lệ. Nhập theo định dạng dd-mm-yyyy.');
+  };
+
+  const handleDatePickerChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(false);
+
+    if (!selectedDate) {
+      return;
+    }
+
+    setInjectionDate(formatDisplayDate(selectedDate));
+    setDateError('');
+  };
+
+  useEffect(() => {
+    if (!isConfirmMode) {
+      return;
+    }
+
+    setVaccineTypeId(parsedVaccineTypeId);
+    setInjectionDate(defaultInjectionDate);
+    setStatus(VACCINE_STATUS.COMPLETED);
+    setSearchText(lockedVaccineName);
+  }, [defaultInjectionDate, isConfirmMode, lockedVaccineName, parsedVaccineTypeId]);
+
   const searchVaccines = async (query: string) => {
     setSearchText(query);
 
@@ -36,208 +102,301 @@ export default function AddVaccineScreen() {
     try {
       setLoading(true);
       setShowDropdown(true);
-
-      await hydrateAuthSession();
-      const authorizationHeader = getAuthorizationHeader();
-
-      if (!authorizationHeader) {
-        setVaccineTypes([]);
-        setShowDropdown(false);
-        return;
-      }
-
-      const url = `${API_BASE_URL}/api/vaccine-types?keyword=${encodeURIComponent(query)}`;
-
-      console.log(`Đang gọi API: ${url}`);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: authorizationHeader,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Kết quả tìm kiếm từ BE:", data);
-        setVaccineTypes(data);
-      } else {
-        console.error("Lỗi API Backend:", response.status);
-        setVaccineTypes([]);
-      }
-
+      const data = await getVaccineTypes(query);
+      setVaccineTypes(data);
     } catch (error) {
-      console.error("Lỗi kết nối mạng:", error);
+      console.error('Lỗi tìm kiếm vắc-xin:', error);
       setVaccineTypes([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    if (!profileId || !vaccineTypeId) {
-      alert("Vui lòng chọn hồ sơ và loại vắc-xin!");
+  const handleSave = async () => {
+    if (!parsedProfileId || !vaccineTypeId) {
+      showNotification({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn hồ sơ và loại vắc-xin.',
+      });
       return;
     }
 
+    if (injectionDate.trim() === '') {
+      setDateError('Vui lòng nhập ngày tiêm hoặc ngày dự kiến.');
+      return;
+    }
+
+    const parsedDate = parseDisplayDate(injectionDate);
+    if (!parsedDate) {
+      setDateError('Ngày không hợp lệ. Nhập theo định dạng dd-mm-yyyy.');
+      return;
+    }
+
+    if (isConfirmMode && !parsedRecordId) {
+      showNotification({
+        type: 'error',
+        title: 'Không tìm thấy lịch tiêm',
+        message: 'Không thể xác nhận vì lịch tiêm không hợp lệ.',
+      });
+      return;
+    }
+
+    const normalizedPrice = price.trim() === '' ? undefined : Number(price.replace(/[^0-9]/g, ''));
+
     const request = {
-      profileId: Number(profileId),
-      vaccineTypeId: vaccineTypeId,
-      injectionDate: injectionDate,
-      location: location,
-      note: note,
-      price: Number(price.replace(/[^0-9]/g, '')),
-      status: status
+      profileId: Number(parsedProfileId),
+      vaccineTypeId,
+      injectionDate: formatApiDate(parsedDate),
+      note: note.trim() || undefined,
+      status: isCompleted ? VACCINE_STATUS.COMPLETED : VACCINE_STATUS.PENDING,
+      ...(isCompleted
+        ? {
+            location: location.trim() || undefined,
+            price: Number.isFinite(normalizedPrice) ? normalizedPrice : undefined,
+          }
+        : {}),
     };
 
-    console.log("Gửi API POST /api/vaccine-records:", request);
-    // TODO: Call API POST /api/vaccine-records với Auth tương tự
-    router.back();
+    try {
+      if (isConfirmMode) {
+        await updateVaccineRecord(parsedRecordId!, request);
+        showNotification({
+          type: 'success',
+          title: 'Xác nhận thành công',
+          message: 'Mũi tiêm đã được cập nhật và đã chuyển sang trạng thái đã tiêm.',
+        });
+        router.replace('/lichtiem/listlichtiem');
+        return;
+      }
+
+      await createVaccineRecord(request);
+      showNotification({
+        type: 'success',
+        title: 'Thêm mũi tiêm thành công',
+        message: 'Lịch tiêm đã được lưu vào sổ tiêm chủng.',
+      });
+      router.back();
+    } catch (error) {
+      console.error('Lỗi lưu mũi tiêm:', error);
+
+      const backendMessage = error instanceof ApiError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : 'Không thể lưu mũi tiêm. Vui lòng thử lại.';
+
+      showNotification({
+        type: 'error',
+        title: 'Lưu thất bại',
+        message: backendMessage,
+      });
+    }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea} keyboardShouldPersistTaps="handled">
-        
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Thêm Mũi Tiêm</Text>
+          <Text style={styles.headerTitle}>{isConfirmMode ? 'Xác nhận đã tiêm' : 'Thêm Mũi Tiêm'}</Text>
         </View>
 
-        {/* 1. Tìm kiếm Vắc-xin từ API thực tế */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
-            <Text style={styles.labelSticker}>💉 </Text> Tên vắc-xin / Bệnh phòng ngừa
+            <Text style={styles.labelSticker}>💉 </Text> {isConfirmMode ? 'Tên vắc-xin' : 'Tên vắc-xin / Bệnh phòng ngừa'}
           </Text>
-          
-          <View style={styles.dropdownWrapper}>
-            <TextInput
-              style={[styles.inputRounded, showDropdown && styles.inputActive]}
-              placeholder="Nhập tên vắc-xin (VD: soi, viem gan...)"
-              placeholderTextColor="#b0bec5"
-              value={searchText}
-              onChangeText={searchVaccines}
-              onFocus={() => { if (searchText.length > 0) setShowDropdown(true); }}
-            />
-            
-            {showDropdown && (
-              <View style={styles.dropdownBox}>
-                {loading ? (
-                  <ActivityIndicator color="#ff8fab" style={{ margin: 15 }} />
-                ) : (
-                  vaccineTypes.length > 0 ? (
+
+          {isConfirmMode ? (
+            <View style={styles.lockedVaccineBox}>
+              <Text style={styles.lockedVaccineText}>{lockedVaccineName || 'Không có tên vắc-xin'}</Text>
+            </View>
+          ) : (
+            <View style={styles.dropdownWrapper}>
+              <TextInput
+                style={[styles.inputRounded, showDropdown && styles.inputActive]}
+                placeholder="Nhập tên vắc-xin (VD: soi, viem gan...)"
+                placeholderTextColor="#b0bec5"
+                value={searchText}
+                onChangeText={searchVaccines}
+                onFocus={() => {
+                  if (searchText.length > 0) {
+                    setShowDropdown(true);
+                  }
+                }}
+              />
+
+              {showDropdown && (
+                <View style={styles.dropdownBox}>
+                  {loading ? (
+                    <ActivityIndicator color="#ff8fab" style={{ margin: 15 }} />
+                  ) : vaccineTypes.length > 0 ? (
                     vaccineTypes.map((item) => (
                       <TouchableOpacity
                         key={item.id}
                         style={styles.dropdownItem}
                         onPress={() => {
-                          setHoldVaccineTypeId(item.id);
+                          setVaccineTypeId(item.id);
                           setSearchText(item.name);
                           setShowDropdown(false);
-
-                          // Chuyển hướng sang màn hình hoàn thiện nếu cần AI tư vấn
-                          router.push({
-                            pathname: '/lichtiem/themmuitiemhoanthien',
-                            params: { profileId, vaccineTypeId: item.id, vaccineName: item.name }
-                          });
                         }}
                       >
                         <Text style={styles.dropdownText}>
                           💉 <Text style={styles.textBold}>{item.name}</Text>
                         </Text>
-                        <Text style={styles.dropdownSubtext}>{item.description || "Không có mô tả"}</Text>
+                        <Text style={styles.dropdownSubtext}>{item.description || 'Không có mô tả'}</Text>
                       </TouchableOpacity>
                     ))
                   ) : (
                     <View style={styles.dropdownItem}>
                       <Text style={styles.dropdownSubtext}>Không tìm thấy vắc-xin nào phù hợp</Text>
                     </View>
-                  )
-                )}
-              </View>
-            )}
-          </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
             <Text style={styles.labelSticker}>📅 </Text> Ngày tiêm (hoặc dự kiến)
           </Text>
-          <TextInput 
-            style={styles.inputRounded} 
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#b0bec5"
-            value={injectionDate}
-            onChangeText={setInjectionDate}
-          />
+
+          <View style={styles.dateInputRow}>
+            <TextInput
+              style={styles.dateInput}
+              placeholder="dd-mm-yyyy"
+              placeholderTextColor="#b0bec5"
+              value={injectionDate}
+              onChangeText={handleDateInputChange}
+              keyboardType="numbers-and-punctuation"
+              autoCorrect={false}
+              autoCapitalize="none"
+              maxLength={10}
+            />
+
+            <TouchableOpacity
+              style={styles.dateIconButton}
+              onPress={() => setShowDatePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Chọn ngày bằng lịch"
+            >
+              <Ionicons name="calendar-outline" size={22} color="#ff8fab" />
+            </TouchableOpacity>
+          </View>
+
+          {dateError ? <Text style={styles.dateErrorText}>{dateError}</Text> : null}
+
+          {showDatePicker ? (
+            <DateTimePicker
+              value={parseDisplayDate(injectionDate) ?? new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDatePickerChange}
+            />
+          ) : null}
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            <Text style={styles.labelSticker}>📍 </Text> Địa điểm tiêm
-          </Text>
-          <TextInput
-            style={styles.inputRounded}
-            placeholder="VD: VNVC Sơn Tây..."
-            placeholderTextColor="#b0bec5"
-            value={location}
-            onChangeText={setLocation}
-          />
-        </View>
+        {isCompleted && (
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                <Text style={styles.labelSticker}>📍 </Text> Địa điểm tiêm
+              </Text>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            <Text style={styles.labelSticker}>💰 </Text> Chi phí (VNĐ)
-          </Text>
-          <TextInput
-            style={styles.inputRounded}
-            placeholder="VD: 1.045.000"
-            placeholderTextColor="#b0bec5"
-            keyboardType="numeric"
-            value={price}
-            onChangeText={setPrice}
-          />
-        </View>
+              <View style={styles.dropdownWrapper}>
+                <TextInput
+                  style={[styles.inputRounded, showLocationDropdown && styles.inputActive]}
+                  placeholder="VD: VNVC Sơn Tây..."
+                  placeholderTextColor="#b0bec5"
+                  value={location}
+                  onChangeText={(value) => {
+                    setLocation(value);
+                    setShowLocationDropdown(true);
+                  }}
+                  onFocus={() => setShowLocationDropdown(true)}
+                />
+
+                {showLocationDropdown && filteredLocationSuggestions.length > 0 && (
+                  <View style={styles.locationDropdownBox}>
+                    {filteredLocationSuggestions.map((item) => (
+                      <TouchableOpacity
+                        key={item}
+                        style={styles.locationDropdownItem}
+                        onPress={() => {
+                          setLocation(item);
+                          setShowLocationDropdown(false);
+                        }}
+                      >
+                        <Text style={styles.locationDropdownText}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                <Text style={styles.labelSticker}>💰 </Text> Chi phí (VNĐ)
+              </Text>
+              <TextInput
+                style={styles.inputRounded}
+                placeholder="VD: 1.045.000"
+                placeholderTextColor="#b0bec5"
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
+              />
+            </View>
+          </>
+        )}
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
             <Text style={styles.labelSticker}>⭐ </Text> Trạng thái
           </Text>
-          <View style={styles.pillContainer}>
-            <TouchableOpacity
-              style={[styles.pillButton, status === 3 ? styles.pillActive : styles.pillInactive]}
-              onPress={() => setStatus(3)}
-            >
-              <Text style={status === 3 ? styles.pillActiveText : styles.pillInactiveText}>Đã tiêm ✅</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.pillButton, status === -1 ? styles.pillActive : styles.pillInactive]}
-              onPress={() => setStatus(-1)}
-            >
-              <Text style={status === -1 ? styles.pillActiveText : styles.pillInactiveText}>Sắp tới ⏳</Text>
-            </TouchableOpacity>
-          </View>
+
+          {isConfirmMode ? (
+            <View style={styles.confirmStatusBox}>
+              <Text style={styles.confirmStatusText}>Đã tiêm ✅</Text>
+            </View>
+          ) : (
+            <View style={styles.pillContainer}>
+              <TouchableOpacity
+                style={[styles.pillButton, status === VACCINE_STATUS.COMPLETED ? styles.pillActive : styles.pillInactive]}
+                onPress={() => setStatus(VACCINE_STATUS.COMPLETED)}
+              >
+                <Text style={status === VACCINE_STATUS.COMPLETED ? styles.pillActiveText : styles.pillInactiveText}>Đã tiêm ✅</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.pillButton, status === VACCINE_STATUS.PENDING ? styles.pillActive : styles.pillInactive]}
+                onPress={() => setStatus(VACCINE_STATUS.PENDING)}
+              >
+                <Text style={status === VACCINE_STATUS.PENDING ? styles.pillActiveText : styles.pillInactiveText}>Sắp tới ⏳</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
             <Text style={styles.labelSticker}>📝 </Text> Ghi chú của mẹ
           </Text>
-          <TextInput 
-            style={[styles.inputRounded, styles.textArea]} 
+          <TextInput
+            style={[styles.inputRounded, styles.textArea]}
             placeholder="VD: Bé hơi sốt nhẹ vào buổi tối..."
             placeholderTextColor="#b0bec5"
-            multiline={true}
+            multiline
             value={note}
             onChangeText={setNote}
           />
@@ -251,7 +410,6 @@ export default function AddVaccineScreen() {
           <Text style={styles.saveButtonText}>💖 Lưu vào Sổ Tiêm</Text>
         </TouchableOpacity>
       </View>
-
     </KeyboardAvoidingView>
   );
 }
@@ -266,12 +424,87 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, fontWeight: '700', color: '#5c7a8a', marginBottom: 10, marginLeft: 5 },
   labelSticker: { fontSize: 18 },
   inputRounded: { backgroundColor: '#ffffff', paddingHorizontal: 20, paddingVertical: 15, borderRadius: 25, fontSize: 16, color: '#333333', borderWidth: 2, borderColor: '#f0f4f8', elevation: 3 },
+  dateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#f0f4f8',
+    elevation: 3,
+    paddingRight: 10,
+  },
+  dateInput: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: '#333333',
+  },
+  dateIconButton: {
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateErrorText: {
+    color: '#d32f2f',
+    fontSize: 13,
+    marginTop: 8,
+    marginLeft: 5,
+    fontWeight: '600',
+  },
   dropdownWrapper: { zIndex: 10 },
   inputActive: { borderBottomLeftRadius: 5, borderBottomRightRadius: 5, borderColor: '#a7e4f5' },
   dropdownBox: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#a7e4f5', borderTopWidth: 0, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden', elevation: 4 },
   dropdownItem: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f0f4f8' },
   dropdownText: { fontSize: 15, color: '#333333', marginBottom: 4 },
   dropdownSubtext: { fontSize: 13, color: '#8899aa', fontStyle: 'italic' },
+  lockedVaccineBox: {
+    backgroundColor: '#fffaf3',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#ffd59e',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  lockedVaccineText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#5c7a8a',
+  },
+  locationDropdownBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#a7e4f5',
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  locationDropdownItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f4f8',
+  },
+  locationDropdownText: {
+    fontSize: 15,
+    color: '#333333',
+  },
+  confirmStatusBox: {
+    backgroundColor: '#e7f8ee',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderWidth: 2,
+    borderColor: '#a7e4b8',
+  },
+  confirmStatusText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2e7d32',
+  },
   textBold: { fontWeight: 'bold', color: '#ff8fab' },
   textArea: { height: 100, textAlignVertical: 'top', borderRadius: 20 },
   pillContainer: { flexDirection: 'row', justifyContent: 'space-between' },
