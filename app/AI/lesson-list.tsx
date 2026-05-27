@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
   ScrollView,
@@ -15,51 +16,89 @@ import {
 } from 'react-native';
 
 import { LessonCard } from '../../components/ai/LessonCard';
+import { getAiTeachingLessonsByProfile, type AiTeachingLessonResponse } from '../../lib/api';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-// Dữ liệu gốc
-const INITIAL_LESSONS = [
-  {
-    id: '1',
-    title: 'Tập Lật (Roll Over)',
-    status: 'completed', 
-    time: 'Hoàn thành trong 7 ngày',
-    note: '',
-    icon: 'https://cdn-icons-png.flaticon.com/512/8280/8280846.png',
-  },
-  {
-    id: '2',
-    title: 'Nằm sấp (Tummy Time)',
-    status: 'completed_with_note', 
-    time: 'Hoàn thành trong 14 ngày',
-    note: 'Bé hay khóc ré lên sau 2 phút, mẹ phải bế vỗ.',
-    icon: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png',
-  },
-  {
-    id: '3',
-    title: 'Rèn ngủ ngày (Nap Drill)',
-    status: 'in_progress', 
-    time: 'Đang học ngày 3/7',
-    note: '',
-    icon: 'https://cdn-icons-png.flaticon.com/512/3094/3094851.png',
-  },
-  {
-    id: '4',
-    title: 'Ăn dặm (Khởi động)',
-    status: 'locked', 
-    time: 'Cần vượt qua Cổng kiểm tra',
-    note: '',
-    icon: 'https://cdn-icons-png.flaticon.com/512/2722/2722527.png',
+const LESSON_ICON = 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png';
+
+type LessonItem = {
+  id: string;
+  title: string;
+  status: string;
+  time: string;
+  note?: string;
+  icon: string;
+};
+
+const mapProgressStatus = (status: number | null) => {
+  if (status === 3) {
+    return 'completed';
   }
-];
+
+  if (status === 2) {
+    return 'in_progress';
+  }
+
+  return 'locked';
+};
+
+const formatLessonTime = (lesson: AiTeachingLessonResponse) => {
+  if (lesson.progressStatus === 3) {
+    return lesson.completedAt ? `Hoàn thành ngày ${lesson.completedAt}` : 'Đã hoàn thành';
+  }
+
+  if (lesson.progressStatus === 2) {
+    const currentDay = lesson.currentDay ?? 1;
+    const duration = lesson.recommendedDurationDays ?? 0;
+    return duration > 0 ? `Đang học ngày ${currentDay}/${duration}` : `Đang học ngày ${currentDay}`;
+  }
+
+  const fromMonth = lesson.reasonableAgeFromMonth ?? 0;
+  const toMonth = lesson.reasonableAgeToMonth ?? fromMonth;
+  return `Gợi ý từ ${fromMonth} - ${toMonth} tháng`;
+};
+
+const mapLesson = (lesson: AiTeachingLessonResponse): LessonItem => ({
+  id: String(lesson.id),
+  title: lesson.lessonName,
+  status: mapProgressStatus(lesson.progressStatus),
+  time: formatLessonTime(lesson),
+  note: lesson.progressNote || lesson.lessonNote || '',
+  icon: lesson.iconUrl || LESSON_ICON,
+});
 
 export default function LessonListScreen() {
-  const [lessons, setLessons] = useState(INITIAL_LESSONS);
+  const [lessons, setLessons] = useState<LessonItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
-  const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [editingLesson, setEditingLesson] = useState<LessonItem | null>(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNote, setEditNote] = useState('');
 
-  const handleOpenEdit = (lesson: any) => {
+  useEffect(() => {
+    const loadLessons = async () => {
+      try {
+        setLoading(true);
+        const profile = getSelectedProfile() || (await hydrateSelectedProfile());
+
+        if (!profile?.id) {
+          setLessons([]);
+          return;
+        }
+
+        const data = await getAiTeachingLessonsByProfile(profile.id);
+        setLessons(data.map(mapLesson));
+      } catch {
+        setLessons([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLessons();
+  }, []);
+
+  const handleOpenEdit = (lesson: LessonItem) => {
     setEditingLesson(lesson);
     setEditStatus(lesson.status);
     setEditNote(lesson.note || '');
@@ -67,6 +106,10 @@ export default function LessonListScreen() {
   };
 
   const handleSaveEdit = () => {
+    if (!editingLesson) {
+      return;
+    }
+
     setLessons(lessons.map(l => 
       l.id === editingLesson.id 
         ? { ...l, status: editStatus, note: editNote } 
@@ -79,12 +122,12 @@ export default function LessonListScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/')} style={styles.backButton}>
-          <Ionicons name="home-outline" size={24} color="#5C7A8A" />
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Lộ trình của Ốc</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.rightPlaceholder} />
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -102,15 +145,21 @@ export default function LessonListScreen() {
         <Text style={styles.sectionTitle}>Lịch sử & Hiện tại</Text>
         
         <View style={styles.timelineContainer}>
-          {lessons.map((lesson, index) => (
-            <LessonCard
-              key={lesson.id}
-              lesson={lesson}
-              isLast={index === lessons.length - 1}
-              onEditPress={handleOpenEdit}
-              onHistoryPress={() => router.push('/AI/lesson-history')}
-            />
-          ))}
+          {loading ? (
+            <ActivityIndicator color="#FF8FAB" style={{ marginTop: 24 }} />
+          ) : lessons.length > 0 ? (
+            lessons.map((lesson, index) => (
+              <LessonCard
+                key={lesson.id}
+                lesson={lesson}
+                isLast={index === lessons.length - 1}
+                onEditPress={handleOpenEdit}
+                onHistoryPress={() => router.push('/AI/lesson-history')}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>Chưa có bài học phù hợp cho hồ sơ hiện tại.</Text>
+          )}
         </View>
 
         <View style={{ height: 120 }} />
@@ -181,9 +230,10 @@ export default function LessonListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 60, paddingHorizontal: 20, paddingBottom: 15 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2 },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB' },
+  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25, paddingHorizontal: 20 },
+  backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
+  rightPlaceholder: { width: 45 },
   scrollContent: { paddingHorizontal: 20 },
   summaryCard: { backgroundColor: '#FFF0F5', padding: 20, borderRadius: 25, marginBottom: 25, borderWidth: 1, borderColor: '#FFB6C1' },
   summaryHeader: { flexDirection: 'row', alignItems: 'center' },
@@ -192,6 +242,7 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: 13, color: '#5C7A8A', lineHeight: 20, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A', marginBottom: 15, marginLeft: 5 },
   timelineContainer: { paddingLeft: 10 },
+  emptyText: { textAlign: 'center', color: '#8899AA', marginTop: 24, fontWeight: '700' },
   bottomBar: { position: 'absolute', bottom: 0, width: '100%', padding: 20, backgroundColor: '#FEF9F3', borderTopWidth: 1, borderColor: '#F0F4F8' },
   aiAssessButton: { flexDirection: 'row', backgroundColor: '#FF8FAB', paddingVertical: 18, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
   aiAssessText: { color: '#FFF', fontSize: 16, fontWeight: '900' },

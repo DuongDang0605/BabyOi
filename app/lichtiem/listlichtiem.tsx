@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -40,44 +39,43 @@ export default function VaccineScheduleScreen() {
   const [completedVaccines, setCompletedVaccines] = useState<VaccineRecordResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
+  useFocusEffect(useCallback(() => {
+    let mounted = true;
 
-      const loadSelectedProfile = async () => {
-        try {
-          setLoading(true);
-          const profile = getSelectedProfile() || (await hydrateSelectedProfile());
+    async function loadSelectedProfile() {
+      try {
+        setLoading(true);
+        const profile = getSelectedProfile() || (await hydrateSelectedProfile());
 
-          if (mounted) {
-            setSelectedProfileState(profile);
-            if (!profile) {
-              setUpcomingVaccines([]);
-              setCompletedVaccines([]);
-              setStats({ pending: 0, success: 0, canceled: 0 });
-            }
-          }
-        } catch {
-          if (mounted) {
-            setSelectedProfileState(null);
-            setUpcomingVaccines([]);
-            setCompletedVaccines([]);
-            setStats({ pending: 0, success: 0, canceled: 0 });
-          }
-        } finally {
-          if (mounted) {
-            setLoading(false);
-          }
+        if (!mounted) {
+          return;
         }
-      };
 
-      loadSelectedProfile();
+        setSelectedProfileState(profile);
+        if (!profile) {
+          setUpcomingVaccines([]);
+          setCompletedVaccines([]);
+          setStats({ pending: 0, success: 0, canceled: 0 });
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Không thể tải hồ sơ đang chọn:', error);
+        if (mounted) {
+          setSelectedProfileState(null);
+          setUpcomingVaccines([]);
+          setCompletedVaccines([]);
+          setStats({ pending: 0, success: 0, canceled: 0 });
+          setLoading(false);
+        }
+      }
+    }
 
-      return () => {
-        mounted = false;
-      };
-    }, [])
-  );
+    loadSelectedProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []));
 
   const refreshVaccineData = useCallback(async () => {
     if (!selectedProfile) {
@@ -98,7 +96,8 @@ export default function VaccineScheduleScreen() {
         success: statistics.success,
         canceled: statistics.canceled,
       });
-    } catch {
+    } catch (error) {
+      console.error(`Không thể tải dữ liệu tiêm chủng cho hồ sơ ${selectedProfile.id}.`, error);
       setUpcomingVaccines([]);
       setCompletedVaccines([]);
       setStats({ pending: 0, success: 0, canceled: 0 });
@@ -112,7 +111,7 @@ export default function VaccineScheduleScreen() {
 
     let cancelled = false;
 
-    const fetchVaccineData = async () => {
+    async function fetchVaccineData() {
       setLoading(true);
       try {
         await refreshVaccineData();
@@ -121,7 +120,7 @@ export default function VaccineScheduleScreen() {
           setLoading(false);
         }
       }
-    };
+    }
 
     fetchVaccineData();
 
@@ -131,10 +130,14 @@ export default function VaccineScheduleScreen() {
   }, [selectedProfile, refreshVaccineData]);
 
   const handleConfirmVaccine = (item: VaccineRecordResponse) => {
+    if (!selectedProfile) {
+      return;
+    }
+
     router.push({
       pathname: '/lichtiem/themmuitiem',
       params: {
-        profileId: selectedProfile?.id,
+        profileId: selectedProfile.id,
         mode: 'confirm',
         recordId: item.id,
         vaccineTypeId: item.vaccineTypeId,
@@ -160,7 +163,8 @@ export default function VaccineScheduleScreen() {
             title: 'Đã hủy lịch tiêm',
             message: 'Lịch tiêm đã được hủy thành công.',
           });
-        } catch {
+        } catch (error) {
+          console.error('Lỗi hủy lịch tiêm:', error);
           showNotification({
             type: 'error',
             title: 'Không thể hủy lịch',
@@ -172,6 +176,19 @@ export default function VaccineScheduleScreen() {
       },
     });
   };
+
+  const openAddVaccine = () => {
+    if (!selectedProfile) {
+      router.push('/profile/select-profile');
+      return;
+    }
+
+    router.push({ pathname: '/lichtiem/themmuitiem', params: { profileId: selectedProfile.id } });
+  };
+
+  if (loading) {
+    return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
+  }
 
   return (
     <View style={styles.container}>
@@ -185,26 +202,26 @@ export default function VaccineScheduleScreen() {
           <Text style={styles.headerTitle}>Sổ Tiêm Chủng</Text>
         </View>
 
+        {selectedProfile ? (
+          <View style={styles.profileBanner}>
+            <Ionicons name="person-circle-outline" size={20} color="#ff8fab" />
+            <Text style={styles.profileBannerText}>Hồ sơ đang xem: {selectedProfile.name}</Text>
+          </View>
+        ) : null}
+
         <VaccineSummary completedCount={stats.success} upcomingCount={stats.pending} />
 
-        {loading && (
-          <View style={styles.inlineLoading}>
-            <ActivityIndicator color="#ff8fab" />
-            <Text style={styles.inlineLoadingText}>Đang tải lịch tiêm...</Text>
-          </View>
-        )}
-
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Sắp tới</Text>
+          <Text style={styles.sectionTitle}>⏳ Sắp tới</Text>
           <TouchableOpacity
             disabled={!selectedProfile}
             onPress={() => router.push({ pathname: '/lichtiem/danhsachchuatiem', params: { profileId: selectedProfile?.id } })}
           >
-            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả</Text>
+            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả ➔</Text>
           </TouchableOpacity>
         </View>
 
-        {loading ? null : selectedProfile ? (
+        {selectedProfile ? (
           upcomingVaccines.length > 0 ? (
             upcomingVaccines.map((item) => (
               <VaccineCard
@@ -226,20 +243,20 @@ export default function VaccineScheduleScreen() {
             <Text style={styles.emptyText}>Chưa có lịch tiêm cho {selectedProfile.name}</Text>
           )
         ) : (
-          <Text style={styles.emptyText}>Bạn chưa chọn hồ sơ. Hãy chọn hồ sơ trước khi xem lịch tiêm.</Text>
+          <Text style={styles.emptyText}>Bạn chưa chọn hồ sơ. Hãy chọn hồ sơ để xem lịch tiêm.</Text>
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Đã hoàn thành</Text>
+          <Text style={styles.sectionTitle}>✅ Đã hoàn thành</Text>
           <TouchableOpacity
             disabled={!selectedProfile}
             onPress={() => router.push({ pathname: '/lichtiem/danhsachdatiem', params: { profileId: selectedProfile?.id } })}
           >
-            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả</Text>
+            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả ➔</Text>
           </TouchableOpacity>
         </View>
 
-        {loading ? null : completedVaccines.length > 0 ? (
+        {completedVaccines.length > 0 ? (
           completedVaccines.map((item) => (
             <VaccineCard
               key={item.id}
@@ -263,12 +280,8 @@ export default function VaccineScheduleScreen() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[styles.addButton, !selectedProfile && styles.disabledButton]}
-          disabled={!selectedProfile}
-          onPress={() => router.push({ pathname: '/lichtiem/themmuitiem', params: { profileId: selectedProfile?.id } })}
-        >
-          <Text style={styles.addButtonText}>+ Thêm mũi tiêm mới</Text>
+        <TouchableOpacity style={styles.addButton} onPress={openAddVaccine}>
+          <Text style={styles.addButtonText}>✨ + Thêm mũi tiêm mới</Text>
         </TouchableOpacity>
       </View>
 
@@ -291,15 +304,14 @@ const styles = StyleSheet.create({
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 20 },
   backButton: { width: 45 },
   headerTitle: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5, zIndex: -1 },
+  profileBanner: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#fff0f5', borderRadius: 18, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 18, borderWidth: 1, borderColor: '#ffccd8' },
+  profileBannerText: { marginLeft: 6, color: '#5c7a8a', fontWeight: '800', fontSize: 13 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 5 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#5c7a8a' },
   seeAllText: { fontSize: 14, fontWeight: 'bold', color: '#ff8fab' },
-  disabledText: { color: '#c7d1d8' },
-  inlineLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginVertical: 14, paddingVertical: 12, borderRadius: 18, backgroundColor: '#fff5f8', borderWidth: 1, borderColor: '#ffe5ec' },
-  inlineLoadingText: { color: '#ff8fab', fontWeight: '800' },
+  disabledText: { color: '#c7cfd6' },
   emptyText: { textAlign: 'center', color: '#8899aa', marginVertical: 20, fontStyle: 'italic' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.95)' },
   addButton: { backgroundColor: '#ff8fab', paddingVertical: 16, borderRadius: 30, alignItems: 'center', elevation: 5 },
-  disabledButton: { opacity: 0.45 },
   addButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
 });
