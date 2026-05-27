@@ -196,7 +196,6 @@ export default function SelectProfileScreen() {
         setForm((current) => ({ ...current, imageUrl }));
         setError('');
       } catch (err) {
-        console.error('Không thể upload ảnh hồ sơ:', err);
         setError(err instanceof Error ? err.message : 'Không thể tải ảnh hồ sơ lên máy chủ. Bạn thử chọn lại ảnh nhé.');
       } finally {
         setImageUploading(false);

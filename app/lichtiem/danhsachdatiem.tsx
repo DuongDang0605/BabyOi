@@ -24,8 +24,7 @@ export default function FinishedVaccinesScreen() {
         setLoading(true);
         const data = await getVaccineRecordsByProfile(parsedProfileId, { status: 3 });
         setFinishedVaccines([...data].sort((left, right) => new Date(right.injectionDate).getTime() - new Date(left.injectionDate).getTime()));
-      } catch (error) {
-        console.error('Lỗi tải danh sách đã hoàn thành:', error);
+      } catch {
         setFinishedVaccines([]);
       } finally {
         setLoading(false);

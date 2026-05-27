@@ -26,8 +26,7 @@ export default function UpcomingVaccinesScreen() {
         setLoading(true);
         const data = await getVaccineRecordsByProfile(parsedProfileId, { status: -1 });
         setUpcomingVaccines([...data].sort((left, right) => new Date(left.injectionDate).getTime() - new Date(right.injectionDate).getTime()));
-      } catch (error) {
-        console.error('Lỗi tải danh sách sắp tới:', error);
+      } catch {
         setUpcomingVaccines([]);
       } finally {
         setLoading(false);
@@ -52,8 +51,7 @@ export default function UpcomingVaccinesScreen() {
               title: 'Đã hủy lịch tiêm',
               message: 'Lịch tiêm đã được xoá thành công.',
             });
-          } catch (error) {
-            console.error('Lỗi hủy lịch tiêm:', error);
+          } catch {
             showNotification({
               type: 'error',
               title: 'Không thể hủy lịch',

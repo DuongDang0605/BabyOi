@@ -387,15 +387,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
       headers: buildHeaders(init),
     });
   } catch (error) {
-    if (__DEV__) {
-      console.error('[API] Network error', fetchInit.method ?? 'GET', url, error);
-    }
-
     throw error;
-  }
-
-  if (__DEV__ && !response.ok) {
-    console.warn('[API] Failed', fetchInit.method ?? 'GET', url, response.status);
   }
 
   if (!response.ok) {
@@ -433,15 +425,7 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
       headers: buildHeaders(init, { jsonContentType: false }),
     });
   } catch (error) {
-    if (__DEV__) {
-      console.error('[API] Network error', fetchInit.method ?? 'POST', url, error);
-    }
-
     throw error;
-  }
-
-  if (__DEV__ && !response.ok) {
-    console.warn('[API] Failed', fetchInit.method ?? 'POST', url, response.status);
   }
 
   if (!response.ok) {

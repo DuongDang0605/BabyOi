@@ -61,7 +61,7 @@
     },
     "extra": {
       "router": {},
-      "apiBaseUrl": "http://10.33.59.130:8085",
+      "apiBaseUrl": "http://10.0.2.2:8085",
       "googleWebClientId": "795446588674-54v3f5u19t9tii8hu5vp9763i78g8dpd.apps.googleusercontent.com",
       "googleAndroidClientId": "795446588674-54v3f5u19t9tii8hu5vp9763i78g8dpd.apps.googleusercontent.com",
       "googleIosClientId": "795446588674-55cfglrm1lf78s46j09ghhif31lu5ni5.apps.googleusercontent.com",

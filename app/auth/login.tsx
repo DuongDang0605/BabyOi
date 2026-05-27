@@ -78,10 +78,6 @@ export default function LoginScreen() {
       await setAuthSession(response);
       router.replace('/profile/select-profile');
     } catch (error) {
-      if (__DEV__) {
-        console.error('[Login] Email login failed', error);
-      }
-
       if (error instanceof ApiError) {
         if (error.errors?.email || error.errors?.password) {
           setEmailError(error.errors?.email ?? '');

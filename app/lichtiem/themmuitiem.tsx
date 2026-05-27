@@ -165,8 +165,7 @@ export default function AddVaccineScreen() {
       setShowDropdown(true);
       const data = await getVaccineTypes(query);
       setVaccineTypes(data);
-    } catch (error) {
-      console.error('Lỗi tìm kiếm vắc-xin:', error);
+    } catch {
       setVaccineTypes([]);
     } finally {
       setLoading(false);
@@ -239,8 +238,6 @@ export default function AddVaccineScreen() {
       });
       router.back();
     } catch (error) {
-      console.error('Lỗi lưu mũi tiêm:', error);
-
       const backendMessage = error instanceof ApiError
         ? error.message
         : error instanceof Error

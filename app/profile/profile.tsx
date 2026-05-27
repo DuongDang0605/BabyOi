@@ -173,7 +173,6 @@ export default function ProfileScreen() {
         }
         setEditError('');
       } catch (err) {
-        console.error('Không thể upload ảnh hồ sơ:', err);
         setEditError(err instanceof Error ? err.message : 'Không thể tải ảnh hồ sơ lên máy chủ. Bạn thử chọn lại ảnh nhé.');
       } finally {
         setImageUploading(false);
