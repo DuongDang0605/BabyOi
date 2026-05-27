@@ -6,6 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleShe
 
 import { ApiError, createVaccineRecord, getVaccineTypes, updateVaccineRecord, type VaccineTypeResponse } from '../../lib/api';
 import { useNotification } from '../../lib/notification';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -64,6 +65,24 @@ const formatApiDateToDisplay = (value: string) => {
   return `${day}-${month}-${year}`;
 };
 
+const normalizeSearchText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+
+const filterVaccineTypes = (items: VaccineTypeResponse[], query: string) => {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return items;
+  }
+
+  return items.filter((item) => normalizeSearchText(`${item.name} ${item.description ?? ''}`).includes(normalizedQuery));
+};
+
 const LOCATION_SUGGESTIONS = [
   'VNVC Sơn Tây',
   'VNVC Hà Nội',
@@ -85,7 +104,7 @@ export default function AddVaccineScreen() {
   const { profileId, mode, recordId, vaccineTypeId: routeVaccineTypeId, vaccineName, injectionDate: routeInjectionDate } = useLocalSearchParams();
   const { showNotification } = useNotification();
 
-  const parsedProfileId = Array.isArray(profileId) ? profileId[0] : profileId;
+  const routeProfileId = Array.isArray(profileId) ? profileId[0] : profileId;
   const isConfirmMode = mode === 'confirm';
   const parsedRecordId = Array.isArray(recordId) ? recordId[0] : recordId;
   const parsedVaccineTypeId = Number.isFinite(Number(routeVaccineTypeId)) ? Number(routeVaccineTypeId) : null;
@@ -93,6 +112,8 @@ export default function AddVaccineScreen() {
   const defaultInjectionDate = typeof routeInjectionDate === 'string' ? formatApiDateToDisplay(routeInjectionDate) : '';
 
   const [vaccineTypes, setVaccineTypes] = useState<VaccineTypeResponse[]>([]);
+  const [effectiveProfileId, setEffectiveProfileId] = useState<string | null>(routeProfileId ?? null);
+  const [allVaccineTypes, setAllVaccineTypes] = useState<VaccineTypeResponse[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -106,6 +127,28 @@ export default function AddVaccineScreen() {
   const [location, setLocation] = useState('');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [price, setPrice] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function resolveProfileId() {
+      if (routeProfileId) {
+        setEffectiveProfileId(routeProfileId);
+        return;
+      }
+
+      const profile = getSelectedProfile() || (await hydrateSelectedProfile());
+      if (mounted) {
+        setEffectiveProfileId(profile?.id ? String(profile.id) : null);
+      }
+    }
+
+    resolveProfileId();
+
+    return () => {
+      mounted = false;
+    };
+  }, [routeProfileId]);
 
   const isCompleted = status === 3;
   const filteredLocationSuggestions = LOCATION_SUGGESTIONS.filter((item) => {
@@ -151,8 +194,19 @@ export default function AddVaccineScreen() {
     setSearchText(lockedVaccineName);
   }, [defaultInjectionDate, isConfirmMode, lockedVaccineName, parsedVaccineTypeId]);
 
+  const loadVaccineTypes = async () => {
+    if (allVaccineTypes) {
+      return allVaccineTypes;
+    }
+
+    const data = await getVaccineTypes();
+    setAllVaccineTypes(data);
+    return data;
+  };
+
   const searchVaccines = async (query: string) => {
     setSearchText(query);
+    setVaccineTypeId(null);
 
     if (query.trim().length === 0) {
       setVaccineTypes([]);
@@ -164,16 +218,28 @@ export default function AddVaccineScreen() {
       setLoading(true);
       setShowDropdown(true);
       const data = await getVaccineTypes(query);
-      setVaccineTypes(data);
+
+      if (data.length > 0) {
+        setVaccineTypes(data);
+        return;
+      }
+
+      const fallbackData = await loadVaccineTypes();
+      setVaccineTypes(filterVaccineTypes(fallbackData, query));
     } catch {
-      setVaccineTypes([]);
+      try {
+        const fallbackData = await loadVaccineTypes();
+        setVaccineTypes(filterVaccineTypes(fallbackData, query));
+      } catch {
+        setVaccineTypes([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!parsedProfileId || !vaccineTypeId) {
+    if (!effectiveProfileId || !vaccineTypeId) {
       showNotification({
         type: 'warning',
         title: 'Thiếu thông tin',
@@ -205,7 +271,7 @@ export default function AddVaccineScreen() {
     const normalizedPrice = price.trim() === '' ? undefined : Number(price.replace(/[^0-9]/g, ''));
 
     const request = {
-      profileId: Number(parsedProfileId),
+      profileId: Number(effectiveProfileId),
       vaccineTypeId,
       injectionDate: formatApiDate(parsedDate),
       note: note.trim() || undefined,
@@ -226,7 +292,13 @@ export default function AddVaccineScreen() {
           title: 'Xác nhận thành công',
           message: 'Mũi tiêm đã được cập nhật và đã chuyển sang trạng thái đã tiêm.',
         });
-        router.replace('/lichtiem/listlichtiem');
+        router.replace({
+          pathname: '/lichtiem/listlichtiem',
+          params: {
+            profileId: effectiveProfileId,
+            refreshAt: Date.now().toString(),
+          },
+        });
         return;
       }
 
@@ -236,7 +308,13 @@ export default function AddVaccineScreen() {
         title: 'Thêm mũi tiêm thành công',
         message: 'Lịch tiêm đã được lưu vào sổ tiêm chủng.',
       });
-      router.back();
+      router.replace({
+        pathname: '/lichtiem/listlichtiem',
+        params: {
+          profileId: effectiveProfileId,
+          refreshAt: Date.now().toString(),
+        },
+      });
     } catch (error) {
       const backendMessage = error instanceof ApiError
         ? error.message

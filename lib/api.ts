@@ -85,7 +85,7 @@ export type VaccineTypeResponse = {
   id: number;
   name: string;
   description: string | null;
-  requiredAge: number | null;
+  requiredAge: string | null;
 };
 
 export type VaccineRecordRequest = {
@@ -115,6 +115,33 @@ export type VaccineStatisticsResponse = {
   pending: number;
   canceled: number;
   success: number;
+};
+
+export type AiTeachingLessonResponse = {
+  id: number;
+  lessonName: string;
+  description: string | null;
+  reasonableAgeFromMonth: number | null;
+  reasonableAgeToMonth: number | null;
+  recommendedDurationDays: number | null;
+  lessonNote: string | null;
+  videoUrl: string | null;
+  suggestedByOrganization: string | null;
+  sourceUrl: string | null;
+  sourceOrganization: string | null;
+  iconUrl: string | null;
+  sortOrder: number | null;
+  status: number | null;
+  progressId: number | null;
+  profileId: number | null;
+  progressStatus: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  currentDay: number | null;
+  practiceCount: number | null;
+  lastPracticedAt: string | null;
+  progressNote: string | null;
+  progressUpdatedAt: string | null;
 };
 
 /* =========================
@@ -649,8 +676,27 @@ export function getVaccineRecordsByProfile(profileId: number | string, params?: 
   });
 }
 
+export function getVaccineRecordsPageByProfile(
+  profileId: number | string,
+  params: { status: number; page?: number; size?: number }
+) {
+  return request<PageResponse<VaccineRecordResponse>>(`/api/vaccine-records/profile/${profileId}/page${buildQueryString({
+    status: params.status,
+    page: params.page,
+    size: params.size,
+  })}`, {
+    method: 'GET',
+  });
+}
+
 export function getVaccineStatistics(profileId: number | string) {
   return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
+    method: 'GET',
+  });
+}
+
+export function getAiTeachingLessonsByProfile(profileId: number | string) {
+  return request<AiTeachingLessonResponse[]>(`/api/ai-teaching/profiles/${profileId}/lessons`, {
     method: 'GET',
   });
 }
