@@ -1,4 +1,5 @@
-    import Constants from 'expo-constants';
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
@@ -142,6 +143,33 @@ export type AiTeachingLessonResponse = {
   lastPracticedAt: string | null;
   progressNote: string | null;
   progressUpdatedAt: string | null;
+};
+
+export type HandbookPostResponse = {
+  id: number;
+  category: string;
+  title: string;
+  snippet: string | null;
+  content: string | null;
+  imageUrl: string | null;
+  authorName: string | null;
+  authorRole: string | null;
+  publishedAt: string | null;
+  commentCount: number;
+};
+
+export type HandbookCommentResponse = {
+  id: number;
+  postId: number;
+  parentId: number | null;
+  userId: number | null;
+  userName: string | null;
+  avatarUrl: string | null;
+  content: string;
+  likeCount: number | null;
+  adminReply: boolean | null;
+  createdAt: string | null;
+  replies: HandbookCommentResponse[] | null;
 };
 
 /* =========================
@@ -347,6 +375,19 @@ export function resolveAssetUrl(url?: string | null) {
    REQUEST CORE
 ========================= */
 
+function shouldRedirectToError(status: number) {
+  return status === 404 || status >= 500;
+}
+
+function openErrorScreen(status: string, message: string) {
+  setTimeout(() => {
+    router.replace({
+      pathname: '/error',
+      params: { status, message },
+    });
+  }, 0);
+}
+
 async function parseError(response: Response): Promise<never> {
   let payload: ErrorPayload | null = null;
 
@@ -370,6 +411,10 @@ async function parseError(response: Response): Promise<never> {
     payload?.message ||
     payload?.error ||
     `Request failed with status ${response.status}`;
+
+  if (shouldRedirectToError(response.status)) {
+    openErrorScreen(String(response.status), message);
+  }
 
   throw new ApiError(message, {
     status: payload?.status,
@@ -414,6 +459,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
       headers: buildHeaders(init),
     });
   } catch (error) {
+    openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
     throw error;
   }
 
@@ -452,6 +498,7 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
       headers: buildHeaders(init, { jsonContentType: false }),
     });
   } catch (error) {
+    openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
     throw error;
   }
 
@@ -698,6 +745,40 @@ export function getVaccineStatistics(profileId: number | string) {
 export function getAiTeachingLessonsByProfile(profileId: number | string) {
   return request<AiTeachingLessonResponse[]>(`/api/ai-teaching/profiles/${profileId}/lessons`, {
     method: 'GET',
+  });
+}
+
+export function getHandbookPosts(params?: { category?: string; search?: string }) {
+  return request<HandbookPostResponse[]>(`/api/handbook/posts${buildQueryString({
+    category: params?.category,
+    search: params?.search,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getHandbookPost(postId: number | string) {
+  return request<HandbookPostResponse>(`/api/handbook/posts/${postId}`, {
+    method: 'GET',
+  });
+}
+
+export function getHandbookCategories() {
+  return request<string[]>('/api/handbook/categories', {
+    method: 'GET',
+  });
+}
+
+export function getHandbookComments(postId: number | string) {
+  return request<HandbookCommentResponse[]>(`/api/handbook/posts/${postId}/comments`, {
+    method: 'GET',
+  });
+}
+
+export function createHandbookComment(postId: number | string, payload: { content: string; parentId?: number | null }) {
+  return request<HandbookCommentResponse>(`/api/handbook/posts/${postId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 

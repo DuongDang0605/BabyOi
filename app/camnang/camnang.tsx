@@ -1,77 +1,105 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { HandbookCard } from '../../components/camnang/HandbookCard';
+import { getHandbookCategories, getHandbookPosts, resolveAssetUrl, type HandbookPostResponse } from '../../lib/api';
 
-const HANDBOOK_POSTS = [
-  {
-    id: 'p1',
-    category: 'Dinh dưỡng',
-    title: 'Thực đơn ăn dặm BLW tuần đầu tiên cho bé 6 tháng',
-    snippet: 'Bắt đầu ăn dặm tự chỉ huy (BLW) không khó như mẹ nghĩ. Dưới đây là gợi ý thực đơn 7 ngày giúp bé làm quen với thức ăn thô an toàn...',
-    author: 'Admin Hương Trà',
-    role: 'Chuyên gia Dinh dưỡng',
-    date: '14/03/2026',
-    image: 'https://images.unsplash.com/photo-1514050684125-9614f24ebcc6?q=80&w=500&auto=format&fit=crop',
-    comments: 5,
-  },
-  {
-    id: 'p2',
-    category: 'Sức khỏe',
-    title: 'Phân biệt sốt mọc răng và sốt do virus ở trẻ',
-    snippet: 'Nhiều mẹ nhầm lẫn giữa việc con khóc do sưng nướu mọc răng và sốt do nhiễm khuẩn. Bài viết này sẽ giúp mẹ nhận biết 3 dấu hiệu cơ bản nhất.',
-    author: 'Bác sĩ Minh Đức',
-    role: 'Cố vấn Y tế',
-    date: '12/03/2026',
-    image: 'https://images.unsplash.com/photo-1584515933487-779824d29309?q=80&w=500&auto=format&fit=crop',
-    comments: 89,
-  },
-  {
-    id: 'p3',
-    category: 'Giấc ngủ',
-    title: 'Tuần khủng hoảng (Wonder Week) và cách giúp bé ngủ xuyên đêm',
-    snippet: 'Wonder week không phải là "kẻ thù". Hãy áp dụng phương pháp EASY và tiếng ồn trắng để giúp bé vượt qua chu kỳ này nhẹ nhàng nhất.',
-    author: 'Admin BabyOi',
-    role: 'Staff',
-    date: '10/03/2026',
-    image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?q=80&w=500&auto=format&fit=crop',
-    comments: 12,
-  },
-];
+const ALL_CATEGORY = 'Tất cả';
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1519689680058-324335c77eba?q=80&w=900&auto=format&fit=crop';
+
+function formatPostDate(value: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function mapPost(post: HandbookPostResponse) {
+  return {
+    id: String(post.id),
+    category: post.category,
+    title: post.title,
+    snippet: post.snippet || post.content || '',
+    author: post.authorName || 'BabyOi',
+    role: post.authorRole || 'Cẩm nang',
+    date: formatPostDate(post.publishedAt),
+    image: resolveAssetUrl(post.imageUrl) || post.imageUrl || FALLBACK_IMAGE,
+    comments: post.commentCount ?? 0,
+  };
+}
 
 export default function HandbookScreen() {
-  const [activeCategory, setActiveCategory] = useState('Tất cả');
-  const categories = ['Tất cả', 'Dinh dưỡng', 'Sức khỏe', 'Giấc ngủ', 'Mẹo vặt'];
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
+  const [categories, setCategories] = useState([ALL_CATEGORY]);
+  const [posts, setPosts] = useState<HandbookPostResponse[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredPosts = activeCategory === 'Tất cả'
-    ? HANDBOOK_POSTS
-    : HANDBOOK_POSTS.filter(p => p.category === activeCategory);
+  const loadHandbook = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [categoryData, postData] = await Promise.all([
+        getHandbookCategories(),
+        getHandbookPosts({
+          category: activeCategory === ALL_CATEGORY ? undefined : activeCategory,
+          search: searchText,
+        }),
+      ]);
+
+      setCategories([ALL_CATEGORY, ...categoryData.filter((item) => item && item !== ALL_CATEGORY)]);
+      setPosts(postData);
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeCategory, searchText]);
+
+  useEffect(() => {
+    loadHandbook();
+  }, [loadHandbook]);
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
-        
-        {/* --- HEADER --- */}
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cẩm Nang</Text>
-          <TouchableOpacity style={styles.searchButton}>
+          <TouchableOpacity style={styles.searchButton} onPress={loadHandbook}>
             <Ionicons name="search" size={24} color="#ff8fab" />
           </TouchableOpacity>
         </View>
 
-        {/* --- CATEGORIES --- */}
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color="#7a8c99" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm bài viết cẩm nang..."
+            placeholderTextColor="#a0aab2"
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
+            onSubmitEditing={loadHandbook}
+          />
+        </View>
+
         <View style={styles.categoryWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {categories.map((cat) => (
-              <TouchableOpacity 
-                key={cat} 
+              <TouchableOpacity
+                key={cat}
                 style={[styles.catPill, activeCategory === cat ? styles.catPillActive : styles.catPillInactive]}
                 onPress={() => setActiveCategory(cat)}
               >
@@ -83,15 +111,24 @@ export default function HandbookScreen() {
           </ScrollView>
         </View>
 
-        {/* --- ARTICLE LIST --- */}
-        {filteredPosts.map((post) => (
-          <HandbookCard
-            key={post.id}
-            post={post}
-            onCommentPress={() => router.push('/camnang/comment')}
-            onSharePress={() => alert("Chia sẻ bài viết thành công!")}
-          />
-        ))}
+        {loading ? (
+          <ActivityIndicator color="#ff8fab" style={{ marginTop: 30 }} />
+        ) : posts.length > 0 ? (
+          posts.map((post) => {
+            const mappedPost = mapPost(post);
+            return (
+              <HandbookCard
+                key={post.id}
+                post={mappedPost}
+                onCommentPress={() => router.push({ pathname: '/camnang/comment', params: { postId: post.id } })}
+                onSharePress={() => Alert.alert('Chia sẻ', 'Đã sẵn sàng chia sẻ bài viết này.')}
+                onPress={() => router.push({ pathname: '/camnang/comment', params: { postId: post.id } })}
+              />
+            );
+          })
+        ) : (
+          <Text style={styles.emptyText}>Chưa có bài viết phù hợp.</Text>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -106,10 +143,13 @@ const styles = StyleSheet.create({
   backButton: { width: 45 },
   searchButton: { width: 45, alignItems: 'flex-end' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 18, borderWidth: 1.5, borderColor: '#f0f4f8', paddingHorizontal: 14, marginBottom: 16 },
+  searchInput: { flex: 1, paddingVertical: 11, paddingHorizontal: 8, color: '#334455', fontWeight: '700' },
   categoryWrapper: { marginBottom: 25, marginHorizontal: -5 },
   catPill: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 20, marginHorizontal: 5, borderWidth: 1.5 },
   catPillActive: { backgroundColor: '#ffb6c1', borderColor: '#ffb6c1' },
   catPillInactive: { backgroundColor: '#ffffff', borderColor: '#f0f4f8' },
   catTextActive: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
   catTextInactive: { color: '#7a8c99', fontWeight: '600', fontSize: 14 },
+  emptyText: { color: '#8899aa', fontWeight: '800', textAlign: 'center', marginTop: 30 },
 });
