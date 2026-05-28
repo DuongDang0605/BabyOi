@@ -17,7 +17,14 @@ import { FeatureGrid } from '../../components/home/FeatureGrid';
 import { HomeHeader } from '../../components/home/HomeHeader';
 import { MoreFeatures } from '../../components/home/MoreFeatures';
 import { TipBox } from '../../components/home/TipBox';
-import { ProfileResponse } from '../../lib/api';
+import {
+  AiTeachingLessonResponse,
+  getAiTeachingLessonsByProfile,
+  getVaccineRecordsByProfile,
+  ProfileResponse,
+  resolveAssetUrl,
+  VaccineRecordResponse,
+} from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -36,37 +43,133 @@ function parseProfileDate(dateOfBirth: string) {
   return new Date(Number.NaN);
 }
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function parseApiDate(dateValue: string) {
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateValue.trim());
+  if (isoDate) {
+    return new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+  }
+
+  return new Date(dateValue);
+}
+
+function formatDisplayDate(date: Date) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function getNearestVaccine(records: VaccineRecordResponse[]) {
+  const today = startOfDay(new Date()).getTime();
+
+  return records
+    .map((record) => ({ record, date: parseApiDate(record.injectionDate) }))
+    .filter((item) => !Number.isNaN(item.date.getTime()))
+    .sort((left, right) => Math.abs(startOfDay(left.date).getTime() - today) - Math.abs(startOfDay(right.date).getTime() - today))[0] ?? null;
+}
+
+function getVaccineBadgeText(date: Date) {
+  const today = startOfDay(new Date()).getTime();
+  const target = startOfDay(date).getTime();
+  const days = Math.round((target - today) / 86400000);
+
+  if (days === 0) {
+    return 'Hôm nay!';
+  }
+  if (days === 1) {
+    return 'Ngày mai!';
+  }
+  if (days > 1) {
+    return `Còn ${days} ngày nữa!`;
+  }
+
+  return `Quá hạn ${Math.abs(days)} ngày`;
+}
+
+function getCurrentTeachingLesson(lessons: AiTeachingLessonResponse[]) {
+  return lessons.find((lesson) => lesson.progressStatus === 2)
+    ?? lessons.find((lesson) => lesson.progressStatus !== 3)
+    ?? lessons[0]
+    ?? null;
+}
+
+function getTeachingTip(lesson: AiTeachingLessonResponse | null) {
+  if (!lesson) {
+    return 'Mẹ ơi, chưa có bài học AI phù hợp cho hồ sơ hiện tại. Mẹ có thể vào Giáo trình để AI đánh giá chặng tiếp theo nhé!';
+  }
+
+  const lessonAdvice = lesson.progressNote || lesson.lessonNote || lesson.description;
+  const dayText = lesson.progressStatus === 2
+    ? `ngày ${lesson.currentDay ?? 1}${lesson.recommendedDurationDays ? `/${lesson.recommendedDurationDays}` : ''}`
+    : 'giai đoạn hiện tại';
+
+  return lessonAdvice
+    ? `AI Teaching: ${lesson.lessonName} (${dayText}). ${lessonAdvice}`
+    : `AI Teaching: hôm nay mẹ cùng bé luyện "${lesson.lessonName}" ở ${dayText} nhé.`;
+}
+
 const MAIN_FEATURES = [
   { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
   { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/tiemchung.png'), route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon:require('../../assets/images/doan.png'), route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/nhatki/nhatki' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/coming-soon?feature=Nhật%20ký' },
 ];
 
 const MORE_FEATURES = [
-  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/shop.png'), route: '#' },
+  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/shop.png'), route: '/coming-soon?feature=Cửa%20hàng' },
   { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/camnangicon.png'), route: '/camnang/camnang' },
-  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/booking.png'), route: '/datlich/doctor-booking' },
+  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/booking.png'), route: '/coming-soon?feature=Đặt%20lịch' },
   { id: '8', title: 'Giáo trình', icon: require('../../assets/images/edu.png'), route: '/AI/lesson-list' },
 ];
 
 export default function AppHomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
+  const [nearestVaccine, setNearestVaccine] = useState<{ record: VaccineRecordResponse; date: Date } | null>(null);
+  const [vaccineReminderError, setVaccineReminderError] = useState(false);
+  const [teachingTip, setTeachingTip] = useState('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
 
-    async function loadSelectedProfile() {
-      const profile = getSelectedProfile() || await hydrateSelectedProfile();
-      if (mounted) {
+    async function loadHomeData() {
+      try {
+        const profile = getSelectedProfile() || await hydrateSelectedProfile();
+        if (!mounted) {
+          return;
+        }
+
         setActiveProfile(profile);
+        setNearestVaccine(null);
+        setVaccineReminderError(false);
+        setTeachingTip('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
+
+        if (!profile?.id) {
+          return;
+        }
+
+        const [pendingVaccines, teachingLessons] = await Promise.all([
+          getVaccineRecordsByProfile(profile.id, { status: -1, limit: 30 }),
+          getAiTeachingLessonsByProfile(profile.id),
+        ]);
+
+        if (mounted) {
+          setNearestVaccine(getNearestVaccine(Array.isArray(pendingVaccines) ? pendingVaccines : []));
+          setTeachingTip(getTeachingTip(getCurrentTeachingLesson(Array.isArray(teachingLessons) ? teachingLessons : [])));
+        }
+      } catch (error) {
+        console.error('Không thể tải dữ liệu home:', error);
+        if (mounted) {
+          setNearestVaccine(null);
+          setVaccineReminderError(true);
+        }
       }
     }
 
-    loadSelectedProfile();
+    loadHomeData();
     return () => {
       mounted = false;
     };
@@ -86,9 +189,16 @@ export default function AppHomeScreen() {
 
   const profileName = activeProfile?.name || 'Mẹ';
   const profileAge = activeProfile ? getProfileSubtitle(activeProfile) : 'Chọn hồ sơ để bắt đầu';
-  const profileAvatar = activeProfile?.imageUrl
-    ? { uri: activeProfile.imageUrl }
+  const profileAvatarUrl = resolveAssetUrl(activeProfile?.imageUrl);
+  const profileAvatar = profileAvatarUrl
+    ? { uri: profileAvatarUrl }
     : require('../../assets/images/avt.png');
+  const reminderSubtitle = nearestVaccine
+    ? `${nearestVaccine.record.vaccineTypeName} - ${formatDisplayDate(nearestVaccine.date)}`
+    : activeProfile
+      ? (vaccineReminderError ? 'Chưa tải được lịch tiêm. Thử lại sau mẹ nhé.' : 'Chưa có lịch tiêm sắp tới.')
+      : 'Chọn hồ sơ để xem lịch tiêm.';
+  const reminderBadgeText = nearestVaccine ? getVaccineBadgeText(nearestVaccine.date) : 'Sổ tiêm chủng';
 
   return (
     <View style={styles.mainContainer}>
@@ -107,8 +217,8 @@ export default function AppHomeScreen() {
         {/* --- ALERT CARD --- */}
         <AlertCard
           title="Lịch tiêm nhắc bé"
-          subtitle="Mũi Sởi đơn (Lúc 9 tháng)"
-          badgeText="Còn 30 ngày nữa!"
+          subtitle={reminderSubtitle}
+          badgeText={reminderBadgeText}
         />
 
         {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
@@ -127,7 +237,7 @@ export default function AppHomeScreen() {
 
         {/* --- TIP BOX --- */}
         <TipBox
-          tip="Mẹ ơi, bé đang vào giai đoạn tập bò, mẹ nhớ che các ổ điện nhé!"
+          tip={teachingTip}
         />
 
         <View style={{ height: 120 }} />
@@ -203,8 +313,14 @@ function getProfileSubtitle(profile: ProfileResponse) {
   }
 
   const now = new Date();
-  const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth());
+  const monthAdjustment = now.getDate() < dob.getDate() ? 1 : 0;
+  const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth() - monthAdjustment);
   if (profile.profileType === 'CHILD') {
+    if (months === 0) {
+      const days = Math.max(0, Math.floor((startOfDay(now).getTime() - startOfDay(dob).getTime()) / 86400000));
+      return `${days} ngày tuổi`;
+    }
+
     return months < 24 ? `${months} tháng tuổi` : '2 tuổi';
   }
 

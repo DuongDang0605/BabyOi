@@ -57,6 +57,8 @@ export default function VaccineScheduleScreen() {
           setCompletedVaccines([]);
           setStats({ pending: 0, success: 0, canceled: 0 });
           setLoading(false);
+        } else {
+          setLoading(false);
         }
       } catch {
         if (mounted) {
