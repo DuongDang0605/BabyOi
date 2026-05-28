@@ -1,4 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -7,7 +9,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,10 +20,41 @@ import {
 } from 'react-native';
 
 import { FoodIngredientResponse, FoodResponse, getFoodDetail, resolveAssetUrl } from '../../lib/api';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type AdjustableIngredient = FoodIngredientResponse & { currentAmount: string };
+type SavedIngredientAmounts = Record<string, string>;
+
+const FOOD_AMOUNT_STORAGE_PREFIX = 'babyoi_food_detail_amounts';
+
+function getFoodAmountStorageKey(foodId: string | number, profileId?: string | number | null) {
+  return `${FOOD_AMOUNT_STORAGE_PREFIX}:${profileId ?? 'guest'}:${foodId}`;
+}
+
+async function readSavedIngredientAmounts(foodId: string | number) {
+  const profile = getSelectedProfile() || await hydrateSelectedProfile();
+  const raw = await AsyncStorage.getItem(getFoodAmountStorageKey(foodId, profile?.id));
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as SavedIngredientAmounts
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeSavedIngredientAmounts(foodId: string | number, amounts: SavedIngredientAmounts) {
+  const profile = getSelectedProfile() || await hydrateSelectedProfile();
+  await AsyncStorage.setItem(getFoodAmountStorageKey(foodId, profile?.id), JSON.stringify(amounts));
+}
 
 function scaledValue(value: number | null | undefined, amount: number, baseAmount: number) {
   if (value == null || !Number.isFinite(amount) || !Number.isFinite(baseAmount) || baseAmount <= 0) {
@@ -66,6 +98,8 @@ export default function RecipeDetailScreen() {
   const [ingredients, setIngredients] = useState<AdjustableIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const amountsLoadedRef = useRef(false);
+  const saveAmountsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const jumpAnim = useRef(new Animated.Value(0)).current;
@@ -75,35 +109,39 @@ export default function RecipeDetailScreen() {
   const shineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const startRotation = () => {
-      rotateAnim.setValue(0);
-      Animated.timing(rotateAnim, { toValue: 1, duration: 25000, easing: Easing.linear, useNativeDriver: true }).start(() => startRotation());
+    const runningAnimations = [
+      Animated.loop(Animated.timing(rotateAnim, { toValue: 1, duration: 28000, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(Animated.sequence([
+        Animated.timing(jumpAnim, { toValue: -10, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(jumpAnim, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])),
+      Animated.loop(Animated.sequence([
+        Animated.timing(fireAnim, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(fireAnim, { toValue: 0, duration: 1200, easing: Easing.linear, useNativeDriver: true }),
+      ])),
+      Animated.loop(Animated.sequence([
+        Animated.timing(armAnim, { toValue: 1, duration: 1400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true }),
+        Animated.timing(armAnim, { toValue: 0, duration: 1400, easing: Easing.linear, useNativeDriver: true }),
+        Animated.delay(900),
+      ])),
+      Animated.loop(Animated.timing(leafAnim, { toValue: 1, duration: 4500, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(Animated.sequence([
+        Animated.timing(shineAnim, { toValue: 1, duration: 3500, easing: Easing.inOut(Easing.linear), useNativeDriver: true }),
+        Animated.delay(1800),
+      ])),
+    ];
+
+    runningAnimations.forEach((animation) => animation.start());
+
+    return () => {
+      runningAnimations.forEach((animation) => animation.stop());
+      rotateAnim.stopAnimation();
+      jumpAnim.stopAnimation();
+      fireAnim.stopAnimation();
+      armAnim.stopAnimation();
+      leafAnim.stopAnimation();
+      shineAnim.stopAnimation();
     };
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(jumpAnim, { toValue: -10, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(jumpAnim, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ])).start();
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(fireAnim, { toValue: 1, duration: 500, easing: Easing.linear, useNativeDriver: true }),
-      Animated.timing(fireAnim, { toValue: 0, duration: 500, easing: Easing.linear, useNativeDriver: true }),
-    ])).start();
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(armAnim, { toValue: 1, duration: 800, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true }),
-      Animated.timing(armAnim, { toValue: 0, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
-      Animated.delay(500),
-    ])).start();
-
-    Animated.loop(Animated.timing(leafAnim, { toValue: 1, duration: 2500, easing: Easing.linear, useNativeDriver: true })).start();
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(shineAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.linear), useNativeDriver: true }),
-      Animated.delay(1000),
-    ])).start();
-
-    startRotation();
   }, [armAnim, fireAnim, jumpAnim, leafAnim, rotateAnim, shineAnim]);
 
   useEffect(() => {
@@ -119,13 +157,18 @@ export default function RecipeDetailScreen() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getFoodDetail(params.id);
+        const [data, savedAmounts] = await Promise.all([
+          getFoodDetail(params.id),
+          readSavedIngredientAmounts(params.id),
+        ]);
         if (mounted) {
+          amountsLoadedRef.current = false;
           setFood(data);
           setIngredients((data.ingredients || []).map((ingredient) => ({
             ...ingredient,
-            currentAmount: ingredient.amountPerServing != null ? String(ingredient.amountPerServing) : '0',
+            currentAmount: savedAmounts[String(ingredient.id)] ?? (ingredient.amountPerServing != null ? String(ingredient.amountPerServing) : '0'),
           })));
+          amountsLoadedRef.current = true;
         }
       } catch (err) {
         if (mounted) {
@@ -141,8 +184,40 @@ export default function RecipeDetailScreen() {
     loadDetail();
     return () => {
       mounted = false;
+      amountsLoadedRef.current = false;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id || !amountsLoadedRef.current || ingredients.length === 0) {
+      return;
+    }
+
+    if (saveAmountsTimerRef.current) {
+      clearTimeout(saveAmountsTimerRef.current);
+    }
+
+    saveAmountsTimerRef.current = setTimeout(() => {
+      const amounts = Object.fromEntries(
+        ingredients.map((ingredient) => [String(ingredient.id), ingredient.currentAmount])
+      );
+      writeSavedIngredientAmounts(params.id!, amounts);
+    }, 300);
+
+    return () => {
+      if (saveAmountsTimerRef.current) {
+        clearTimeout(saveAmountsTimerRef.current);
+      }
+    };
+  }, [ingredients, params.id]);
+
+  useEffect(() => {
+    return () => {
+      if (saveAmountsTimerRef.current) {
+        clearTimeout(saveAmountsTimerRef.current);
+      }
+    };
+  }, []);
 
   const imageUri = resolveAssetUrl(food?.imageUrl);
 
@@ -161,7 +236,18 @@ export default function RecipeDetailScreen() {
 
   const updateAmount = (id: number, text: string) => {
     const cleanText = text.replace(/[^0-9.]/g, '');
-    setIngredients(prev => prev.map(item => item.id === id ? { ...item, currentAmount: cleanText } : item));
+    setIngredients((prev) => {
+      const nextIngredients = prev.map((item) => item.id === id ? { ...item, currentAmount: cleanText } : item);
+
+      if (params.id) {
+        const amounts = Object.fromEntries(
+          nextIngredients.map((ingredient) => [String(ingredient.id), ingredient.currentAmount])
+        );
+        writeSavedIngredientAmounts(params.id, amounts);
+      }
+
+      return nextIngredients;
+    });
   };
 
   const renderFireIcon = () => {
@@ -222,7 +308,9 @@ export default function RecipeDetailScreen() {
                 return (
                   <Animated.View key={ing.id} style={[styles.floatingWrapper, { transform: [{ rotate: rotation }] }]}>
                     <Animated.View style={[styles.floatingIng, { transform: [{ rotate: counterRotation }] }]}>
-                      {resolveAssetUrl(ing.imageUrl) ? <Image source={{ uri: resolveAssetUrl(ing.imageUrl) }} style={styles.floatingImage} /> : <Ionicons name="leaf-outline" size={20} color="#FF8FAB" />}
+                      {resolveAssetUrl(ing.imageUrl) ? (
+                        <Image source={{ uri: resolveAssetUrl(ing.imageUrl) }} style={styles.floatingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`floating-${ing.id}`} />
+                      ) : <Ionicons name="leaf-outline" size={20} color="#FF8FAB" />}
                       <Text style={styles.floatingText} numberOfLines={1}>{ing.nameIngredients || 'Nguyên liệu'}</Text>
                     </Animated.View>
                   </Animated.View>
@@ -231,7 +319,7 @@ export default function RecipeDetailScreen() {
 
               <Animated.View style={[styles.imageCircle, { transform: [{ translateY: jumpAnim }] }]}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.mainImg} />
+                  <Image source={{ uri: imageUri }} style={styles.mainImg} cachePolicy="disk" contentFit="cover" recyclingKey={`food-${food.id}`} />
                 ) : (
                   <View style={[styles.mainImg, styles.mainImagePlaceholder]}>
                     <Ionicons name="image-outline" size={32} color="#FF8FAB" />
@@ -286,7 +374,9 @@ export default function RecipeDetailScreen() {
               <View key={item.id} style={styles.ingRow}>
                 <View style={styles.ingLeft}>
                   <View style={styles.iconBg}>
-                    {resolveAssetUrl(item.imageUrl) ? <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.ingImage} /> : <Ionicons name="leaf-outline" size={18} color="#FF8FAB" />}
+                    {resolveAssetUrl(item.imageUrl) ? (
+                      <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.ingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`ingredient-${item.id}`} />
+                    ) : <Ionicons name="leaf-outline" size={18} color="#FF8FAB" />}
                   </View>
                   <View style={styles.ingTextBox}>
                     <Text style={styles.ingName} numberOfLines={1}>{item.nameIngredients || 'Nguyên liệu'}</Text>

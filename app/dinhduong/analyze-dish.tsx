@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -6,7 +7,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -202,7 +202,12 @@ export default function AnalyzeDishScreen() {
 
               {/* Món ăn nảy cũ */}
               <Animated.View style={[styles.imageCircle, { transform: [{ translateY: jumpAnim }] }]}>
-                <Image source={{ uri: (image as string) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500' }} style={styles.mainImg} />
+                <Image
+                  source={{ uri: (image as string) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=500' }}
+                  style={styles.mainImg}
+                  cachePolicy="disk"
+                  contentFit="cover"
+                />
               </Animated.View>
             </View>
 

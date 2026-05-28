@@ -19,7 +19,7 @@ import {
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { ProfileInfo } from '../../components/profile/ProfileInfo';
 import { StatCard } from '../../components/profile/StatCard';
-import { ApiError, ProfilePayload, ProfileResponse, updateProfile, updateProfileAvatar, uploadProfileAvatar } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, deleteProfile, updateProfile, updateProfileAvatar, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
@@ -96,6 +96,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [editError, setEditError] = useState('');
   const [form, setForm] = useState<ProfilePayload | null>(null);
@@ -216,7 +217,13 @@ export default function ProfileScreen() {
       return;
     }
 
-    const validationError = validateProfileForm(form);
+    const normalizedForm: ProfilePayload = {
+      ...form,
+      name: form.name.trim(),
+      sex: form.profileType === 'MOTHER' ? 'FEMALE' : form.sex,
+    };
+
+    const validationError = validateProfileForm(normalizedForm);
     if (validationError) {
       setEditError(validationError);
       return;
@@ -225,10 +232,7 @@ export default function ProfileScreen() {
     try {
       setSubmitting(true);
       setEditError('');
-      const updated = await updateProfile(profile.id, {
-        ...form,
-        name: form.name.trim(),
-      });
+      const updated = await updateProfile(profile.id, normalizedForm);
       setProfile(updated);
       await setSelectedProfile(updated);
       setEditVisible(false);
@@ -243,6 +247,30 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleSoftDeleteProfile = async () => {
+    if (!profile) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setEditError('');
+      await deleteProfile(profile.id);
+      await clearSelectedProfile();
+      setProfile(null);
+      setEditVisible(false);
+      router.replace('/profile/select-profile');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setEditError(err.message);
+      } else {
+        setEditError('Không thể xóa hồ sơ.');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -251,7 +279,7 @@ export default function ProfileScreen() {
       <CustomHeader
         title="Hồ Sơ Của Bé"
         rightElement={
-          <TouchableOpacity onPress={() => router.push('/setting/setting')}>
+          <TouchableOpacity onPress={openEditModal}>
             <Ionicons name="settings-outline" size={24} color="#ff8fab" />
           </TouchableOpacity>
         }
@@ -266,6 +294,7 @@ export default function ProfileScreen() {
           gender={displayGender}
           avatarSource={displayAvatar}
           onEditPress={openEditModal}
+          showEditBadge={false}
         />
 
         {/* --- THỐNG KÊ NHANH --- */}
@@ -381,26 +410,32 @@ export default function ProfileScreen() {
                   onChangeText={(dateOfBirth) => setForm((current) => current ? { ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) } : current)}
                 />
 
-                <Text style={styles.label}>Giới tính</Text>
-                <View style={styles.sexRow}>
-                  {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
-                    <TouchableOpacity
-                      key={sex}
-                      style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
-                      onPress={() => setForm((current) => current ? { ...current, sex } : current)}
-                      disabled={form.profileType === 'MOTHER' && sex !== 'FEMALE'}
-                    >
-                      <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
-                        {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {form.profileType === 'CHILD' && (
+                  <>
+                    <Text style={styles.label}>Giới tính</Text>
+                    <View style={styles.sexRow}>
+                      {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
+                        <TouchableOpacity
+                          key={sex}
+                          style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
+                          onPress={() => setForm((current) => current ? { ...current, sex } : current)}
+                        >
+                          <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
+                            {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
 
                 {!!editError && <Text style={styles.modalError}>{editError}</Text>}
 
-                <TouchableOpacity style={[styles.saveButton, (submitting || imageUploading) && styles.disabledButton]} onPress={submitUpdateProfile} disabled={submitting || imageUploading}>
+                <TouchableOpacity style={[styles.saveButton, (submitting || imageUploading || deleting) && styles.disabledButton]} onPress={submitUpdateProfile} disabled={submitting || imageUploading || deleting}>
                   {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>{imageUploading ? 'Đang tải ảnh...' : 'Lưu thay đổi'}</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.deleteButton, (submitting || imageUploading || deleting) && styles.disabledButton]} onPress={handleSoftDeleteProfile} disabled={submitting || imageUploading || deleting}>
+                  {deleting ? <ActivityIndicator color="#D64545" /> : <Text style={styles.deleteButtonText}>Xóa hồ sơ</Text>}
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -602,6 +637,20 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '900',
+  },
+  deleteButton: {
+    borderRadius: 22,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#FFD2DE',
+  },
+  deleteButtonText: {
+    color: '#D64545',
+    fontSize: 15,
     fontWeight: '900',
   },
 });

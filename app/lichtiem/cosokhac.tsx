@@ -26,7 +26,6 @@ export default function ClinicListScreen() {
 
   useEffect(() => {
     // Logic: Fetch danh sách trung tâm từ API
-    console.log(`Gọi API GET /api/vaccination-centers/vaccine-type/${vaccineTypeId}`);
   }, [vaccineTypeId]);
 
   const filteredClinics = clinics.filter((clinic: any) =>

@@ -39,7 +39,6 @@ export default function AddVaccineSelectedScreen() {
       status: status
     };
 
-    console.log("Gửi API POST /api/vaccine-records:", request);
     // Logic call axios/fetch ở đây
     router.push({
       pathname: '/lichtiem/listlichtiem',

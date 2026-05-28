@@ -66,7 +66,7 @@ export default function BabyDiaryScreen() {
             key={post.id}
             post={post}
             isLast={index === DIARY_POSTS.length - 1}
-            onEdit={(p) => console.log("Edit post", p.id)}
+            onEdit={() => undefined}
             onShare={(p) => alert("Chia sẻ khoảnh khắc của bé!")}
           />
         ))}

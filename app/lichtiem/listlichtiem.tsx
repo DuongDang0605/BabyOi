@@ -58,8 +58,7 @@ export default function VaccineScheduleScreen() {
           setStats({ pending: 0, success: 0, canceled: 0 });
           setLoading(false);
         }
-      } catch (error) {
-        console.error('Không thể tải hồ sơ đang chọn:', error);
+      } catch {
         if (mounted) {
           setSelectedProfileState(null);
           setUpcomingVaccines([]);
@@ -96,8 +95,7 @@ export default function VaccineScheduleScreen() {
         success: statistics.success,
         canceled: statistics.canceled,
       });
-    } catch (error) {
-      console.error(`Không thể tải dữ liệu tiêm chủng cho hồ sơ ${selectedProfile.id}.`, error);
+    } catch {
       setUpcomingVaccines([]);
       setCompletedVaccines([]);
       setStats({ pending: 0, success: 0, canceled: 0 });
@@ -163,8 +161,7 @@ export default function VaccineScheduleScreen() {
             title: 'Đã hủy lịch tiêm',
             message: 'Lịch tiêm đã được hủy thành công.',
           });
-        } catch (error) {
-          console.error('Lỗi hủy lịch tiêm:', error);
+        } catch {
           showNotification({
             type: 'error',
             title: 'Không thể hủy lịch',

@@ -8,18 +8,21 @@ interface ProfileInfoProps {
   gender: string;
   avatarSource: any;
   onEditPress: () => void;
+  showEditBadge?: boolean;
 }
 
-export const ProfileInfo = ({ name, dob, gender, avatarSource, onEditPress }: ProfileInfoProps) => {
+export const ProfileInfo = ({ name, dob, gender, avatarSource, onEditPress, showEditBadge = true }: ProfileInfoProps) => {
   return (
     <View style={styles.container}>
       <View style={styles.avatarWrapper}>
         <View style={styles.avatarBorder}>
           <Image source={avatarSource} style={styles.avatar} />
         </View>
-        <TouchableOpacity style={styles.editBadge} onPress={onEditPress}>
-          <Ionicons name="camera" size={16} color="#FFF" />
-        </TouchableOpacity>
+        {showEditBadge && (
+          <TouchableOpacity style={styles.editBadge} onPress={onEditPress}>
+            <Ionicons name="camera" size={16} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.name}>{name}</Text>

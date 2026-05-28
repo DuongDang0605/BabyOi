@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -407,6 +408,10 @@ export default function ListDoAnScreen() {
         )}
         keyExtractor={item => item.id}
         numColumns={2}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         columnWrapperStyle={filteredDishes.length > 0 ? styles.row : undefined}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"

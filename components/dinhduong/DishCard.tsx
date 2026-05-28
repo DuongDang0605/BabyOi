@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { FoodResponse } from '../../lib/api';
 
@@ -26,7 +27,7 @@ interface DishCardProps {
   onToggleFavorite?: (id: string) => void;
 }
 
-export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onToggleRestriction, onToggleFavorite }: DishCardProps) => {
+export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, onPress, onToggleRestriction, onToggleFavorite }: DishCardProps) => {
   const accentColor = item.food?.functionCode === 2 ? '#89CFF0' : '#FF8FAB';
 
   return (
@@ -37,7 +38,13 @@ export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onTo
       >
         <View style={styles.imageBox}>
           {item.image ? (
-            <Image source={{ uri: item.image }} style={[styles.dishImage, isRestricted && { opacity: 0.5 }]} />
+            <Image
+              source={{ uri: item.image }}
+              style={[styles.dishImage, isRestricted && { opacity: 0.5 }]}
+              cachePolicy="disk"
+              contentFit="cover"
+              recyclingKey={item.id}
+            />
           ) : (
             <View style={[styles.dishImage, styles.imagePlaceholder, isRestricted && { opacity: 0.5 }]}>
               <Ionicons name="image-outline" size={24} color="#FF8FAB" />
@@ -81,7 +88,7 @@ export const DishCard = ({ item, isRestricted, isFavorite = false, onPress, onTo
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 3, overflow: 'hidden', borderWidth: 1, borderColor: '#F4EEF2' },

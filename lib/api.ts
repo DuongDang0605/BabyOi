@@ -70,7 +70,7 @@ export type ProfilePayload = {
   userId: number;
   name: string;
   dateOfBirth: string;
-  sex: 'MALE' | 'FEMALE' | 'OTHER';
+  sex?: 'MALE' | 'FEMALE' | 'OTHER';
   profileType: 'MOTHER' | 'CHILD';
   profileCode?: string | null;
   functionCode?: string | null;
@@ -402,10 +402,6 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   const { skipAuth, ...fetchInit } = init ?? {};
   const url = `${API_BASE_URL}${path}`;
 
-  if (__DEV__) {
-    console.log('[API]', fetchInit.method ?? 'GET', url);
-  }
-
   let response: Response;
 
   try {
@@ -437,10 +433,6 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
 
   const { skipAuth, ...fetchInit } = init ?? {};
   const url = `${API_BASE_URL}${path}`;
-
-  if (__DEV__) {
-    console.log('[API]', fetchInit.method ?? 'POST', url);
-  }
 
   let response: Response;
 

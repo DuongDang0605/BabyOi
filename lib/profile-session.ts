@@ -6,9 +6,12 @@ import { deleteSecureItem, getSecureItem, setSecureItem } from './secure-storage
 const SELECTED_PROFILE_STORAGE_KEY = 'babyoi_selected_profile';
 
 let selectedProfile: ProfileResponse | null = null;
+let selectedProfileHydrated = false;
+let hydrateProfilePromise: Promise<ProfileResponse | null> | null = null;
 
 export async function setSelectedProfile(profile: ProfileResponse | null) {
   selectedProfile = profile;
+  selectedProfileHydrated = true;
 
   if (profile) {
     await setSecureItem(SELECTED_PROFILE_STORAGE_KEY, JSON.stringify(profile));
@@ -19,18 +22,37 @@ export async function setSelectedProfile(profile: ProfileResponse | null) {
 }
 
 export async function hydrateSelectedProfile() {
+  if (selectedProfileHydrated) {
+    return selectedProfile;
+  }
+
+  if (hydrateProfilePromise) {
+    return hydrateProfilePromise;
+  }
+
+  hydrateProfilePromise = hydrateSelectedProfileFromStorage();
+  return hydrateProfilePromise;
+}
+
+async function hydrateSelectedProfileFromStorage() {
   const rawValue = await getSecureItem(SELECTED_PROFILE_STORAGE_KEY);
   if (!rawValue) {
     selectedProfile = null;
+    selectedProfileHydrated = true;
+    hydrateProfilePromise = null;
     return null;
   }
 
   try {
     selectedProfile = JSON.parse(rawValue) as ProfileResponse;
+    selectedProfileHydrated = true;
+    hydrateProfilePromise = null;
     return selectedProfile;
   } catch {
     selectedProfile = null;
     await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
+    selectedProfileHydrated = true;
+    hydrateProfilePromise = null;
     return null;
   }
 }
@@ -41,6 +63,7 @@ export function getSelectedProfile() {
 
 export async function clearSelectedProfile() {
   selectedProfile = null;
+  selectedProfileHydrated = true;
   await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
 }
 

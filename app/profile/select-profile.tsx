@@ -125,6 +125,29 @@ export default function SelectProfileScreen() {
     functionCode: null,
   });
 
+  const childProfileCount = profiles.filter((profile) => profile.profileType === 'CHILD').length;
+  const motherProfileCount = profiles.filter((profile) => profile.profileType === 'MOTHER').length;
+
+  const getProfileLimitError = (profileType: 'MOTHER' | 'CHILD') => {
+    if (profileType === 'CHILD' && childProfileCount >= 2) {
+      return 'Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé.';
+    }
+    if (profileType === 'MOTHER' && motherProfileCount >= 1) {
+      return 'Mỗi tài khoản chỉ được tạo tối đa 1 hồ sơ mẹ.';
+    }
+    return '';
+  };
+
+  const getFirstAvailableProfileType = (): 'MOTHER' | 'CHILD' | null => {
+    if (childProfileCount < 2) {
+      return 'CHILD';
+    }
+    if (motherProfileCount < 1) {
+      return 'MOTHER';
+    }
+    return null;
+  };
+
   const loadProfiles = useCallback(async () => {
     try {
       setLoading(true);
@@ -156,8 +179,9 @@ export default function SelectProfileScreen() {
       router.replace('/auth/login');
       return;
     }
-    if (profiles.length >= 3) {
-      setError('Mỗi tài khoản chỉ được tạo tối đa 3 hồ sơ đang hoạt động.');
+    const nextProfileType = getFirstAvailableProfileType();
+    if (!nextProfileType) {
+      setError('Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé và 1 hồ sơ mẹ.');
       return;
     }
 
@@ -166,7 +190,7 @@ export default function SelectProfileScreen() {
       name: '',
       dateOfBirth: '',
       sex: 'FEMALE',
-      profileType: 'CHILD',
+      profileType: nextProfileType,
       imageUrl: null,
       profileCode: null,
       functionCode: null,
@@ -176,6 +200,12 @@ export default function SelectProfileScreen() {
   };
 
   const updateProfileType = (profileType: 'MOTHER' | 'CHILD') => {
+    const limitError = getProfileLimitError(profileType);
+    if (limitError) {
+      setError(limitError);
+      return;
+    }
+
     setForm((current) => ({
       ...current,
       profileType,
@@ -235,6 +265,12 @@ export default function SelectProfileScreen() {
   };
 
   const handleCreateProfile = async () => {
+    const limitError = getProfileLimitError(form.profileType);
+    if (limitError) {
+      setError(limitError);
+      return;
+    }
+
     const validationError = validateProfileForm(form);
     if (validationError) {
       setError(validationError);
@@ -247,6 +283,7 @@ export default function SelectProfileScreen() {
       const created = await createProfile({
         ...form,
         name: form.name.trim(),
+        sex: form.profileType === 'MOTHER' ? 'FEMALE' : form.sex,
       });
 
       setModalVisible(false);
@@ -297,7 +334,7 @@ export default function SelectProfileScreen() {
 
       <View style={styles.content}>
         <Text style={styles.title}>Hãy chọn hồ sơ</Text>
-        <Text style={styles.profileLimit}>Tối đa 3 hồ sơ</Text>
+        <Text style={styles.profileLimit}>Tối đa 2 hồ sơ bé và 1 hồ sơ mẹ</Text>
 
         {loading ? (
           <ActivityIndicator color="#FF8FAB" />
@@ -402,21 +439,24 @@ export default function SelectProfileScreen() {
                 onChangeText={(dateOfBirth) => setForm((current) => ({ ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) }))}
               />
 
-              <Text style={styles.label}>Giới tính</Text>
-              <View style={styles.sexRow}>
-                {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
-                  <TouchableOpacity
-                    key={sex}
-                    style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
-                    onPress={() => setForm((current) => ({ ...current, sex }))}
-                    disabled={form.profileType === 'MOTHER' && sex !== 'FEMALE'}
-                  >
-                    <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
-                      {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {form.profileType === 'CHILD' && (
+                <>
+                  <Text style={styles.label}>Giới tính</Text>
+                  <View style={styles.sexRow}>
+                    {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
+                      <TouchableOpacity
+                        key={sex}
+                        style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
+                        onPress={() => setForm((current) => ({ ...current, sex }))}
+                      >
+                        <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
+                          {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {!!error && <Text style={styles.modalError}>{error}</Text>}
 

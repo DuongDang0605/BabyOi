@@ -29,7 +29,6 @@ export default function BookingVaccineScreen() {
   const [selectedClinicId, setSelectedClinicId] = useState<number | null>(null);
 
   useEffect(() => {
-    console.log(`Gọi API GET /api/vaccination-centers/vaccine-type/${vaccineTypeId}`);
     // Giả định sau khi fetch: setClinics(response.data)
   }, [vaccineTypeId]);
 
@@ -46,7 +45,6 @@ export default function BookingVaccineScreen() {
       note: "Đặt lịch qua app BabyOi",
       status: -1 // TABLE_STATUS.PENDING
     };
-    console.log("Gửi API POST /api/vaccine-records:", request);
     router.push('/lichtiem/listlichtiem');
   };
 

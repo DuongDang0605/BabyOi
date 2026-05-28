@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { FoodResponse, deleteRestrictedFood, getFoodDetail, getRestrictedFoods, resolveAssetUrl } from '../../lib/api';
@@ -148,6 +149,10 @@ export default function RestrictedDishesScreen() {
           data={restrictedFoods}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={{ padding: 20 }}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           ListEmptyComponent={() => (
             <View style={styles.stateBox}>
               <Ionicons name="eye-off-outline" size={28} color="#ABBEC8" />
@@ -157,7 +162,7 @@ export default function RestrictedDishesScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => router.push({ pathname: '/dinhduong/recipe-detail', params: { id: item.id } })}>
               {item.imageUrl ? (
-                <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.img} />
+                <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.img} cachePolicy="disk" contentFit="cover" recyclingKey={`restricted-${item.id}`} />
               ) : (
                 <View style={[styles.img, styles.placeholder]}>
                   <Ionicons name="image-outline" size={22} color="#FF8FAB" />
