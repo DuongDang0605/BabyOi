@@ -14,6 +14,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
@@ -107,6 +108,7 @@ function validateProfileForm(payload: ProfilePayload) {
 }
 
 export default function SelectProfileScreen() {
+  const { width } = useWindowDimensions();
   const [profiles, setProfiles] = useState<ProfileResponse[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -275,6 +277,10 @@ export default function SelectProfileScreen() {
   };
 
   const profileSlots = Array.from({ length: 3 }, (_, index) => profiles[index] ?? null);
+  const profileGap = 12;
+  const profileSlotWidth = Math.floor(Math.min(118, Math.max(96, (width - 40 - profileGap * 2) / 3)));
+  const profileBoxSize = Math.min(106, profileSlotWidth);
+  const profileImageSize = Math.max(76, profileBoxSize - 20);
 
   const handleLogout = async () => {
     await clearSelectedProfile();
@@ -302,12 +308,12 @@ export default function SelectProfileScreen() {
         {loading ? (
           <ActivityIndicator color="#FF8FAB" />
         ) : (
-          <View style={styles.profileRow}>
+          <View style={[styles.profileRow, { gap: profileGap }]}>
             {profileSlots.map((profile, index) => {
               if (!profile) {
                 return (
-                  <TouchableOpacity key={`empty-${index}`} style={styles.profileSlot} onPress={openCreateModal}>
-                    <View style={styles.addBox}>
+                  <TouchableOpacity key={`empty-${index}`} style={[styles.profileSlot, { width: profileSlotWidth }]} onPress={openCreateModal}>
+                    <View style={[styles.addBox, { width: profileBoxSize, height: profileBoxSize }]}>
                       <Ionicons name="add" size={46} color="#FF8FAB" />
                     </View>
                     <Text style={styles.profileName}>Thêm hồ sơ</Text>
@@ -317,10 +323,10 @@ export default function SelectProfileScreen() {
 
               const selected = selectedProfileId === profile.id;
               return (
-                <TouchableOpacity key={profile.id} style={styles.profileSlot} onPress={() => handleSelectProfile(profile)}>
-                  <View style={[styles.profileImageWrap, selected && styles.profileImageWrapSelected]}>
+                <TouchableOpacity key={profile.id} style={[styles.profileSlot, { width: profileSlotWidth }]} onPress={() => handleSelectProfile(profile)}>
+                  <View style={[styles.profileImageWrap, { width: profileBoxSize, height: profileBoxSize }, selected && styles.profileImageWrapSelected]}>
                     {profile.imageUrl ? (
-                      <Image source={{ uri: profile.imageUrl }} style={styles.profileImage} />
+                      <Image source={{ uri: profile.imageUrl }} style={[styles.profileImage, { width: profileImageSize, height: profileImageSize }]} />
                     ) : (
                       <Text style={styles.questionMark}>?</Text>
                     )}
@@ -330,7 +336,7 @@ export default function SelectProfileScreen() {
                       </View>
                     )}
                   </View>
-                  <Text style={[styles.profileName, selected && styles.profileNameSelected]} numberOfLines={1}>{profile.name}</Text>
+                  <Text style={[styles.profileName, { maxWidth: profileSlotWidth }, selected && styles.profileNameSelected]} numberOfLines={1}>{profile.name}</Text>
                   <Text style={styles.profileAge}>{selected ? 'Bấm lần nữa để vào' : calculateAgeLabel(profile.dateOfBirth, profile.profileType)}</Text>
                 </TouchableOpacity>
               );
@@ -438,10 +444,10 @@ const styles = StyleSheet.create({
   softCircleBottom: { position: 'absolute', bottom: -95, left: -80, width: 230, height: 230, borderRadius: 115, backgroundColor: '#E9F8FD' },
   headerRow: { marginTop: 45, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brand: { color: '#FF8FAB', fontSize: 32, fontWeight: '900', letterSpacing: 1 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, width: '100%' },
   title: { color: '#5C7A8A', fontSize: 31, fontWeight: '900', marginBottom: 8 },
   profileLimit: { color: '#7D95A1', fontSize: 13, fontWeight: '800', marginBottom: 26, textAlign: 'center' },
-  profileRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 18 },
+  profileRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 },
   profileSlot: { width: 126, alignItems: 'center' },
   profileImageWrap: { width: 112, height: 112, borderRadius: 30, backgroundColor: '#FFFFFF', borderWidth: 3, borderColor: '#FFE5EC', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.18, shadowRadius: 10 },
   profileImageWrapSelected: { borderColor: '#FF8FAB', transform: [{ scale: 1.04 }] },
@@ -449,9 +455,9 @@ const styles = StyleSheet.create({
   questionMark: { color: '#FF8FAB', fontSize: 58, fontWeight: '900', textAlign: 'center' },
   selectedBadge: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF8FAB', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
   addBox: { width: 112, height: 112, borderRadius: 30, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#FFB6C1', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8 },
-  profileName: { color: '#5C7A8A', fontSize: 15, fontWeight: '900', marginTop: 10, maxWidth: 126 },
+  profileName: { width: '100%', color: '#5C7A8A', fontSize: 15, fontWeight: '900', marginTop: 10, maxWidth: 126, textAlign: 'center' },
   profileNameSelected: { color: '#FF8FAB' },
-  profileAge: { color: '#7D95A1', fontSize: 12, fontWeight: '800', marginTop: 3, textAlign: 'center' },
+  profileAge: { width: '100%', color: '#7D95A1', fontSize: 12, fontWeight: '800', marginTop: 3, textAlign: 'center' },
   errorText: { marginTop: 26, color: '#FF6B8F', fontWeight: '800', textAlign: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(92,122,138,0.35)', padding: 20 },
   modalCard: { maxHeight: '88%', backgroundColor: '#FEF9F3', borderRadius: 28, padding: 20 },
