@@ -20,6 +20,7 @@ import { TipBox } from '../../components/home/TipBox';
 import {
   AiTeachingLessonResponse,
   getAiTeachingLessonsByProfile,
+  getUnreadNotificationCount,
   getVaccineRecordsByProfile,
   ProfileResponse,
   resolveAssetUrl,
@@ -27,6 +28,7 @@ import {
 } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
+import { registerPushNotifications } from '../../lib/push-notifications';
 
 const { width } = Dimensions.get('window');
 
@@ -128,6 +130,7 @@ export default function AppHomeScreen() {
   const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
   const [nearestVaccine, setNearestVaccine] = useState<{ record: VaccineRecordResponse; date: Date } | null>(null);
   const [vaccineReminderError, setVaccineReminderError] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [teachingTip, setTeachingTip] = useState('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
@@ -167,6 +170,21 @@ export default function AppHomeScreen() {
           setVaccineReminderError(true);
         }
       }
+
+      try {
+        const unread = await getUnreadNotificationCount();
+        if (mounted) {
+          setUnreadNotificationCount(unread.count ?? 0);
+        }
+      } catch {
+        if (mounted) {
+          setUnreadNotificationCount(0);
+        }
+      }
+
+      registerPushNotifications().catch((error) => {
+        console.warn('Không thể đăng ký push notification:', error);
+      });
     }
 
     loadHomeData();
@@ -212,6 +230,8 @@ export default function AppHomeScreen() {
           babyAge={profileAge}
           avatarSource={profileAvatar}
           onAvatarPress={toggleMenu}
+          unreadCount={unreadNotificationCount}
+          onNotificationPress={() => router.push('/notification/notifications')}
         />
 
         {/* --- ALERT CARD --- */}

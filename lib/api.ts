@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
+import { clearSelectedProfile } from './profile-session';
 
 export type AuthResponse = {
   accessToken: string;
@@ -274,6 +275,33 @@ export type FavoriteFoodResponse = {
   food: FoodResponse | null;
 };
 
+export type AppNotificationResponse = {
+  id: number;
+  userId: number;
+  type: string;
+  title: string;
+  body: string | null;
+  dataJson: string | null;
+  priority: number | null;
+  sourceType: string | null;
+  sourceId: number | null;
+  status: number | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string | null;
+};
+
+export type NotificationSettingsResponse = {
+  pushEnabled: boolean;
+  vaccineEnabled: boolean;
+  appointmentEnabled: boolean;
+  chatEnabled: boolean;
+  promotionEnabled: boolean;
+  systemEnabled: boolean;
+};
+
+export type NotificationSettingsPayload = Partial<NotificationSettingsResponse>;
+
 /* =========================
    ERROR
 ========================= */
@@ -375,8 +403,8 @@ export function resolveAssetUrl(url?: string | null) {
    REQUEST CORE
 ========================= */
 
-function shouldRedirectToError(status: number) {
-  return status === 404 || status >= 500;
+function shouldRedirectToLogin(status: number) {
+  return status === 401 || status === 403 || status === 404 || status >= 500;
 }
 
 function openErrorScreen(status: string, message: string) {
@@ -385,6 +413,15 @@ function openErrorScreen(status: string, message: string) {
       pathname: '/error',
       params: { status, message },
     });
+  }, 0);
+}
+
+async function redirectToLogin() {
+  await clearSelectedProfile();
+  await clearAuthSession();
+
+  setTimeout(() => {
+    router.replace('/auth/login');
   }, 0);
 }
 
@@ -412,8 +449,8 @@ async function parseError(response: Response): Promise<never> {
     payload?.error ||
     `Request failed with status ${response.status}`;
 
-  if (shouldRedirectToError(response.status)) {
-    openErrorScreen(String(response.status), message);
+  if (shouldRedirectToLogin(response.status)) {
+    await redirectToLogin();
   }
 
   throw new ApiError(message, {
@@ -464,10 +501,6 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      await clearAuthSession();
-    }
-
     await parseError(response);
   }
 
@@ -503,10 +536,6 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      await clearAuthSession();
-    }
-
     await parseError(response);
   }
 
@@ -857,5 +886,67 @@ export function addRestrictedFood(profileId: number | string, foodId: number | s
 export function deleteRestrictedFood(profileId: number | string, foodId: number | string) {
   return request<void>(`/api/foods/restricted/profile/${profileId}/food/${foodId}`, {
     method: 'DELETE',
+  });
+}
+
+/* =========================
+   NOTIFICATION API
+========================= */
+
+export function getNotifications(params?: { page?: number; size?: number }) {
+  return request<PageResponse<AppNotificationResponse>>(`/api/notifications${buildQueryString({
+    page: params?.page,
+    size: params?.size,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getUnreadNotificationCount() {
+  return request<{ count: number }>('/api/notifications/unread-count', {
+    method: 'GET',
+  });
+}
+
+export function markNotificationRead(notificationId: number | string) {
+  return request<AppNotificationResponse>(`/api/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+  });
+}
+
+export function markAllNotificationsRead() {
+  return request<void>('/api/notifications/read-all', {
+    method: 'PATCH',
+  });
+}
+
+export function registerDeviceToken(payload: {
+  token: string;
+  platform: string;
+  deviceId: string;
+  appVersion?: string | null;
+}) {
+  return request<void>('/api/notifications/device-tokens', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deactivateDeviceToken(deviceId: string) {
+  return request<void>(`/api/notifications/device-tokens/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getNotificationSettings() {
+  return request<NotificationSettingsResponse>('/api/notifications/settings', {
+    method: 'GET',
+  });
+}
+
+export function updateNotificationSettings(payload: NotificationSettingsPayload) {
+  return request<NotificationSettingsResponse>('/api/notifications/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
   });
 }
