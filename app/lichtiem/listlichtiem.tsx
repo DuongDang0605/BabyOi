@@ -131,6 +131,31 @@ export default function VaccineScheduleScreen() {
     };
   }, [selectedProfile, refreshVaccineData]);
 
+  useFocusEffect(useCallback(() => {
+    if (!selectedProfile) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function reloadOnFocus() {
+      setLoading(true);
+      try {
+        await refreshVaccineData();
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    reloadOnFocus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfile, refreshVaccineData]));
+
   const handleConfirmVaccine = (item: VaccineRecordResponse) => {
     if (!selectedProfile) {
       return;
