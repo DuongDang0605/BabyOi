@@ -337,6 +337,65 @@ export const API_BASE_URL = resolveBaseUrl();
    ASSET URL
 ========================= */
 
+const CLOUDINARY_IMAGE_BASE_URL = 'https://res.cloudinary.com/dkerzsvan/image/upload';
+
+function normalizeCloudinaryImageUrl(url: string) {
+  const uploadMarker = '/image/upload/';
+  const uploadMarkerIndex = url.indexOf(uploadMarker);
+
+  if (!/res\.cloudinary\.com/i.test(url) || uploadMarkerIndex < 0) {
+    return url;
+  }
+
+  const prefix = url.slice(0, uploadMarkerIndex + uploadMarker.length);
+  const rawPath = url.slice(uploadMarkerIndex + uploadMarker.length).replace(/^\/+/, '');
+  const pathParts = rawPath.split('/').filter(Boolean);
+
+  while (
+    pathParts.length > 0
+    && (
+      /^v\d+$/i.test(pathParts[0])
+      || pathParts[0].includes(',')
+      || /^(f|q|c|w|h|g|e|dpr|ar|r|b|a|o|x|y|z)_/i.test(pathParts[0])
+    )
+  ) {
+    pathParts.shift();
+  }
+
+  if (pathParts.length === 0) {
+    return url;
+  }
+
+  return `${prefix}${pathParts.join('/')}`;
+}
+
+function buildCloudinaryVariantUrl(url: string, transformations: string[]) {
+  const normalizedUrl = normalizeCloudinaryImageUrl(url);
+  const uploadMarker = '/image/upload/';
+  const uploadMarkerIndex = normalizedUrl.indexOf(uploadMarker);
+
+  if (!/res\.cloudinary\.com/i.test(normalizedUrl) || uploadMarkerIndex < 0 || transformations.length === 0) {
+    return normalizedUrl;
+  }
+
+  const prefix = normalizedUrl.slice(0, uploadMarkerIndex + uploadMarker.length);
+  const imagePath = normalizedUrl.slice(uploadMarkerIndex + uploadMarker.length).replace(/^\/+/, '');
+
+  return `${prefix}${transformations.join(',')}/${imagePath}`;
+}
+
+function resolveLegacyStaticAssetUrl(path: string) {
+  const legacyMatch = path.match(/^\/?(Ingredient|Food)\/(.+)$/i);
+
+  if (!legacyMatch) {
+    return '';
+  }
+
+  const [, folder, fileName] = legacyMatch;
+  const cloudinaryFolder = folder.toLowerCase() === 'food' ? 'food' : 'Ingredient';
+  return `${CLOUDINARY_IMAGE_BASE_URL}/${cloudinaryFolder}/${fileName}`;
+}
+
 export function resolveAssetUrl(url?: string | null) {
   const rawValue = url?.trim();
 
@@ -345,13 +404,13 @@ export function resolveAssetUrl(url?: string | null) {
   }
 
   if (/^https?:\/\//i.test(rawValue)) {
-    return rawValue;
+    return normalizeCloudinaryImageUrl(rawValue);
   }
 
   const normalizedPath = rawValue.replace(/^file:\/\//i, '').replace(/\\/g, '/');
 
   if (/^\/?(Ingredient|Food)\//i.test(normalizedPath)) {
-    return '';
+    return resolveLegacyStaticAssetUrl(normalizedPath);
   }
 
   const staticMarker = '/src/main/resources/static/';
@@ -359,16 +418,42 @@ export function resolveAssetUrl(url?: string | null) {
 
   if (staticMarkerIndex >= 0) {
     const publicPath = normalizedPath.slice(staticMarkerIndex + staticMarker.length);
+    const cloudinaryStaticUrl = resolveLegacyStaticAssetUrl(publicPath);
+
+    if (cloudinaryStaticUrl) {
+      return cloudinaryStaticUrl;
+    }
+
     return `${API_BASE_URL}/${publicPath.replace(/^\/+/, '')}`;
   }
 
   const knownStaticFolder = normalizedPath.match(/\/(Ingredient|Food)\/.+/i);
 
   if (knownStaticFolder) {
-    return `${API_BASE_URL}${knownStaticFolder[0]}`;
+    return resolveLegacyStaticAssetUrl(knownStaticFolder[0]);
   }
 
   return `${API_BASE_URL}${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`;
+}
+
+export function resolveOptimizedAssetUrl(
+  url?: string | null,
+  size: 'card' | 'detail' | 'ingredient' | 'avatar' = 'card'
+) {
+  const resolvedUrl = resolveAssetUrl(url);
+
+  if (!resolvedUrl) {
+    return '';
+  }
+
+  const transformationsBySize: Record<typeof size, string[]> = {
+    card: ['c_fill', 'w_360', 'h_240', 'q_auto:eco', 'f_auto'],
+    detail: ['c_fill', 'w_720', 'h_720', 'q_auto:good', 'f_auto'],
+    ingredient: ['c_fill', 'w_128', 'h_128', 'q_auto:eco', 'f_auto'],
+    avatar: ['c_fill', 'w_320', 'h_320', 'q_auto:good', 'f_auto'],
+  };
+
+  return buildCloudinaryVariantUrl(resolvedUrl, transformationsBySize[size]);
 }
 
 /* =========================
@@ -818,6 +903,12 @@ export function getFavoriteFoods(profileId: number | string) {
   });
 }
 
+export function getFavoriteFoodIds(profileId: number | string) {
+  return request<number[]>(`/api/foods/favorites/profile/${profileId}/ids`, {
+    method: 'GET',
+  });
+}
+
 export function addFavoriteFood(profileId: number | string, foodId: number | string) {
   return request<FavoriteFoodResponse>(`/api/foods/favorites/profile/${profileId}/food/${foodId}`, {
     method: 'POST',
@@ -836,6 +927,12 @@ export function deleteFavoriteFood(profileId: number | string, foodId: number | 
 
 export function getRestrictedFoods(profileId: number | string) {
   return request<FoodResponse[]>(`/api/foods/restricted/profile/${profileId}`, {
+    method: 'GET',
+  });
+}
+
+export function getRestrictedFoodIds(profileId: number | string) {
+  return request<number[]>(`/api/foods/restricted/profile/${profileId}/ids`, {
     method: 'GET',
   });
 }

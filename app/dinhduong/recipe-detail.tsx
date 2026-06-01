@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 
-import { FoodIngredientResponse, FoodResponse, getFoodDetail, resolveAssetUrl } from '../../lib/api';
+import { FoodIngredientResponse, FoodResponse, getFoodDetail, resolveAssetUrl, resolveOptimizedAssetUrl } from '../../lib/api';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,6 +28,7 @@ type AdjustableIngredient = FoodIngredientResponse & { currentAmount: string };
 type SavedIngredientAmounts = Record<string, string>;
 
 const FOOD_AMOUNT_STORAGE_PREFIX = 'babyoi_food_detail_amounts';
+const foodDetailCache = new Map<string, FoodResponse>();
 
 function getFoodAmountStorageKey(foodId: string | number, profileId?: string | number | null) {
   return `${FOOD_AMOUNT_STORAGE_PREFIX}:${profileId ?? 'guest'}:${foodId}`;
@@ -56,6 +57,13 @@ async function writeSavedIngredientAmounts(foodId: string | number, amounts: Sav
   await AsyncStorage.setItem(getFoodAmountStorageKey(foodId, profile?.id), JSON.stringify(amounts));
 }
 
+function mapIngredientsWithSavedAmounts(food: FoodResponse, savedAmounts: SavedIngredientAmounts): AdjustableIngredient[] {
+  return (food.ingredients || []).map((ingredient) => ({
+    ...ingredient,
+    currentAmount: savedAmounts[String(ingredient.id)] ?? (ingredient.amountPerServing != null ? String(ingredient.amountPerServing) : '0'),
+  }));
+}
+
 function scaledValue(value: number | null | undefined, amount: number, baseAmount: number) {
   if (value == null || !Number.isFinite(amount) || !Number.isFinite(baseAmount) || baseAmount <= 0) {
     return 0;
@@ -82,6 +90,29 @@ const TARGET_LABELS: Record<string, string> = {
   FOR_BABY_19_24_MONTHS_DEVELOPMENT: 'bé 19-24 tháng cần món đa dạng hơn để phát triển kỹ năng ăn uống',
 };
 
+const FOOD_CLOUDINARY_BASE_URL = 'https://res.cloudinary.com/dkerzsvan/image/upload/food';
+
+function firstParamValue(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function compactImageCandidates(candidates: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+
+  return candidates.filter((candidate): candidate is string => {
+    if (!candidate || seen.has(candidate)) {
+      return false;
+    }
+
+    seen.add(candidate);
+    return true;
+  });
+}
+
+function getFoodCloudinaryFallback(foodId?: number | string | null) {
+  return foodId ? `${FOOD_CLOUDINARY_BASE_URL}/Food_${foodId}.jpg` : '';
+}
+
 function formatTargetCodeText(content?: string | null) {
   if (!content) {
     return '';
@@ -98,6 +129,7 @@ export default function RecipeDetailScreen() {
   const [ingredients, setIngredients] = useState<AdjustableIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failedImageUris, setFailedImageUris] = useState<Record<string, boolean>>({});
   const amountsLoadedRef = useRef(false);
   const saveAmountsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -154,24 +186,34 @@ export default function RecipeDetailScreen() {
         return;
       }
 
-      try {
-        setLoading(true);
-        setError(null);
-        const [data, savedAmounts] = await Promise.all([
-          getFoodDetail(params.id),
-          readSavedIngredientAmounts(params.id),
-        ]);
+      const foodId = String(params.id);
+      const cachedFood = foodDetailCache.get(foodId);
+      const savedAmounts = await readSavedIngredientAmounts(params.id);
+
+      const applyFoodDetail = (data: FoodResponse) => {
         if (mounted) {
           amountsLoadedRef.current = false;
           setFood(data);
-          setIngredients((data.ingredients || []).map((ingredient) => ({
-            ...ingredient,
-            currentAmount: savedAmounts[String(ingredient.id)] ?? (ingredient.amountPerServing != null ? String(ingredient.amountPerServing) : '0'),
-          })));
+          setIngredients(mapIngredientsWithSavedAmounts(data, savedAmounts));
           amountsLoadedRef.current = true;
         }
+      };
+
+      if (cachedFood) {
+        applyFoodDetail(cachedFood);
+        setLoading(false);
+      }
+
+      try {
+        if (!cachedFood) {
+          setLoading(true);
+        }
+        setError(null);
+        const data = await getFoodDetail(params.id);
+        foodDetailCache.set(foodId, data);
+        applyFoodDetail(data);
       } catch (err) {
-        if (mounted) {
+        if (mounted && !cachedFood) {
           setError(err instanceof Error ? err.message : 'Không thể tải chi tiết món ăn.');
         }
       } finally {
@@ -186,6 +228,10 @@ export default function RecipeDetailScreen() {
       mounted = false;
       amountsLoadedRef.current = false;
     };
+  }, [params.id]);
+
+  useEffect(() => {
+    setFailedImageUris({});
   }, [params.id]);
 
   useEffect(() => {
@@ -219,7 +265,24 @@ export default function RecipeDetailScreen() {
     };
   }, []);
 
-  const imageUri = resolveAssetUrl(food?.imageUrl);
+  const routeImageUri = resolveAssetUrl(firstParamValue(params.image));
+  const foodImageCandidates = useMemo(
+    () => compactImageCandidates([
+      resolveOptimizedAssetUrl(food?.imageUrl, 'detail'),
+      routeImageUri,
+      getFoodCloudinaryFallback(food?.id),
+    ]),
+    [food?.id, food?.imageUrl, routeImageUri]
+  );
+  const imageUri = foodImageCandidates.find((candidate) => !failedImageUris[candidate]) || '';
+
+  const markImageFailed = (uri: string) => {
+    if (!uri) {
+      return;
+    }
+
+    setFailedImageUris((current) => current[uri] ? current : { ...current, [uri]: true });
+  };
 
   const totals = useMemo(() => {
     return ingredients.reduce((acc, item) => {
@@ -271,9 +334,9 @@ export default function RecipeDetailScreen() {
 
     return (
       <View style={{ width: 20, height: 20, overflow: 'hidden', alignItems: 'center' }}>
-        <Ionicons name="leaf" size={14} color="#FFD166" style={{ position: 'absolute', top: 3 }} />
+        <Ionicons name="leaf" size={14} color="#63B87A" style={{ position: 'absolute', top: 3 }} />
         <Animated.View style={{ position: 'absolute', opacity: leafOpacity, transform: [{ translateY: leafY }, { rotate: '15deg' }] }}>
-          <Ionicons name="leaf-outline" size={8} color="#FFE5EC" />
+          <Ionicons name="leaf-outline" size={8} color="#A8E6B5" />
         </Animated.View>
       </View>
     );
@@ -300,6 +363,24 @@ export default function RecipeDetailScreen() {
           </View>
 
           <View style={styles.analyzeCard}>
+            <LinearGradient
+              colors={['#FFF0F5', '#FEF9F3', '#E9F8FD']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroWash}
+            />
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroPill}>
+                <Ionicons name="sparkles" size={14} color="#FF8FAB" />
+                <Text style={styles.heroPillText}>Gợi ý dinh dưỡng</Text>
+              </View>
+              {!!ingredients.length && (
+                <View style={styles.heroPillBlue}>
+                  <Ionicons name="leaf-outline" size={14} color="#45AFC8" />
+                  <Text style={styles.heroPillBlueText}>{ingredients.length} nguyên liệu</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.imageCircleContainer}>
               {ingredients.slice(0, 8).map((ing, index) => {
                 const initialAngle = index * (360 / Math.max(ingredients.slice(0, 8).length, 1));
@@ -308,8 +389,8 @@ export default function RecipeDetailScreen() {
                 return (
                   <Animated.View key={ing.id} style={[styles.floatingWrapper, { transform: [{ rotate: rotation }] }]}>
                     <Animated.View style={[styles.floatingIng, { transform: [{ rotate: counterRotation }] }]}>
-                      {resolveAssetUrl(ing.imageUrl) ? (
-                        <Image source={{ uri: resolveAssetUrl(ing.imageUrl) }} style={styles.floatingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`floating-${ing.id}`} />
+                      {resolveOptimizedAssetUrl(ing.imageUrl, 'ingredient') ? (
+                        <Image source={{ uri: resolveOptimizedAssetUrl(ing.imageUrl, 'ingredient') }} style={styles.floatingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`floating-${ing.id}`} />
                       ) : <Ionicons name="leaf-outline" size={20} color="#FF8FAB" />}
                       <Text style={styles.floatingText} numberOfLines={1}>{ing.nameIngredients || 'Nguyên liệu'}</Text>
                     </Animated.View>
@@ -319,7 +400,7 @@ export default function RecipeDetailScreen() {
 
               <Animated.View style={[styles.imageCircle, { transform: [{ translateY: jumpAnim }] }]}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.mainImg} cachePolicy="disk" contentFit="cover" recyclingKey={`food-${food.id}`} />
+                  <Image source={{ uri: imageUri }} style={styles.mainImg} cachePolicy="disk" contentFit="cover" recyclingKey={`food-${food.id}-${imageUri}`} onError={() => markImageFailed(imageUri)} />
                 ) : (
                   <View style={[styles.mainImg, styles.mainImagePlaceholder]}>
                     <Ionicons name="image-outline" size={32} color="#FF8FAB" />
@@ -331,6 +412,16 @@ export default function RecipeDetailScreen() {
 
             <Text style={styles.dishTitle}>{food.name}</Text>
             {!!food.advanceFor && <Text style={styles.advanceFor}>{formatTargetCodeText(food.advanceFor)}</Text>}
+            <View style={styles.detailChipRow}>
+              <View style={styles.detailChip}>
+                <Ionicons name="flame-outline" size={15} color="#FF8FAB" />
+                <Text style={styles.detailChipText}>{Math.round(totals.calo)} kcal</Text>
+              </View>
+              <View style={[styles.detailChip, styles.detailChipBlue]}>
+                <MaterialCommunityIcons name="arm-flex" size={15} color="#45AFC8" />
+                <Text style={[styles.detailChipText, styles.detailChipBlueText]}>{totals.protein.toFixed(1)}g đạm</Text>
+              </View>
+            </View>
             <TouchableOpacity style={styles.recipeButton} onPress={() => router.push({ pathname: '/dinhduong/recipe-cooking', params: { id: food.id, image: imageUri } })}>
               <Ionicons name="restaurant-outline" size={16} color="#FF8FAB" />
               <Text style={styles.recipeButtonText}>Xem cách chế biến</Text>
@@ -341,13 +432,13 @@ export default function RecipeDetailScreen() {
             {[
               { label: 'Calories', value: Math.round(totals.calo), unit: 'kcal', color: '#FFB6C1', renderIcon: renderFireIcon },
               { label: 'Protein', value: totals.protein.toFixed(1), unit: 'g', color: '#A7E4F5', renderIcon: renderArmIcon },
-              { label: 'Carbs', value: totals.carbs.toFixed(1), unit: 'g', color: '#FFD166', renderIcon: renderLeafIcon },
-              { label: 'Chất béo', value: totals.fat.toFixed(1), unit: 'g', color: '#C1F0D0', icon: 'water', isFat: true },
+              { label: 'Carbs', value: totals.carbs.toFixed(1), unit: 'g', color: '#63B87A', renderIcon: renderLeafIcon },
+              { label: 'Chất béo', value: totals.fat.toFixed(1), unit: 'g', color: '#FFD166', icon: 'water', isFat: true },
             ].map((stat, idx) => {
               if (stat.isFat) {
                 const shineX = shineAnim.interpolate({ inputRange: [0, 1], outputRange: [-SCREEN_WIDTH * 0.5, SCREEN_WIDTH * 0.5] });
                 return (
-                  <View key={idx} style={[styles.statCard, { borderColor: stat.color, overflow: 'hidden' }]}>
+                  <View key={idx} style={[styles.statCard, { borderColor: stat.color, shadowColor: stat.color, overflow: 'hidden' }]}>
                     <Animated.View style={[styles.shineContainer, { transform: [{ translateX: shineX }] }]}>
                       <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.shineGradient} />
                     </Animated.View>
@@ -359,7 +450,7 @@ export default function RecipeDetailScreen() {
               }
 
               return (
-                <View key={idx} style={[styles.statCard, { borderColor: stat.color }]}>
+                <View key={idx} style={[styles.statCard, { borderColor: stat.color, shadowColor: stat.color }]}>
                   {stat.renderIcon && stat.renderIcon()}
                   <Text style={styles.statLabelText}>{stat.label}</Text>
                   <Text style={[styles.statValueText, { color: stat.color }]}>{stat.value} <Text style={styles.unitText}>{stat.unit}</Text></Text>
@@ -369,13 +460,18 @@ export default function RecipeDetailScreen() {
           </View>
 
           <View style={styles.adjustSection}>
-            <Text style={styles.sectionTitle}>Tùy chỉnh định lượng (g/ml)</Text>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionHeadingIcon}>
+                <Ionicons name="options-outline" size={18} color="#FF8FAB" />
+              </View>
+              <Text style={styles.sectionTitle}>Tùy chỉnh định lượng (g/ml)</Text>
+            </View>
             {ingredients.map((item) => (
               <View key={item.id} style={styles.ingRow}>
                 <View style={styles.ingLeft}>
                   <View style={styles.iconBg}>
-                    {resolveAssetUrl(item.imageUrl) ? (
-                      <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.ingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`ingredient-${item.id}`} />
+                    {resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') ? (
+                      <Image source={{ uri: resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') }} style={styles.ingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`ingredient-${item.id}`} />
                     ) : <Ionicons name="leaf-outline" size={18} color="#FF8FAB" />}
                   </View>
                   <View style={styles.ingTextBox}>
@@ -503,30 +599,43 @@ const styles = StyleSheet.create({
   skeletonPanel: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 16, borderWidth: 1, borderColor: '#FFE5EC', marginBottom: 120 },
   skeletonIngredientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   skeletonIngredientIcon: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FFF5F8' },
-  analyzeCard: { alignItems: 'center', marginTop: 30, marginBottom: 30 },
+  analyzeCard: { alignItems: 'center', marginTop: 12, marginBottom: 28, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, borderRadius: 32, overflow: 'hidden', borderWidth: 1.5, borderColor: '#FFE5EC', backgroundColor: '#FFF', elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.14, shadowRadius: 12 },
+  heroWash: { ...StyleSheet.absoluteFillObject },
+  heroTopRow: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: -8, zIndex: 20 },
+  heroPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: '#FFE5EC' },
+  heroPillText: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', marginLeft: 5 },
+  heroPillBlue: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1FBFE', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: '#A7E4F5' },
+  heroPillBlueText: { color: '#45AFC8', fontSize: 11, fontWeight: '900', marginLeft: 5 },
   imageCircleContainer: { width: 350, height: 350, justifyContent: 'center', alignItems: 'center' },
   floatingWrapper: { position: 'absolute', width: 320, height: 50, justifyContent: 'center', alignItems: 'flex-end' },
-  floatingIng: { backgroundColor: '#FFF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center', elevation: 6, minWidth: 80, maxWidth: 112, borderWidth: 1.5, borderColor: '#FFE5EC' },
+  floatingIng: { backgroundColor: '#FFF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center', elevation: 6, minWidth: 80, maxWidth: 112, borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOpacity: 0.18, shadowRadius: 8 },
   floatingImage: { width: 24, height: 24, borderRadius: 12, marginBottom: 2, backgroundColor: '#FFE5EC' },
   floatingText: { fontSize: 10, fontWeight: '800', color: '#5C7A8A', maxWidth: 92 },
-  imageCircle: { width: 170, height: 170, borderRadius: 85, backgroundColor: '#FFF', elevation: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: '#FFB6C1', zIndex: 10 },
-  mainImg: { width: 160, height: 160, borderRadius: 80 },
+  imageCircle: { width: 180, height: 180, borderRadius: 90, backgroundColor: '#FFF', elevation: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 6, borderColor: '#FFB6C1', zIndex: 10, shadowColor: '#FF8FAB', shadowOpacity: 0.28, shadowRadius: 14 },
+  mainImg: { width: 166, height: 166, borderRadius: 83 },
   mainImagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF5F8' },
   mainImagePlaceholderText: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', marginTop: 6 },
-  dishTitle: { fontSize: 26, fontWeight: '900', color: '#FF8FAB', marginTop: 15, textAlign: 'center' },
-  advanceFor: { fontSize: 12, color: '#7D95A1', fontWeight: '800', marginTop: 5, textAlign: 'center' },
-  recipeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginTop: 10, borderWidth: 1, borderColor: '#FFB6C1' },
-  recipeButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '800', marginLeft: 6 },
+  dishTitle: { fontSize: 27, fontWeight: '900', color: '#FF8FAB', marginTop: 0, textAlign: 'center', lineHeight: 34 },
+  advanceFor: { fontSize: 12, color: '#5C7A8A', fontWeight: '800', marginTop: 7, textAlign: 'center', lineHeight: 17, paddingHorizontal: 8 },
+  detailChipRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: 13 },
+  detailChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0F5', borderWidth: 1, borderColor: '#FFE5EC', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, marginHorizontal: 4, marginBottom: 6 },
+  detailChipBlue: { backgroundColor: '#E9F8FD', borderColor: '#A7E4F5' },
+  detailChipText: { color: '#FF8FAB', fontSize: 12, fontWeight: '900', marginLeft: 5 },
+  detailChipBlueText: { color: '#45AFC8' },
+  recipeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 17, paddingVertical: 10, borderRadius: 22, marginTop: 8, borderWidth: 1.5, borderColor: '#FFB6C1', elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.18, shadowRadius: 8 },
+  recipeButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '900', marginLeft: 6 },
   nutritionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 25 },
-  statCard: { width: '48%', backgroundColor: '#FFF', padding: 15, borderRadius: 20, borderWidth: 2, marginBottom: 12, alignItems: 'center', position: 'relative' },
+  statCard: { width: '48%', backgroundColor: '#FFF', padding: 16, paddingTop: 18, borderRadius: 22, borderWidth: 2, marginBottom: 12, alignItems: 'center', position: 'relative', elevation: 3, shadowOpacity: 0.13, shadowRadius: 9 },
   statLabelText: { fontSize: 12, color: '#5C7A8A', fontWeight: '700', marginVertical: 4 },
   statValueText: { fontSize: 18, fontWeight: '900' },
   unitText: { fontSize: 12, fontWeight: '600' },
   shineContainer: { position: 'absolute', top: 0, bottom: 0, width: '100%', zIndex: 1 },
   shineGradient: { width: SCREEN_WIDTH * 0.5, height: '100%', opacity: 0.5 },
-  adjustSection: { backgroundColor: '#FFF', borderRadius: 30, padding: 20, elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.1 },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 20, textAlign: 'center' },
-  ingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, backgroundColor: '#FEF9F3', padding: 10, borderRadius: 15 },
+  adjustSection: { backgroundColor: '#FFF', borderRadius: 30, padding: 20, elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.12, borderWidth: 1, borderColor: '#FFE5EC' },
+  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  sectionHeadingIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#FFF0F5', alignItems: 'center', justifyContent: 'center', marginRight: 9 },
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', textAlign: 'center' },
+  ingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, backgroundColor: '#FEF9F3', padding: 10, borderRadius: 17, borderWidth: 1, borderColor: '#F6E9ED' },
   ingLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   iconBg: { width: 34, height: 34, backgroundColor: '#FFF', borderRadius: 10, marginRight: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   ingImage: { width: 34, height: 34, borderRadius: 10 },
@@ -537,7 +646,7 @@ const styles = StyleSheet.create({
   textInput: { width: 55, textAlign: 'center', fontWeight: '900', color: '#FF8FAB', fontSize: 16 },
   unitLabel: { fontSize: 12, color: '#999', fontWeight: '700', marginLeft: 5 },
   recommendSection: { marginTop: 20 },
-  infoBlock: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: '#FFE5EC' },
+  infoBlock: { backgroundColor: '#FFF', borderRadius: 22, padding: 16, marginBottom: 14, elevation: 3, borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOpacity: 0.08, shadowRadius: 8 },
   infoTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   infoTitle: { color: '#FF8FAB', fontSize: 16, fontWeight: '900', marginLeft: 8 },
   infoContent: { color: '#5C7A8A', fontSize: 13, lineHeight: 20, fontWeight: '600' },

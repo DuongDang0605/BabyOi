@@ -23,10 +23,10 @@ import {
   addRestrictedFood,
   deleteFavoriteFood,
   deleteRestrictedFood,
-  getFavoriteFoods,
+  getFavoriteFoodIds,
   getFoodsPage,
-  getRestrictedFoods,
-  resolveAssetUrl,
+  getRestrictedFoodIds,
+  resolveOptimizedAssetUrl,
 } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -38,6 +38,14 @@ const LOCAL_FAVORITE_IDS_KEY = 'babyoi_guest_favorite_food_ids';
 const LOCAL_RESTRICTED_IDS_KEY = 'babyoi_guest_restricted_food_ids';
 
 type AudienceTab = 'mom' | 'baby';
+
+type CachedFoodPage = {
+  foods: FoodResponse[];
+  totalPages: number;
+  totalElements: number;
+};
+
+const foodPageCache = new Map<string, CachedFoodPage>();
 
 const FILTERS = {
   mom: [
@@ -59,13 +67,6 @@ const FILTERS = {
   ],
 } as const;
 
-const BABY_ADVANCE_FOR_ALIASES: Record<string, string[]> = {
-  FOR_BABY_6_8_MONTHS: ['FOR_BABY_6_8_MONTHS', 'FOR_BABY_6_8_MONTHS_DEVELOPMENT'],
-  FOR_BABY_9_11_MONTHS: ['FOR_BABY_9_11_MONTHS', 'FOR_BABY_9_11_MONTHS_DEVELOPMENT'],
-  FOR_BABY_12_18_MONTHS: ['FOR_BABY_12_18_MONTHS', 'FOR_BABY_12_18_MONTHS_DEVELOPMENT'],
-  FOR_BABY_19_24_MONTHS: ['FOR_BABY_19_24_MONTHS', 'FOR_BABY_19_24_MONTHS_DEVELOPMENT'],
-};
-
 function formatNutritionSummary(food: FoodResponse) {
   const nutrition = food.nutrition;
   if (!nutrition) {
@@ -86,7 +87,7 @@ function mapFoodToDish(food: FoodResponse): Dish {
     name: food.name,
     desc: formatNutritionSummary(food),
     rating: 5,
-    image: resolveAssetUrl(dbImage),
+    image: resolveOptimizedAssetUrl(dbImage, 'card'),
     tag: isMomFood ? 'Cho Mẹ' : 'Cho Bé',
     food,
   };
@@ -125,7 +126,6 @@ async function writeLocalIds(key: string, ids: string[]) {
 
 export default function ListDoAnScreen() {
   const [activeTab, setActiveTab] = useState<AudienceTab>('baby');
-  const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
   const [activeAdvanceFor, setActiveAdvanceFor] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [restrictedIds, setRestrictedIds] = useState<string[]>([]);
@@ -143,9 +143,6 @@ export default function ListDoAnScreen() {
   const targetCode = activeTab === 'mom' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
   const filterOptions = FILTERS[activeTab];
   const audienceLabel = activeTab === 'mom' ? 'Mẹ' : 'Bé';
-  const profileAudienceText = selectedProfile
-    ? `${selectedProfile.name} - món dành cho ${audienceLabel.toLowerCase()}`
-    : `Chưa chọn hồ sơ - đang hiển thị món cho ${audienceLabel.toLowerCase()}`;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
@@ -159,7 +156,6 @@ export default function ListDoAnScreen() {
       const profile = getSelectedProfile() || await hydrateSelectedProfile();
 
       if (mounted) {
-        setSelectedProfileState(profile);
         setActiveTab(getAudienceTabFromProfile(profile));
       }
     }
@@ -189,37 +185,55 @@ export default function ListDoAnScreen() {
     let mounted = true;
 
     async function loadFoods() {
-      try {
-        setLoading(true);
-        setError(null);
-        const advanceForValues = activeTab === 'baby' && activeAdvanceFor
-          ? BABY_ADVANCE_FOR_ALIASES[activeAdvanceFor] || [activeAdvanceFor]
-          : [activeAdvanceFor];
+      const cacheKey = [
+        targetCode,
+        activeAdvanceFor || 'all',
+        debouncedSearch || 'all',
+        page,
+      ].join('|');
+      const cachedPage = foodPageCache.get(cacheKey);
 
-        const pages = await Promise.all(advanceForValues.map((advanceFor) => getFoodsPage({
+      if (cachedPage) {
+        setFoods(cachedPage.foods);
+        setTotalPages(cachedPage.totalPages);
+        setTotalElements(cachedPage.totalElements);
+        setLoading(false);
+      }
+
+      try {
+        if (!cachedPage) {
+          setLoading(true);
+        }
+        setError(null);
+        const foodPage = await getFoodsPage({
           page,
           size: PAGE_SIZE,
           functionCode: targetCode,
-          advanceFor,
+          advanceFor: activeAdvanceFor,
           search: debouncedSearch,
-        })));
+        });
 
-        const uniqueFoods = Array.from(
-          new Map(pages.flatMap((item) => item.content || []).map((food) => [food.id, food])).values()
-        ).slice(0, PAGE_SIZE);
-        const total = pages.reduce((sum, item) => sum + (item.totalElements || 0), 0);
+        const nextCache = {
+          foods: foodPage.content || [],
+          totalPages: foodPage.totalPages || 0,
+          totalElements: foodPage.totalElements || 0,
+        };
+
+        foodPageCache.set(cacheKey, nextCache);
 
         if (mounted) {
-          setFoods(uniqueFoods);
-          setTotalPages(Math.ceil(total / PAGE_SIZE));
-          setTotalElements(total);
+          setFoods(nextCache.foods);
+          setTotalPages(nextCache.totalPages);
+          setTotalElements(nextCache.totalElements);
         }
       } catch (err) {
-        if (mounted) {
+        if (mounted && !cachedPage) {
           setError(err instanceof Error ? err.message : 'Không thể tải danh sách món ăn.');
-          setFoods([]);
-          setTotalPages(0);
-          setTotalElements(0);
+          if (!cachedPage) {
+            setFoods([]);
+            setTotalPages(0);
+            setTotalElements(0);
+          }
         }
       } finally {
         if (mounted) {
@@ -260,14 +274,14 @@ export default function ListDoAnScreen() {
       }
 
       try {
-        const [favorites, restricted] = await Promise.all([
-          getFavoriteFoods(profileId),
-          getRestrictedFoods(profileId),
+        const [favoriteFoodIds, restrictedFoodIds] = await Promise.all([
+          getFavoriteFoodIds(profileId),
+          getRestrictedFoodIds(profileId),
         ]);
 
         if (mounted) {
-          setFavoriteIds(favorites.map((item) => String(item.id)));
-          setRestrictedIds(restricted.map((item) => String(item.id)));
+          setFavoriteIds(favoriteFoodIds.map(String));
+          setRestrictedIds(restrictedFoodIds.map(String));
         }
       } catch {
         if (mounted) {
@@ -440,10 +454,6 @@ export default function ListDoAnScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={styles.profileAudienceBox}>
-                <Ionicons name={activeTab === 'mom' ? 'person' : 'body'} size={18} color="#FF8FAB" />
-                <Text style={styles.profileAudienceText}>{profileAudienceText}</Text>
-              </View>
             </View>
 
             <AiPlannerCard onPress={() => router.push('/dinhduong/ai-planner')} />
@@ -520,8 +530,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '900', color: '#FFF' },
   searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#FFE5EC' },
   searchInput: { flex: 1, marginLeft: 10, fontWeight: '700', color: '#5C7A8A' },
-  profileAudienceBox: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 28, backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1.5, borderColor: '#FFE5EC' },
-  profileAudienceText: { flex: 1, marginLeft: 8, color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
   navSection: { flexDirection: 'row', justifyContent: 'space-around', padding: 20 },
   navBtn: { alignItems: 'center' },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 6, elevation: 3 },
