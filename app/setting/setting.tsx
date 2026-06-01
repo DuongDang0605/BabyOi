@@ -1,16 +1,59 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
+
+import { getNotificationSettings, NotificationSettingsResponse, updateNotificationSettings } from '@/lib/api';
 
 export default function SettingScreen() {
+  const [settings, setSettings] = useState<NotificationSettingsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getNotificationSettings()
+      .then(setSettings)
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function toggleSetting(key: keyof NotificationSettingsResponse, value: boolean) {
+    setSettings((current) => current ? { ...current, [key]: value } : current);
+    const updated = await updateNotificationSettings({ [key]: value });
+    setSettings(updated);
+  }
+
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Cai dat', headerShadowVisible: false }} />
+      <Stack.Screen options={{ title: 'Cài đặt', headerShadowVisible: false }} />
       <View style={styles.card}>
-        <Text style={styles.title}>Cai dat</Text>
-        <Text style={styles.text}>Man hinh cai dat dang duoc khoi tao.</Text>
-        <Text style={styles.text}>Ban co the them thong bao, ngon ngu, va bao mat sau.</Text>
+        <Text style={styles.title}>Cài đặt</Text>
+        <Text style={styles.sectionTitle}>Thông báo</Text>
+
+        {loading || !settings ? (
+          <ActivityIndicator color="#ff8fab" />
+        ) : (
+          <>
+            <SettingRow label="Push ngoài điện thoại" value={settings.pushEnabled} onValueChange={(value) => toggleSetting('pushEnabled', value)} />
+            <SettingRow label="Nhắc lịch tiêm" value={settings.vaccineEnabled} onValueChange={(value) => toggleSetting('vaccineEnabled', value)} />
+            <SettingRow label="Đặt lịch" value={settings.appointmentEnabled} onValueChange={(value) => toggleSetting('appointmentEnabled', value)} />
+            <SettingRow label="Tin nhắn" value={settings.chatEnabled} onValueChange={(value) => toggleSetting('chatEnabled', value)} />
+            <SettingRow label="Khuyến mãi" value={settings.promotionEnabled} onValueChange={(value) => toggleSetting('promotionEnabled', value)} />
+            <SettingRow label="Hệ thống" value={settings.systemEnabled} onValueChange={(value) => toggleSetting('systemEnabled', value)} />
+          </>
+        )}
       </View>
+    </View>
+  );
+}
+
+function SettingRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (value: boolean) => void }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowText}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: '#d8e3e8', true: '#ffd3df' }}
+        thumbColor={value ? '#ff8fab' : '#ffffff'}
+      />
     </View>
   );
 }
@@ -35,10 +78,23 @@ const styles = StyleSheet.create({
     color: '#ff8fab',
     marginBottom: 16,
   },
-  text: {
-    fontSize: 15,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#344955',
+    marginBottom: 10,
+  },
+  row: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f4f8',
+  },
+  rowText: {
     color: '#5c7a8a',
-    lineHeight: 22,
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
