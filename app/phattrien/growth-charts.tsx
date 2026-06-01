@@ -1,31 +1,67 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { GrowthLineChart } from '../../components/phattrien/GrowthLineChart';
 import { GrowthSummary } from '../../components/phattrien/GrowthSummary';
+import type { HealthRecordResponse } from '../../lib/api';
+import { getHealthRecords } from '../../lib/api';
+import { formatNullableNumber, toDisplayMonth } from '../../lib/health-format';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-// DỮ LIỆU GIẢ LẬP
-const GROWTH_DATA = {
-  labels: ["T1", "T2", "T3", "T4", "T5", "T6", "T7"],
-  datasets: [
-    { data: [3.2, 3.5, 3.9, 4.2, 4.6, 5.0, 5.3], color: (opacity = 1) => `#FF8FAB`, strokeWidth: 3 },
-    { data: [50, 51, 52, 53.5, 55, 56.5, 58], color: (opacity = 1) => `#FFD166`, strokeWidth: 3 },
-    { data: [12.8, 13.5, 14.4, 14.7, 15.2, 15.6, 15.8], color: (opacity = 1) => `#C1F0D0`, strokeWidth: 3 },
-  ],
-};
+function buildChartData(records: HealthRecordResponse[]) {
+  const ordered = [...records].sort((a, b) => a.recordDate.localeCompare(b.recordDate)).slice(-7);
+
+  return {
+    labels: ordered.map((item) => toDisplayMonth(item.recordDate).slice(0, 2)),
+    datasets: [
+      { data: ordered.map((item) => item.weight || 0), color: () => '#FF8FAB', strokeWidth: 3 },
+      { data: ordered.map((item) => item.height || 0), color: () => '#FFD166', strokeWidth: 3 },
+      { data: ordered.map((item) => item.bmi || 0), color: () => '#C1F0D0', strokeWidth: 3 },
+    ],
+  };
+}
 
 export default function GrowthChartsScreen() {
-  const latest = { weight: 5.3, height: 58, bmi: 15.8 };
+  const [records, setRecords] = useState<HealthRecordResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRecords = useCallback(async () => {
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile?.id) {
+      setError('Vui lòng chọn hồ sơ trước khi xem sức khỏe.');
+      setRecords([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getHealthRecords(profile.id);
+      setRecords(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu sức khỏe.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadRecords();
+  }, [loadRecords]));
+
+  const latest = records[0] || null;
+  const chartData = useMemo(() => buildChartData(records), [records]);
+  const hasChartData = records.length > 0;
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* --- HEADER --- */}
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
@@ -34,30 +70,51 @@ export default function GrowthChartsScreen() {
           <View style={{ width: 45 }} />
         </View>
 
-        {/* --- PHẦN 1: THẺ CHỈ SỐ NHANH --- */}
-        <GrowthSummary
-            weight={latest.weight}
-            height={latest.height}
-            bmi={latest.bmi}
-        />
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator color="#FF8FAB" />
+            <Text style={styles.stateText}>Đang tải chỉ số sức khỏe...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.stateBox}>
+            <Ionicons name="warning-outline" size={28} color="#FF8FAB" />
+            <Text style={styles.stateText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={loadRecords}>
+              <Text style={styles.retryText}>Tải lại</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <GrowthSummary
+              weight={formatNullableNumber(latest?.weight)}
+              height={formatNullableNumber(latest?.height)}
+              bmi={formatNullableNumber(latest?.bmi)}
+            />
 
-        {/* --- PHẦN 2: BIỂU ĐỒ --- */}
-        <GrowthLineChart
-            data={GROWTH_DATA}
-            title="Lịch sử phát triển"
-        />
+            {hasChartData ? (
+              <GrowthLineChart data={chartData} title="Lịch sử phát triển" />
+            ) : (
+              <View style={styles.emptyChart}>
+                <Ionicons name="bar-chart-outline" size={28} color="#A7E4F5" />
+                <Text style={styles.emptyChartText}>Chưa có dữ liệu biểu đồ. Hãy cập nhật chỉ số đầu tiên.</Text>
+              </View>
+            )}
 
-        {/* --- PHẦN 3: AI ADVICE --- */}
-        <View style={styles.aiBox}>
-          <Ionicons name="sparkles" size={24} color="#FF8FAB" />
-          <Text style={styles.aiText}>Bé đang phát triển rất tốt. Mẹ hãy xem lịch sinh hoạt để duy trì đà này nhé!</Text>
-        </View>
+            <View style={styles.aiBox}>
+              <Ionicons name="sparkles" size={24} color="#FF8FAB" />
+              <Text style={styles.aiText}>
+                {latest
+                  ? `Chỉ số mới nhất được ghi nhận ngày ${latest.recordDate}. Mẹ có thể cập nhật thêm để biểu đồ theo dõi sát hơn.`
+                  : 'Hãy nhập chỉ số sức khỏe đầu tiên để hệ thống bắt đầu theo dõi.'}
+              </Text>
+            </View>
+          </>
+        )}
 
-        {/* --- PHẦN 4: CỤM NÚT ĐIỀU HƯỚNG --- */}
         <View style={styles.buttonGroup}>
           <TouchableOpacity
-            style={styles.longButton} 
-            onPress={() => router.push('/phattrien/update-index')} 
+            style={styles.longButton}
+            onPress={() => router.push('/phattrien/update-index')}
           >
             <View style={[styles.btnIconCircle, { backgroundColor: '#FF8FAB' }]}>
               <Ionicons name="add" size={24} color="white" />
@@ -67,7 +124,7 @@ export default function GrowthChartsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.longButton, { borderColor: '#E8F5E9' }]} 
+            style={[styles.longButton, { borderColor: '#E8F5E9' }]}
             onPress={() => router.push('/phattrien/daily-schedule')}
           >
             <View style={[styles.btnIconCircle, { backgroundColor: '#98D8AA' }]}>
@@ -78,7 +135,7 @@ export default function GrowthChartsScreen() {
           </TouchableOpacity>
 
           <View style={styles.rowButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.halfButton}
               onPress={() => router.push('/phattrien/health-history')}
             >
@@ -88,7 +145,7 @@ export default function GrowthChartsScreen() {
               <Text style={styles.halfButtonText}>Lịch sử sức khỏe</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.halfButton}
               onPress={() => router.push('/phattrien/illness-history')}
             >
@@ -120,5 +177,11 @@ const styles = StyleSheet.create({
   rowButtons: { flexDirection: 'row', gap: 12 },
   halfButton: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 25, alignItems: 'center', borderWidth: 1.5, borderColor: '#F0F0F0', elevation: 2 },
   halfButtonText: { fontSize: 12, fontWeight: '800', color: '#5C7A8A', textAlign: 'center' },
-  btnIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }
+  btnIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
+  stateText: { color: '#5C7A8A', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 10 },
+  retryBtn: { backgroundColor: '#FF8FAB', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, marginTop: 12 },
+  retryText: { color: '#FFF', fontWeight: '900' },
+  emptyChart: { backgroundColor: '#FFF', borderRadius: 24, padding: 22, alignItems: 'center', borderWidth: 1.5, borderColor: '#E9F8FD' },
+  emptyChartText: { color: '#5C7A8A', fontSize: 13, fontWeight: '700', marginTop: 8, textAlign: 'center' },
 });

@@ -20,7 +20,7 @@ async function getDeviceId() {
 }
 
 export async function registerPushNotifications() {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || Constants.appOwnership === 'expo') {
     return;
   }
 

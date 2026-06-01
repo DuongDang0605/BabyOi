@@ -28,6 +28,7 @@ type AdjustableIngredient = FoodIngredientResponse & { currentAmount: string };
 type SavedIngredientAmounts = Record<string, string>;
 
 const FOOD_AMOUNT_STORAGE_PREFIX = 'babyoi_food_detail_amounts';
+const IMAGE_PREFETCH_TIMEOUT_MS = 700;
 const foodDetailCache = new Map<string, FoodResponse>();
 
 function getFoodAmountStorageKey(foodId: string | number, profileId?: string | number | null) {
@@ -111,6 +112,30 @@ function compactImageCandidates(candidates: Array<string | null | undefined>) {
 
 function getFoodCloudinaryFallback(foodId?: number | string | null) {
   return foodId ? `${FOOD_CLOUDINARY_BASE_URL}/Food_${foodId}.jpg` : '';
+}
+
+function resolveRouteImageUrl(url?: string | null) {
+  if (!url) {
+    return '';
+  }
+
+  return /^https?:\/\//i.test(url) ? url : resolveAssetUrl(url);
+}
+
+async function warmDetailImages(food: FoodResponse) {
+  const imageUrls = [
+    resolveOptimizedAssetUrl(food.imageUrl, 'detail'),
+    ...((food.ingredients || []).slice(0, 8).map((ingredient) => resolveOptimizedAssetUrl(ingredient.imageUrl, 'ingredient'))),
+  ].filter((url): url is string => Boolean(url));
+
+  if (imageUrls.length === 0) {
+    return;
+  }
+
+  await Promise.race([
+    Image.prefetch(imageUrls, 'memory-disk').catch(() => false),
+    new Promise((resolve) => setTimeout(resolve, IMAGE_PREFETCH_TIMEOUT_MS)),
+  ]);
 }
 
 function formatTargetCodeText(content?: string | null) {
@@ -211,6 +236,7 @@ export default function RecipeDetailScreen() {
         setError(null);
         const data = await getFoodDetail(params.id);
         foodDetailCache.set(foodId, data);
+        await warmDetailImages(data);
         applyFoodDetail(data);
       } catch (err) {
         if (mounted && !cachedFood) {
@@ -265,12 +291,12 @@ export default function RecipeDetailScreen() {
     };
   }, []);
 
-  const routeImageUri = resolveAssetUrl(firstParamValue(params.image));
+  const routeImageUri = resolveRouteImageUrl(firstParamValue(params.image));
   const foodImageCandidates = useMemo(
     () => compactImageCandidates([
       resolveOptimizedAssetUrl(food?.imageUrl, 'detail'),
       routeImageUri,
-      getFoodCloudinaryFallback(food?.id),
+      resolveOptimizedAssetUrl(getFoodCloudinaryFallback(food?.id), 'detail'),
     ]),
     [food?.id, food?.imageUrl, routeImageUri]
   );
@@ -390,7 +416,7 @@ export default function RecipeDetailScreen() {
                   <Animated.View key={ing.id} style={[styles.floatingWrapper, { transform: [{ rotate: rotation }] }]}>
                     <Animated.View style={[styles.floatingIng, { transform: [{ rotate: counterRotation }] }]}>
                       {resolveOptimizedAssetUrl(ing.imageUrl, 'ingredient') ? (
-                        <Image source={{ uri: resolveOptimizedAssetUrl(ing.imageUrl, 'ingredient') }} style={styles.floatingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`floating-${ing.id}`} />
+                        <Image source={{ uri: resolveOptimizedAssetUrl(ing.imageUrl, 'ingredient') }} style={styles.floatingImage} cachePolicy="memory-disk" contentFit="cover" recyclingKey={`floating-${ing.id}`} />
                       ) : <Ionicons name="leaf-outline" size={20} color="#FF8FAB" />}
                       <Text style={styles.floatingText} numberOfLines={1}>{ing.nameIngredients || 'Nguyên liệu'}</Text>
                     </Animated.View>
@@ -400,7 +426,7 @@ export default function RecipeDetailScreen() {
 
               <Animated.View style={[styles.imageCircle, { transform: [{ translateY: jumpAnim }] }]}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.mainImg} cachePolicy="disk" contentFit="cover" recyclingKey={`food-${food.id}-${imageUri}`} onError={() => markImageFailed(imageUri)} />
+                  <Image source={{ uri: imageUri }} style={styles.mainImg} cachePolicy="memory-disk" contentFit="cover" priority="high" recyclingKey={`food-${food.id}-${imageUri}`} onError={() => markImageFailed(imageUri)} />
                 ) : (
                   <View style={[styles.mainImg, styles.mainImagePlaceholder]}>
                     <Ionicons name="image-outline" size={32} color="#FF8FAB" />
@@ -471,7 +497,7 @@ export default function RecipeDetailScreen() {
                 <View style={styles.ingLeft}>
                   <View style={styles.iconBg}>
                     {resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') ? (
-                      <Image source={{ uri: resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') }} style={styles.ingImage} cachePolicy="disk" contentFit="cover" recyclingKey={`ingredient-${item.id}`} />
+                      <Image source={{ uri: resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') }} style={styles.ingImage} cachePolicy="memory-disk" contentFit="cover" recyclingKey={`ingredient-${item.id}`} />
                     ) : <Ionicons name="leaf-outline" size={18} color="#FF8FAB" />}
                   </View>
                   <View style={styles.ingTextBox}>

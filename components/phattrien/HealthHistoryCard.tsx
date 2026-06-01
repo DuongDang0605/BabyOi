@@ -2,35 +2,39 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-interface HealthRecord {
-  id: string;
-  date: string;
-  weight: string;
-  height: string;
-  bmi: string;
-  sickCount: string;
-  status: string;
-}
+import type { HealthRecordResponse } from '../../lib/api';
+import { formatNullableNumber, toDisplayMonth } from '../../lib/health-format';
 
 interface HealthHistoryCardProps {
-  item: HealthRecord;
-  onPress: (item: HealthRecord) => void;
+  item: HealthRecordResponse;
+  onPress: (item: HealthRecordResponse) => void;
+}
+
+function resolveStatus(item: HealthRecordResponse) {
+  const illnessCount = item.illnessCount || 0;
+  if (illnessCount >= 2) {
+    return 'Cần chú ý';
+  }
+  if (item.bmi != null && (item.bmi < 14 || item.bmi > 19)) {
+    return 'Theo dõi thêm';
+  }
+  return 'Bình thường';
 }
 
 export const HealthHistoryCard = ({ item, onPress }: HealthHistoryCardProps) => {
-  const formattedDate = item.date.slice(-7);
-  const isGoodStatus = item.status === 'Tăng trưởng tốt';
+  const status = resolveStatus(item);
+  const isGoodStatus = status === 'Bình thường';
 
   return (
     <View style={styles.historyCard}>
       <View style={styles.cardHeader}>
         <View style={styles.dateBadge}>
           <Ionicons name="calendar" size={14} color="#FF8FAB" />
-          <Text style={styles.dateText}>{formattedDate}</Text>
+          <Text style={styles.dateText}>{toDisplayMonth(item.recordDate)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: isGoodStatus ? '#E8F5E9' : '#FFF0F3' }]}>
           <Text style={[styles.statusText, { color: isGoodStatus ? '#4CAF50' : '#FF8FAB' }]}>
-            {item.status}
+            {status}
           </Text>
         </View>
       </View>
@@ -38,28 +42,28 @@ export const HealthHistoryCard = ({ item, onPress }: HealthHistoryCardProps) => 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Cân nặng</Text>
-          <Text style={styles.statValue}>{item.weight}<Text style={styles.unit}>kg</Text></Text>
+          <Text style={styles.statValue}>{formatNullableNumber(item.weight)}<Text style={styles.unit}>kg</Text></Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Chiều cao</Text>
-          <Text style={styles.statValue}>{item.height}<Text style={styles.unit}>cm</Text></Text>
+          <Text style={styles.statValue}>{formatNullableNumber(item.height)}<Text style={styles.unit}>cm</Text></Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>BMI</Text>
-          <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{item.bmi}</Text>
+          <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(item.bmi)}</Text>
         </View>
       </View>
 
       <View style={styles.sickInfoBox}>
-        <Ionicons name="medkit" size={16} color={item.sickCount === '0' ? '#98D8AA' : '#FFD166'} />
+        <Ionicons name="medkit" size={16} color={(item.illnessCount || 0) === 0 ? '#98D8AA' : '#FFD166'} />
         <Text style={styles.sickText}>
-            Số lần bị bệnh trong kỳ: <Text style={styles.sickBold}>{item.sickCount} lần</Text>
+          Số đợt bệnh trong kỳ: <Text style={styles.sickBold}>{item.illnessCount || 0} đợt</Text>
         </Text>
       </View>
 

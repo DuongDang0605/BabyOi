@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { FoodResponse, getFoodDetail, resolveAssetUrl } from '../../lib/api';
+import { FoodResponse, getFoodDetail, resolveOptimizedAssetUrl } from '../../lib/api';
+
+const IMAGE_PREFETCH_TIMEOUT_MS = 700;
+const foodCookingCache = new Map<string, FoodResponse>();
 
 function splitCookingSteps(cookingWay?: string | null) {
   if (!cookingWay) {
@@ -26,6 +30,21 @@ function splitCookingSteps(cookingWay?: string | null) {
   });
 }
 
+function firstParamValue(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+async function warmRecipeImage(uri: string) {
+  if (!uri) {
+    return;
+  }
+
+  await Promise.race([
+    Image.prefetch(uri, 'memory-disk').catch(() => false),
+    new Promise((resolve) => setTimeout(resolve, IMAGE_PREFETCH_TIMEOUT_MS)),
+  ]);
+}
+
 export default function RecipeCookingScreen() {
   const params = useLocalSearchParams<{ id?: string; image?: string }>();
   const [food, setFood] = useState<FoodResponse | null>(null);
@@ -42,10 +61,23 @@ export default function RecipeCookingScreen() {
         return;
       }
 
+      const foodId = String(params.id);
+      const cachedFood = foodCookingCache.get(foodId);
+
+      if (cachedFood) {
+        setFood(cachedFood);
+        setLoading(false);
+      }
+
       try {
-        setLoading(true);
+        if (!cachedFood) {
+          setLoading(true);
+        }
         setError(null);
         const data = await getFoodDetail(params.id);
+        foodCookingCache.set(foodId, data);
+        await warmRecipeImage(resolveOptimizedAssetUrl(data.imageUrl, 'cooking'));
+
         if (mounted) {
           setFood(data);
         }
@@ -66,15 +98,22 @@ export default function RecipeCookingScreen() {
     };
   }, [params.id]);
 
-  const imageUri = resolveAssetUrl(food?.imageUrl);
+  const routeImageUri = firstParamValue(params.image);
+  const imageUri = resolveOptimizedAssetUrl(food?.imageUrl, 'cooking') || routeImageUri || '';
   const cookingSteps = useMemo(() => splitCookingSteps(food?.recommendation?.cookingWay), [food?.recommendation?.cookingWay]);
   const totalSteps = cookingSteps.length || 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ headerTitle: '', headerTransparent: true, headerLeft: () => (
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color="#FF8FAB" /></TouchableOpacity>
-      )}} />
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Cách Chế Biến</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       {loading ? (
         <View style={styles.centerState}>
@@ -90,7 +129,7 @@ export default function RecipeCookingScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.hero}>
             {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.banner} />
+              <Image source={{ uri: imageUri }} style={styles.banner} cachePolicy="memory-disk" contentFit="cover" priority="high" recyclingKey={`cooking-${food.id}-${imageUri}`} />
             ) : (
               <View style={[styles.banner, styles.bannerPlaceholder]}>
                 <Ionicons name="image-outline" size={34} color="#FF8FAB" />
@@ -106,7 +145,6 @@ export default function RecipeCookingScreen() {
                 <Ionicons name="restaurant-outline" size={15} color="#FF8FAB" />
                 <Text style={styles.heroBadgeText}>{totalSteps > 0 ? `${totalSteps} bước` : 'Công thức'}</Text>
               </View>
-              <Text style={styles.heroTitle}>{food.name}</Text>
             </View>
           </View>
 
@@ -180,7 +218,7 @@ export default function RecipeCookingScreen() {
           </View>
         </ScrollView>
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -189,7 +227,10 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 24 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   stateText: { marginTop: 10, color: '#5C7A8A', fontWeight: '800', textAlign: 'center' },
-  backBtn: { backgroundColor: '#FFF', padding: 8, borderRadius: 12, marginLeft: 15, marginTop: 10, elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.18, shadowRadius: 8 },
+  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 70, marginBottom: 20, paddingHorizontal: 20 },
+  backButton: { justifyContent: 'center', alignItems: 'flex-start', width: 45 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
+  headerSpacer: { width: 45 },
   hero: { height: 310, backgroundColor: '#FFE5EC', overflow: 'hidden' },
   banner: { width: '100%', height: '100%' },
   bannerPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF5F8' },
@@ -197,7 +238,6 @@ const styles = StyleSheet.create({
   heroInfo: { position: 'absolute', left: 24, right: 24, bottom: 46 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#FFE5EC' },
   heroBadgeText: { color: '#FF8FAB', fontSize: 12, fontWeight: '900', marginLeft: 6 },
-  heroTitle: { color: '#FF8FAB', fontSize: 28, fontWeight: '900', lineHeight: 34, marginTop: 10, maxWidth: '92%' },
   placeholderText: { color: '#FF8FAB', fontSize: 12, fontWeight: '900', marginTop: 8 },
   card: { backgroundColor: '#FEF9F3', marginTop: -38, borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 24, paddingBottom: 45, borderTopWidth: 3, borderColor: '#A7E4F5' },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },

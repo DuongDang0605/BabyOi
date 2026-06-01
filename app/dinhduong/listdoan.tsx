@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -34,6 +35,8 @@ import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-se
 const MOM_FUNCTION_CODE = 1;
 const BABY_FUNCTION_CODE = 2;
 const PAGE_SIZE = 10;
+const INITIAL_VISIBLE_IMAGE_COUNT = 6;
+const IMAGE_PREFETCH_TIMEOUT_MS = 900;
 const LOCAL_FAVORITE_IDS_KEY = 'babyoi_guest_favorite_food_ids';
 const LOCAL_RESTRICTED_IDS_KEY = 'babyoi_guest_restricted_food_ids';
 
@@ -46,6 +49,34 @@ type CachedFoodPage = {
 };
 
 const foodPageCache = new Map<string, CachedFoodPage>();
+
+function getFoodImageUrls(foodsToPrefetch: FoodResponse[], limit = foodsToPrefetch.length) {
+  return foodsToPrefetch
+    .slice(0, limit)
+    .map((food) => resolveOptimizedAssetUrl(food.imageUrl, 'card'))
+    .filter((url): url is string => Boolean(url));
+}
+
+function prefetchFoodImages(foodsToPrefetch: FoodResponse[]) {
+  const imageUrls = getFoodImageUrls(foodsToPrefetch);
+
+  if (imageUrls.length > 0) {
+    void Image.prefetch(imageUrls, 'memory-disk');
+  }
+}
+
+async function warmInitialFoodImages(foodsToPrefetch: FoodResponse[]) {
+  const imageUrls = getFoodImageUrls(foodsToPrefetch, INITIAL_VISIBLE_IMAGE_COUNT);
+
+  if (imageUrls.length === 0) {
+    return;
+  }
+
+  await Promise.race([
+    Image.prefetch(imageUrls, 'memory-disk').catch(() => false),
+    new Promise((resolve) => setTimeout(resolve, IMAGE_PREFETCH_TIMEOUT_MS)),
+  ]);
+}
 
 const FILTERS = {
   mom: [
@@ -221,6 +252,12 @@ export default function ListDoAnScreen() {
 
         foodPageCache.set(cacheKey, nextCache);
 
+        if (!cachedPage) {
+          await warmInitialFoodImages(nextCache.foods);
+        }
+
+        prefetchFoodImages(nextCache.foods.slice(INITIAL_VISIBLE_IMAGE_COUNT));
+
         if (mounted) {
           setFoods(nextCache.foods);
           setTotalPages(nextCache.totalPages);
@@ -247,6 +284,54 @@ export default function ListDoAnScreen() {
       mounted = false;
     };
   }, [activeAdvanceFor, activeTab, debouncedSearch, page, targetCode]);
+
+  useEffect(() => {
+    const nextPage = page + 1;
+
+    if (nextPage >= totalPages) {
+      return;
+    }
+
+    const cacheKey = [
+      targetCode,
+      activeAdvanceFor || 'all',
+      debouncedSearch || 'all',
+      nextPage,
+    ].join('|');
+
+    if (foodPageCache.has(cacheKey)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getFoodsPage({
+      page: nextPage,
+      size: PAGE_SIZE,
+      functionCode: targetCode,
+      advanceFor: activeAdvanceFor,
+      search: debouncedSearch,
+    }).then((foodPage) => {
+      if (cancelled) {
+        return;
+      }
+
+      const nextCache = {
+        foods: foodPage.content || [],
+        totalPages: foodPage.totalPages || 0,
+        totalElements: foodPage.totalElements || 0,
+      };
+
+      foodPageCache.set(cacheKey, nextCache);
+      prefetchFoodImages(nextCache.foods);
+    }).catch(() => {
+      // Background prefetch should not affect the visible list.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAdvanceFor, debouncedSearch, page, targetCode, totalPages]);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
@@ -433,9 +518,9 @@ export default function ListDoAnScreen() {
           <View>
             <View style={styles.headerPinkBg}>
               <View style={styles.customHeader}>
-                <TouchableOpacity onPress={() => router.back()}><Ionicons name="arrow-back" size={28} color="#FFF" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Ionicons name="arrow-back" size={28} color="#FF8FAB" /></TouchableOpacity>
                 <Text style={styles.headerTitle}>Dinh Dưỡng</Text>
-                <TouchableOpacity><Ionicons name="notifications-outline" size={24} color="#FFF" /></TouchableOpacity>
+                <View style={styles.headerActionSpace} />
               </View>
               <View style={styles.searchContainer}>
                 <Ionicons name="search" size={20} color="#FF8FAB" />
@@ -496,7 +581,12 @@ export default function ListDoAnScreen() {
             )}
 
             <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Gợi ý cho {audienceLabel}</Text>
+              <View style={styles.sectionTitleLeft}>
+                <View style={styles.sectionTitleIcon}>
+                  <Ionicons name="restaurant-outline" size={16} color="#FF8FAB" />
+                </View>
+                <Text style={styles.sectionTitle}>Gợi ý cho {audienceLabel}</Text>
+              </View>
               <Text style={styles.pageMeta}>{totalElements} món</Text>
             </View>
           </View>
@@ -525,27 +615,31 @@ export default function ListDoAnScreen() {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
-  headerPinkBg: { backgroundColor: '#FFB6C1', paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, borderBottomWidth: 3, borderBottomColor: '#A7E4F5' },
-  customHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 50, marginBottom: 15, paddingHorizontal: 20, justifyContent: 'space-between' },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: '#FFF' },
+  headerPinkBg: { backgroundColor: '#FEF9F3', paddingBottom: 12 },
+  customHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 50, marginBottom: 20, paddingHorizontal: 20, justifyContent: 'space-between' },
+  backButton: { width: 45 },
+  headerActionSpace: { width: 45 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#FF8FAB' },
   searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#FFE5EC' },
   searchInput: { flex: 1, marginLeft: 10, fontWeight: '700', color: '#5C7A8A' },
-  navSection: { flexDirection: 'row', justifyContent: 'space-around', padding: 20 },
-  navBtn: { alignItems: 'center' },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 6, elevation: 3 },
-  navBtnText: { fontSize: 11, fontWeight: '800', color: '#5C7A8A' },
-  filterSection: { marginBottom: 14 },
-  filterLabel: { marginHorizontal: 25, marginBottom: 8, color: '#5C7A8A', fontSize: 13, fontWeight: '900' },
+  navSection: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16 },
+  navBtn: { width: '31%', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 12, borderWidth: 1, borderColor: '#FFE5EC', elevation: 2, shadowColor: '#A7E4F5', shadowOpacity: 0.1, shadowRadius: 8 },
+  iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 7, elevation: 3 },
+  navBtnText: { fontSize: 11, fontWeight: '900', color: '#5C7A8A' },
+  filterSection: { marginBottom: 16, paddingTop: 2 },
+  filterLabel: { marginHorizontal: 25, marginBottom: 9, color: '#5C7A8A', fontSize: 13, fontWeight: '900' },
   filterScroll: { paddingHorizontal: 20, paddingRight: 30 },
-  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E9F8FD', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginRight: 8 },
-  filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB' },
+  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E9F8FD', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginRight: 8, elevation: 1, shadowColor: '#A7E4F5', shadowOpacity: 0.08, shadowRadius: 5 },
+  filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB', elevation: 3, shadowColor: '#FF8FAB', shadowOpacity: 0.18, shadowRadius: 7 },
   filterChipText: { color: '#7D95A1', fontSize: 12, fontWeight: '800' },
   filterChipTextActive: { color: '#FFF' },
   messageBox: { marginHorizontal: 24, backgroundColor: '#FFF', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: '#A7E4F5', marginBottom: 12 },
   messageText: { color: '#FF8FAB', fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 25, marginBottom: 15 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 20, marginBottom: 15, backgroundColor: '#FFF', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#FFE5EC', elevation: 2, shadowColor: '#FFB6C1', shadowOpacity: 0.08, shadowRadius: 8 },
+  sectionTitleLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  sectionTitleIcon: { width: 34, height: 34, borderRadius: 13, backgroundColor: '#FFF0F5', justifyContent: 'center', alignItems: 'center', marginRight: 9 },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A' },
-  pageMeta: { color: '#7CCBC1', fontSize: 12, fontWeight: '900' },
+  pageMeta: { color: '#45AFC8', fontSize: 12, fontWeight: '900', backgroundColor: '#E9F8FD', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
   row: { justifyContent: 'space-between', paddingHorizontal: 20 },
   restrictedSection: { marginTop: 20 },
   paginationBox: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },

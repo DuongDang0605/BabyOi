@@ -41,8 +41,10 @@ export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, on
             <Image
               source={{ uri: item.image }}
               style={[styles.dishImage, isRestricted && { opacity: 0.5 }]}
-              cachePolicy="disk"
+              cachePolicy="memory-disk"
               contentFit="cover"
+              priority="high"
+              transition={120}
               recyclingKey={item.id}
             />
           ) : (

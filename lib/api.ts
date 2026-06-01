@@ -119,6 +119,63 @@ export type VaccineStatisticsResponse = {
   success: number;
 };
 
+export type HealthRecordPayload = {
+  profileId: number;
+  height?: number | null;
+  weight?: number | null;
+  heartRate?: number | null;
+  bmi?: number | null;
+  recordDate: string;
+};
+
+export type HealthRecordResponse = {
+  id: number;
+  profileId: number;
+  height: number | null;
+  weight: number | null;
+  heartRate: number | null;
+  bmi: number | null;
+  illnessCount: number | null;
+  recordDate: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type IllnessEventPayload = {
+  profileId: number;
+  startAt: string;
+  endAt?: string | null;
+  illnessType: string;
+  status?: number | null;
+  description?: string | null;
+};
+
+export type IllnessEventResponse = {
+  id: number;
+  profileId: number;
+  startAt: string;
+  endAt: string | null;
+  illnessType: string;
+  status: number | null;
+  statusLabel: string | null;
+  description: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type HealthMonthlyDetailResponse = {
+  healthRecord: HealthRecordResponse | null;
+  illnesses: IllnessEventResponse[];
+};
+
+export type HealthFilterParams = {
+  fromDate?: string;
+  toDate?: string;
+  month?: number;
+  year?: number;
+  status?: number;
+};
+
 export type AiTeachingLessonResponse = {
   id: number;
   lessonName: string;
@@ -338,18 +395,37 @@ export class ApiError extends Error {
    BASE URL CONFIG
 ========================= */
 
+function getHostFromUri(uri?: string | null) {
+  if (typeof uri !== 'string' || !uri.trim()) {
+    return null;
+  }
+
+  const normalizedUri = /^[a-z][a-z\d+\-.]*:\/\//i.test(uri) ? uri : `http://${uri}`;
+
+  try {
+    return new URL(normalizedUri).hostname;
+  } catch {
+    return uri.split(':')[0] || null;
+  }
+}
+
 function resolveBaseUrl() {
+  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+  if (typeof envBaseUrl === 'string' && envBaseUrl.trim()) {
+    return envBaseUrl.trim().replace(/\/$/, '');
+  }
+
+  const inferredHost = getHostFromUri(Constants.expoConfig?.hostUri);
+
+  if (inferredHost) {
+    return `http://${inferredHost}:8085`;
+  }
+
   const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
 
   if (typeof configuredBaseUrl === 'string' && configuredBaseUrl.trim()) {
     return configuredBaseUrl.trim().replace(/\/$/, '');
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  const inferredHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : null;
-
-  if (inferredHost) {
-    return `http://${inferredHost}:8085`;
   }
 
   if (Platform.OS === 'android') {
@@ -466,7 +542,7 @@ export function resolveAssetUrl(url?: string | null) {
 
 export function resolveOptimizedAssetUrl(
   url?: string | null,
-  size: 'card' | 'detail' | 'ingredient' | 'avatar' = 'card'
+  size: 'card' | 'detail' | 'cooking' | 'ingredient' | 'avatar' = 'card'
 ) {
   const resolvedUrl = resolveAssetUrl(url);
 
@@ -475,10 +551,11 @@ export function resolveOptimizedAssetUrl(
   }
 
   const transformationsBySize: Record<typeof size, string[]> = {
-    card: ['c_fill', 'w_360', 'h_240', 'q_auto:eco', 'f_auto'],
-    detail: ['c_fill', 'w_720', 'h_720', 'q_auto:good', 'f_auto'],
-    ingredient: ['c_fill', 'w_128', 'h_128', 'q_auto:eco', 'f_auto'],
-    avatar: ['c_fill', 'w_320', 'h_320', 'q_auto:good', 'f_auto'],
+    card: ['c_fill', 'w_180', 'h_120', 'q_auto:low', 'f_auto'],
+    detail: ['c_fill', 'w_260', 'h_260', 'q_auto:low', 'f_auto'],
+    cooking: ['c_fill', 'w_520', 'h_360', 'q_auto:low', 'f_auto'],
+    ingredient: ['c_fill', 'w_96', 'h_96', 'dpr_auto', 'q_auto:low', 'f_auto'],
+    avatar: ['c_fill', 'w_240', 'h_240', 'dpr_auto', 'q_auto:eco', 'f_auto'],
   };
 
   return buildCloudinaryVariantUrl(resolvedUrl, transformationsBySize[size]);
@@ -845,6 +922,94 @@ export function getVaccineRecordsPageByProfile(
 export function getVaccineStatistics(profileId: number | string) {
   return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
     method: 'GET',
+  });
+}
+
+/* =========================
+   HEALTH TRACKING API
+========================= */
+
+export function getHealthRecords(profileId: number | string, params?: HealthFilterParams) {
+  return request<HealthRecordResponse[]>(`/api/health-records/profile/${profileId}${buildQueryString({
+    fromDate: params?.fromDate,
+    toDate: params?.toDate,
+    month: params?.month,
+    year: params?.year,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getHealthRecord(recordId: number | string) {
+  return request<HealthRecordResponse>(`/api/health-records/${recordId}`, {
+    method: 'GET',
+  });
+}
+
+export function createHealthRecord(payload: HealthRecordPayload) {
+  return request<HealthRecordResponse>('/api/health-records', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateHealthRecord(recordId: number | string, payload: HealthRecordPayload) {
+  return request<HealthRecordResponse>(`/api/health-records/${recordId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteHealthRecord(recordId: number | string) {
+  return request<void>(`/api/health-records/${recordId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getHealthMonthlyDetail(profileId: number | string, params?: { month?: number; year?: number }) {
+  return request<HealthMonthlyDetailResponse>(`/api/health-records/profile/${profileId}/monthly-detail${buildQueryString({
+    month: params?.month,
+    year: params?.year,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getIllnessEvents(profileId: number | string, params?: HealthFilterParams) {
+  return request<IllnessEventResponse[]>(`/api/illness-events/profile/${profileId}${buildQueryString({
+    fromDate: params?.fromDate,
+    toDate: params?.toDate,
+    month: params?.month,
+    year: params?.year,
+    status: params?.status,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getIllnessEvent(eventId: number | string) {
+  return request<IllnessEventResponse>(`/api/illness-events/${eventId}`, {
+    method: 'GET',
+  });
+}
+
+export function createIllnessEvent(payload: IllnessEventPayload) {
+  return request<IllnessEventResponse>('/api/illness-events', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateIllnessEvent(eventId: number | string, payload: IllnessEventPayload) {
+  return request<IllnessEventResponse>(`/api/illness-events/${eventId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteIllnessEvent(eventId: number | string) {
+  return request<void>(`/api/illness-events/${eventId}`, {
+    method: 'DELETE',
   });
 }
 

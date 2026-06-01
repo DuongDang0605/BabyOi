@@ -13,9 +13,9 @@ interface SummaryItem {
 }
 
 interface GrowthSummaryProps {
-  weight: number;
-  height: number;
-  bmi: number;
+  weight: number | string;
+  height: number | string;
+  bmi: number | string;
 }
 
 export const GrowthSummary = ({ weight, height, bmi }: GrowthSummaryProps) => {

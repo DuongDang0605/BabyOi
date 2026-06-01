@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { CustomHeader } from '../../components/common/CustomHeader';
-import { FoodResponse, deleteRestrictedFood, getFoodDetail, getRestrictedFoods, resolveAssetUrl } from '../../lib/api';
+import { FoodResponse, deleteRestrictedFood, getFoodDetail, getRestrictedFoods, resolveOptimizedAssetUrl } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -162,7 +162,7 @@ export default function RestrictedDishesScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => router.push({ pathname: '/dinhduong/recipe-detail', params: { id: item.id } })}>
               {item.imageUrl ? (
-                <Image source={{ uri: resolveAssetUrl(item.imageUrl) }} style={styles.img} cachePolicy="disk" contentFit="cover" recyclingKey={`restricted-${item.id}`} />
+                <Image source={{ uri: resolveOptimizedAssetUrl(item.imageUrl, 'ingredient') }} style={styles.img} cachePolicy="memory-disk" contentFit="cover" priority="high" recyclingKey={`restricted-${item.id}`} />
               ) : (
                 <View style={[styles.img, styles.placeholder]}>
                   <Ionicons name="image-outline" size={22} color="#FF8FAB" />

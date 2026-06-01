@@ -1,34 +1,102 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { HealthHistoryCard } from '../../components/phattrien/HealthHistoryCard';
+import type { HealthRecordResponse } from '../../lib/api';
+import { getHealthRecords } from '../../lib/api';
+import { getFilterParams, type HealthFilterMode } from '../../lib/health-format';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-const HEALTH_HISTORY_DATA = [
-  { id: '1', date: '14/03/2024', weight: '5.3', height: '58', bmi: '15.8', sickCount: '2', status: 'Tăng trưởng tốt' },
-  { id: '2', date: '14/02/2024', weight: '5.0', height: '56.5', bmi: '15.6', sickCount: '1', status: 'Bình thường' },
-  { id: '3', date: '14/01/2024', weight: '4.6', height: '55', bmi: '15.2', sickCount: '0', status: 'Bình thường' },
-  { id: '4', date: '14/12/2023', weight: '4.2', height: '53.5', bmi: '14.7', sickCount: '2', status: 'Cần chú ý' },
-  { id: '5', date: '14/11/2023', weight: '3.9', height: '52', bmi: '14.4', sickCount: '0', status: 'Bình thường' },
+const FILTERS: Array<{ label: string; value: HealthFilterMode }> = [
+  { label: 'Tất cả', value: 'all' },
+  { label: 'Hôm nay', value: 'day' },
+  { label: 'Tháng này', value: 'month' },
+  { label: 'Năm nay', value: 'year' },
 ];
 
 export default function HealthHistoryScreen() {
+  const [records, setRecords] = useState<HealthRecordResponse[]>([]);
+  const [filterMode, setFilterMode] = useState<HealthFilterMode>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRecords = useCallback(async () => {
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile?.id) {
+      setRecords([]);
+      setError('Vui lòng chọn hồ sơ trước khi xem lịch sử sức khỏe.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getHealthRecords(profile.id, getFilterParams(filterMode));
+      setRecords(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể tải lịch sử sức khỏe.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterMode]);
+
+  useFocusEffect(useCallback(() => {
+    loadRecords();
+  }, [loadRecords]));
+
+  const renderState = () => {
+    if (loading) {
+      return (
+        <View style={styles.stateBox}>
+          <ActivityIndicator color="#FF8FAB" />
+          <Text style={styles.stateText}>Đang tải lịch sử sức khỏe...</Text>
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.stateBox}>
+          <Ionicons name="warning-outline" size={26} color="#FF8FAB" />
+          <Text style={styles.stateText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadRecords}>
+            <Text style={styles.retryText}>Tải lại</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (records.length === 0) {
+      return (
+        <View style={styles.stateBox}>
+          <Ionicons name="heart-outline" size={26} color="#A7E4F5" />
+          <Text style={styles.stateText}>Chưa có chỉ số sức khỏe trong khoảng thời gian này.</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
-        data={HEALTH_HISTORY_DATA}
+        data={records}
         renderItem={({ item }) => (
           <HealthHistoryCard
             item={item}
-            onPress={(rec) => router.push({ pathname: '/phattrien/health-detail', params: { date: rec.date } })}
+            onPress={(rec) => {
+              const [year, month] = rec.recordDate.split('-');
+              router.push({ pathname: '/phattrien/health-detail', params: { month, year } });
+            }}
           />
         )}
-        keyExtractor={item => item.id}
+        keyExtractor={item => String(item.id)}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={renderState}
         ListHeaderComponent={() => (
           <View>
             <View style={styles.customHeader}>
@@ -36,12 +104,29 @@ export default function HealthHistoryScreen() {
                 <Ionicons name="arrow-back" size={28} color="#ff8fab" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Lịch Sử Sức Khỏe</Text>
-              <View style={{ width: 45 }} />
+              <TouchableOpacity style={styles.addButton} onPress={() => router.push('/phattrien/update-index')}>
+                <Ionicons name="add" size={24} color="#FFF" />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.listHeader}>
               <Text style={styles.listHeaderTitle}>Nhật ký phát triển</Text>
-              <Text style={styles.headerSub}>Tổng hợp sức khỏe bé qua các lần cập nhật</Text>
+              <Text style={styles.headerSub}>Tổng hợp sức khỏe theo hồ sơ đang chọn</Text>
+            </View>
+
+            <View style={styles.filterRow}>
+              {FILTERS.map((filter) => {
+                const selected = filterMode === filter.value;
+                return (
+                  <TouchableOpacity
+                    key={filter.value}
+                    style={[styles.filterChip, selected && styles.filterChipActive]}
+                    onPress={() => setFilterMode(filter.value)}
+                  >
+                    <Text style={[styles.filterText, selected && styles.filterTextActive]}>{filter.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -52,11 +137,21 @@ export default function HealthHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
-  listContent: { padding: 20 },
+  listContent: { padding: 20, paddingBottom: 60 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { width: 45 },
+  addButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center', elevation: 3 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
-  listHeader: { marginBottom: 20 },
+  listHeader: { marginBottom: 16 },
   listHeaderTitle: { fontSize: 20, fontWeight: '900', color: '#5C7A8A' },
   headerSub: { fontSize: 13, color: '#999', fontWeight: '600', marginTop: 4 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
+  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB' },
+  filterText: { color: '#5C7A8A', fontSize: 12, fontWeight: '800' },
+  filterTextActive: { color: '#FFF' },
+  stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 45, paddingHorizontal: 20 },
+  stateText: { color: '#5C7A8A', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 10 },
+  retryBtn: { backgroundColor: '#FF8FAB', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, marginTop: 12 },
+  retryText: { color: '#FFF', fontWeight: '900' },
 });
