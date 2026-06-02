@@ -110,6 +110,9 @@ export default function HealthHistoryScreen() {
             </View>
 
             <View style={styles.listHeader}>
+              <View style={styles.heroIconWrap}>
+                <Ionicons name="fitness" size={28} color="#FFF" />
+              </View>
               <Text style={styles.listHeaderTitle}>Nhật ký phát triển</Text>
               <Text style={styles.headerSub}>Tổng hợp sức khỏe theo hồ sơ đang chọn</Text>
             </View>
@@ -136,18 +139,19 @@ export default function HealthHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  container: { flex: 1, backgroundColor: '#FFF7EE' },
   listContent: { padding: 20, paddingBottom: 60 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { width: 45 },
   addButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center', elevation: 3 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab' },
-  listHeader: { marginBottom: 16 },
+  listHeader: { marginBottom: 16, backgroundColor: '#FFF', borderRadius: 26, padding: 18, borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
+  heroIconWrap: { width: 52, height: 52, borderRadius: 18, backgroundColor: '#A7E4F5', alignItems: 'center', justifyContent: 'center', marginBottom: 10, shadowColor: '#A7E4F5', shadowOpacity: 0.28, shadowRadius: 8, elevation: 2 },
   listHeaderTitle: { fontSize: 20, fontWeight: '900', color: '#5C7A8A' },
-  headerSub: { fontSize: 13, color: '#999', fontWeight: '600', marginTop: 4 },
+  headerSub: { fontSize: 13, color: '#7D8D97', fontWeight: '600', marginTop: 4 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
-  filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB' },
+  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, shadowColor: '#FFB6C1', shadowOpacity: 0.08, shadowRadius: 5, elevation: 1 },
+  filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB', shadowOpacity: 0.22 },
   filterText: { color: '#5C7A8A', fontSize: 12, fontWeight: '800' },
   filterTextActive: { color: '#FFF' },
   stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 45, paddingHorizontal: 20 },

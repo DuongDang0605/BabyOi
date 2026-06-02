@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -14,7 +15,7 @@ interface HomeHeaderProps {
 export const HomeHeader = ({ babyName, babyAge, avatarSource, onAvatarPress, unreadCount = 0, onNotificationPress }: HomeHeaderProps) => {
   return (
     <View style={styles.header}>
-      <View>
+      <View style={styles.copyBlock}>
         <Text style={styles.greeting}>Chào mẹ {babyName}! ✨</Text>
         <Text style={styles.name}>{babyAge}</Text>
       </View>
@@ -30,7 +31,9 @@ export const HomeHeader = ({ babyName, babyAge, avatarSource, onAvatarPress, unr
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.avatarFrame} onPress={onAvatarPress} activeOpacity={0.8}>
-          <Image source={avatarSource} style={styles.avatar} />
+          <LinearGradient colors={['#FF8FAB', '#FFE1EA']} style={styles.avatarRing}>
+            <Image source={avatarSource} style={styles.avatar} />
+          </LinearGradient>
           <View style={styles.onlineDot} />
         </TouchableOpacity>
       </View>
@@ -44,11 +47,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 70,
-    marginBottom: 25
+    marginBottom: 25,
   },
-  greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '600' },
-  name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB' },
-  avatar: { width: 65, height: 65, borderRadius: 33, borderWidth: 3, borderColor: '#FFB6C1' },
+  copyBlock: { flex: 1, paddingRight: 10 },
+  greeting: { fontSize: 16, color: '#5C7A8A', fontWeight: '700' },
+  name: { fontSize: 28, fontWeight: '900', color: '#FF8FAB', lineHeight: 34 },
+  avatarRing: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderColor: '#FFF' },
   onlineDot: {
     position: 'absolute',
     bottom: 2,
@@ -58,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#4CAF50',
     borderWidth: 2,
-    borderColor: '#FEF9F3'
+    borderColor: '#FEF9F3',
   },
   avatarFrame: { position: 'relative' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -71,6 +76,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#FFE1EA',
+    shadowColor: '#FFB6C1',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   badge: {
     position: 'absolute',

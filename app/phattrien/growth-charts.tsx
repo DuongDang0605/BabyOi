@@ -16,7 +16,7 @@ function buildChartData(records: HealthRecordResponse[]) {
   return {
     labels: ordered.map((item) => toDisplayMonth(item.recordDate).slice(0, 2)),
     datasets: [
-      { data: ordered.map((item) => item.weight || 0), color: () => '#FF8FAB', strokeWidth: 3 },
+      { data: ordered.map((item) => item.weight || 0), color: () => '#98D8AA', strokeWidth: 3 },
       { data: ordered.map((item) => item.height || 0), color: () => '#FFD166', strokeWidth: 3 },
       { data: ordered.map((item) => item.bmi || 0), color: () => '#C1F0D0', strokeWidth: 3 },
     ],
@@ -68,6 +68,18 @@ export default function GrowthChartsScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sức khỏe</Text>
           <View style={{ width: 45 }} />
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroBubbleTop} />
+          <View style={styles.heroBubbleBottom} />
+          <View style={styles.heroIcon}>
+            <Ionicons name="heart-circle" size={34} color="#FFF" />
+          </View>
+          <View style={styles.heroTextGroup}>
+            <Text style={styles.heroTitle}>Theo dõi thể chất</Text>
+            <Text style={styles.heroSubtitle}>Cập nhật chỉ số, xem xu hướng và lịch sử sức khỏe của bé.</Text>
+          </View>
         </View>
 
         {loading ? (
@@ -164,18 +176,25 @@ export default function GrowthChartsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  container: { flex: 1, backgroundColor: '#FFF7EE' },
   scrollContent: { padding: 20 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  aiBox: { flexDirection: 'row', backgroundColor: '#FFF0F3', padding: 15, borderRadius: 20, marginTop: 20, alignItems: 'center' },
+  heroCard: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#FF8FAB', borderRadius: 28, padding: 18, marginBottom: 20, shadowColor: '#FF8FAB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 5 },
+  heroBubbleTop: { position: 'absolute', right: -28, top: -30, width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(255,255,255,0.24)' },
+  heroBubbleBottom: { position: 'absolute', left: 112, bottom: -46, width: 122, height: 122, borderRadius: 61, backgroundColor: 'rgba(255,209,102,0.32)' },
+  heroIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  heroTextGroup: { flex: 1 },
+  heroTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  heroSubtitle: { color: '#FFF8FA', fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 4 },
+  aiBox: { flexDirection: 'row', backgroundColor: '#FFF0F3', padding: 15, borderRadius: 20, marginTop: 20, alignItems: 'center', borderWidth: 1.5, borderColor: '#FFE0E9' },
   aiText: { flex: 1, marginLeft: 10, color: '#FF8FAB', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   buttonGroup: { marginTop: 20, gap: 12 },
-  longButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 20, borderWidth: 1.5, borderColor: '#FFE5EC', elevation: 3 },
+  longButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 20, borderWidth: 1.5, borderColor: '#FFE5EC', elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8 },
   longButtonText: { flex: 1, fontSize: 15, fontWeight: '800', color: '#FF8FAB', marginLeft: 12 },
   rowButtons: { flexDirection: 'row', gap: 12 },
-  halfButton: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 25, alignItems: 'center', borderWidth: 1.5, borderColor: '#F0F0F0', elevation: 2 },
+  halfButton: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 25, alignItems: 'center', borderWidth: 1.5, borderColor: '#F0F0F0', elevation: 2, shadowColor: '#8BDDEC', shadowOpacity: 0.1, shadowRadius: 8 },
   halfButtonText: { fontSize: 12, fontWeight: '800', color: '#5C7A8A', textAlign: 'center' },
   btnIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },

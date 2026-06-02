@@ -169,12 +169,15 @@ export default function IllnessHistoryScreen() {
             </View>
 
             <View style={styles.statsOverview}>
+              <View style={styles.statsGlow} />
               <View style={styles.statMini}>
+                <Ionicons name="folder-open-outline" size={18} color="#FF8FAB" />
                 <Text style={styles.statMiniNum}>{events.length}</Text>
                 <Text style={styles.statMiniLabel}>Tổng đợt bệnh</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.statMini}>
+                <Ionicons name="alert-circle-outline" size={18} color={attentionCount > 0 ? '#FF8FAB' : '#98D8AA'} />
                 <Text style={[styles.statMiniNum, { color: attentionCount > 0 ? '#FF8FAB' : '#98D8AA' }]}>{attentionCount}</Text>
                 <Text style={styles.statMiniLabel}>Cần chú ý</Text>
               </View>
@@ -268,35 +271,36 @@ export default function IllnessHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  container: { flex: 1, backgroundColor: '#FFF7EE' },
   listContent: { padding: 20, paddingBottom: 60 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  statsOverview: { flexDirection: 'row', backgroundColor: '#FFF', padding: 15, borderRadius: 20, marginBottom: 20, elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.1, alignItems: 'center' },
+  statsOverview: { flexDirection: 'row', backgroundColor: '#FFF', padding: 15, borderRadius: 24, marginBottom: 20, elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.14, shadowRadius: 12, alignItems: 'center', overflow: 'hidden', borderWidth: 1.5, borderColor: '#FFE5EC' },
+  statsGlow: { position: 'absolute', width: 130, height: 130, borderRadius: 65, right: -48, top: -42, backgroundColor: '#E9F8FD' },
   statMini: { flex: 1, alignItems: 'center' },
   statMiniNum: { fontSize: 20, fontWeight: '900', color: '#FF8FAB' },
   statMiniLabel: { fontSize: 11, color: '#999', fontWeight: '600', marginTop: 2 },
   divider: { width: 1, height: 30, backgroundColor: '#F0F0F0' },
   actionButtonGroup: { marginBottom: 18 },
-  addNewButton: { backgroundColor: '#FF8FAB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 20, marginBottom: 10, elevation: 4, shadowColor: '#FF8FAB', shadowOpacity: 0.3, shadowRadius: 5 },
+  addNewButton: { backgroundColor: '#FF8FAB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 22, marginBottom: 10, elevation: 4, shadowColor: '#FF8FAB', shadowOpacity: 0.32, shadowRadius: 8 },
   addNewButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800', marginLeft: 8 },
-  qrExportButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 20, backgroundColor: '#F0F8FF', borderWidth: 1.5, borderColor: '#2196F3' },
+  qrExportButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 22, backgroundColor: '#EFFBFE', borderWidth: 1.5, borderColor: '#A7E4F5' },
   qrExportText: { color: '#2196F3', fontSize: 15, fontWeight: '800', marginHorizontal: 8 },
   sparkleIcon: { marginTop: -10 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  filterChip: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, shadowColor: '#FFB6C1', shadowOpacity: 0.08, shadowRadius: 5, elevation: 1 },
   filterChipActive: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB' },
   filterChipText: { color: '#5C7A8A', fontSize: 12, fontWeight: '800' },
   filterChipTextActive: { color: '#FFF' },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#5C7A8A', marginBottom: 15, marginLeft: 5 },
-  illnessCard: { backgroundColor: '#FFF', borderRadius: 22, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, borderWidth: 1, borderColor: '#FFF0F3' },
+  illnessCard: { backgroundColor: '#FFF', borderRadius: 22, padding: 16, marginBottom: 16, elevation: 3, shadowColor: '#FFD166', shadowOpacity: 0.13, shadowRadius: 8, borderWidth: 1.5, borderColor: '#FFF0F3', borderLeftWidth: 5, borderLeftColor: '#FFD166' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   nameGroup: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  iconCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFF9EB', justifyContent: 'center', alignItems: 'center' },
+  iconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF3D5', justifyContent: 'center', alignItems: 'center' },
   illnessName: { fontSize: 16, fontWeight: '800', color: '#333', flex: 1 },
   monthLabel: { fontSize: 11, color: '#AAA', fontWeight: '700' },
-  timeBox: { backgroundColor: '#FDFDFD', padding: 8, borderRadius: 10, marginBottom: 10 },
+  timeBox: { backgroundColor: '#EFFBFE', padding: 9, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#DDF5FB' },
   timeLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
   timeText: { fontSize: 12, color: '#777' },
   timeBold: { fontWeight: '700', color: '#5C7A8A' },

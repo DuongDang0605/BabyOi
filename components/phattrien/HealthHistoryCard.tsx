@@ -24,12 +24,14 @@ function resolveStatus(item: HealthRecordResponse) {
 export const HealthHistoryCard = ({ item, onPress }: HealthHistoryCardProps) => {
   const status = resolveStatus(item);
   const isGoodStatus = status === 'Bình thường';
+  const accentColor = isGoodStatus ? '#98D8AA' : '#FF8FAB';
 
   return (
-    <View style={styles.historyCard}>
+    <View style={[styles.historyCard, { borderLeftColor: accentColor }]}>
+      <View style={[styles.decorCircle, { backgroundColor: isGoodStatus ? '#E8F9ED' : '#FFF0F3' }]} />
       <View style={styles.cardHeader}>
         <View style={styles.dateBadge}>
-          <Ionicons name="calendar" size={14} color="#FF8FAB" />
+          <Ionicons name="calendar" size={14} color={accentColor} />
           <Text style={styles.dateText}>{toDisplayMonth(item.recordDate)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: isGoodStatus ? '#E8F5E9' : '#FFF0F3' }]}>
@@ -40,21 +42,20 @@ export const HealthHistoryCard = ({ item, onPress }: HealthHistoryCardProps) => 
       </View>
 
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
+        <View style={[styles.statItem, styles.weightTile]}>
+          <Ionicons name="scale-outline" size={18} color="#98D8AA" style={styles.statIcon} />
           <Text style={styles.statLabel}>Cân nặng</Text>
           <Text style={styles.statValue}>{formatNullableNumber(item.weight)}<Text style={styles.unit}>kg</Text></Text>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.statItem}>
+        <View style={[styles.statItem, styles.heightTile]}>
+          <Ionicons name="body-outline" size={18} color="#3DB9D3" style={styles.statIcon} />
           <Text style={styles.statLabel}>Chiều cao</Text>
           <Text style={styles.statValue}>{formatNullableNumber(item.height)}<Text style={styles.unit}>cm</Text></Text>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.statItem}>
+        <View style={[styles.statItem, styles.bmiTile]}>
+          <Ionicons name="pulse-outline" size={18} color="#98D8AA" style={styles.statIcon} />
           <Text style={styles.statLabel}>BMI</Text>
           <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(item.bmi)}</Text>
         </View>
@@ -87,9 +88,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     elevation: 3,
     shadowColor: '#FFB6C1',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.14,
     shadowRadius: 10,
+    borderLeftWidth: 5,
+    overflow: 'hidden',
   },
+  decorCircle: { position: 'absolute', width: 92, height: 92, borderRadius: 46, right: -28, top: -30 },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -103,20 +107,25 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 14, fontWeight: '800', color: '#5C7A8A' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   statusText: { fontSize: 11, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginVertical: 10 },
-  statItem: { alignItems: 'center' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 10, gap: 8 },
+  statItem: { flex: 1, alignItems: 'center', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 4 },
+  weightTile: { backgroundColor: '#F1FBF4' },
+  heightTile: { backgroundColor: '#EFFBFE' },
+  bmiTile: { backgroundColor: '#F1FBF4' },
+  statIcon: { marginBottom: 4 },
   statLabel: { fontSize: 12, color: '#AAA', fontWeight: '600', marginBottom: 5 },
   statValue: { fontSize: 18, fontWeight: '900', color: '#333' },
   unit: { fontSize: 12, color: '#999', fontWeight: '600' },
-  divider: { width: 1, height: 30, backgroundColor: '#EEE' },
   sickInfoBox: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF9EB',
     padding: 10,
     borderRadius: 15,
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FFE8A8',
   },
   sickText: { fontSize: 12, color: '#666', fontWeight: '600' },
   sickBold: { color: '#5C7A8A', fontWeight: '800' },

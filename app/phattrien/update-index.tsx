@@ -98,6 +98,9 @@ export default function UpdateIndexScreen() {
           </View>
 
           <View style={styles.infoBox}>
+            <View style={styles.infoIconBg}>
+              <Ionicons name="sparkles" size={18} color="#FFF" />
+            </View>
             <Ionicons name="information-circle" size={20} color="#FF8FAB" />
             <Text style={styles.infoText}>
               Nhập chỉ số mới nhất để hệ thống theo dõi sức khỏe theo hồ sơ đang chọn.
@@ -107,7 +110,7 @@ export default function UpdateIndexScreen() {
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Ngày ghi nhận</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, styles.dateInput]}>
                 <TextInput
                   style={styles.input}
                   value={recordDate}
@@ -121,7 +124,7 @@ export default function UpdateIndexScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Chiều cao (cm)</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, styles.heightInput]}>
                 <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="Ví dụ: 58" />
                 <Text style={styles.unitText}>(cm)</Text>
               </View>
@@ -129,7 +132,7 @@ export default function UpdateIndexScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Cân nặng (kg)</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, styles.weightInput]}>
                 <TextInput style={styles.input} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder="Ví dụ: 5.3" />
                 <Text style={styles.unitText}>(kg)</Text>
               </View>
@@ -137,7 +140,7 @@ export default function UpdateIndexScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nhịp tim (lần/phút)</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, styles.heartInput]}>
                 <TextInput style={styles.input} value={heartRate} onChangeText={setHeartRate} keyboardType="numeric" placeholder="Ví dụ: 110" />
                 <Text style={styles.unitText}>(bpm)</Text>
               </View>
@@ -164,17 +167,22 @@ export default function UpdateIndexScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FFF7EE' },
   scrollContent: { padding: 20 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  infoBox: { flexDirection: 'row', backgroundColor: '#FFF0F3', padding: 15, borderRadius: 20, alignItems: 'center', marginBottom: 30, borderWidth: 1, borderColor: '#FFE5EC' },
+  infoBox: { flexDirection: 'row', backgroundColor: '#FFF0F3', padding: 15, borderRadius: 24, alignItems: 'center', marginBottom: 30, borderWidth: 1.5, borderColor: '#FFE5EC', overflow: 'hidden', shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 10, elevation: 2 },
+  infoIconBg: { position: 'absolute', right: -12, top: -12, width: 62, height: 62, borderRadius: 31, backgroundColor: '#FFD166', alignItems: 'center', justifyContent: 'center', opacity: 0.55 },
   infoText: { flex: 1, marginLeft: 10, color: '#FF8FAB', fontSize: 13, fontWeight: '700' },
   form: { gap: 20 },
   inputGroup: { gap: 8 },
   label: { fontSize: 16, fontWeight: '800', color: '#5C7A8A', marginLeft: 5 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 2, borderColor: '#f0f4f8', paddingHorizontal: 15, height: 60, elevation: 2, shadowColor: '#FFB6C1', shadowOpacity: 0.1, shadowRadius: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 2, borderColor: '#f0f4f8', paddingHorizontal: 15, height: 60, elevation: 2, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 6 },
+  dateInput: { borderColor: '#FFE5EC', backgroundColor: '#FFF8FA' },
+  heightInput: { borderColor: '#DDF5FB', backgroundColor: '#F6FDFF' },
+  weightInput: { borderColor: '#DFF5E6', backgroundColor: '#F6FFF8' },
+  heartInput: { borderColor: '#DFF5E6', backgroundColor: '#F6FFF8' },
   input: { flex: 1, fontSize: 18, fontWeight: '800', color: '#333' },
   unitText: { color: '#999', fontWeight: '700', fontSize: 14 },
   saveButton: { backgroundColor: '#98D8AA', height: 60, borderRadius: 30, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 40, elevation: 5, shadowColor: '#98D8AA', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6 },

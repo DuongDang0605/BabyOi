@@ -20,16 +20,18 @@ interface GrowthSummaryProps {
 
 export const GrowthSummary = ({ weight, height, bmi }: GrowthSummaryProps) => {
   const data: SummaryItem[] = [
-    { label: 'Cân nặng', value: weight, unit: 'kg', icon: 'speedometer-outline', color: '#FF8FAB' },
-    { label: 'Chiều cao', value: height, unit: 'cm', icon: 'resize-outline', color: '#FFD166' },
-    { label: 'Chỉ số BMI', value: bmi, icon: 'bar-chart-outline', color: '#A7E4F5' },
+    { label: 'Cân nặng', value: weight, unit: 'kg', icon: 'scale-outline', color: '#98D8AA' },
+    { label: 'Chiều cao', value: height, unit: 'cm', icon: 'body-outline', color: '#FFD166' },
+    { label: 'Chỉ số BMI', value: bmi, icon: 'pulse-outline', color: '#A7E4F5' },
   ];
 
   return (
     <View style={styles.summaryGrid}>
       {data.map((item, index) => (
-        <View key={index} style={[styles.summaryCard, { backgroundColor: item.color }]}>
-          <Ionicons name={item.icon} size={18} color="#FFF" />
+        <View key={index} style={[styles.summaryCard, { backgroundColor: item.color, shadowColor: item.color }]}>
+          <View style={styles.iconHalo}>
+            <Ionicons name={item.icon} size={18} color="#FFF" />
+          </View>
           <Text style={styles.cardValue}>
             {item.value}
             {item.unit && <Text style={styles.cardUnit}>{item.unit}</Text>}
@@ -48,9 +50,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 20,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    overflow: 'hidden',
   },
+  iconHalo: { width: 32, height: 32, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.24)', alignItems: 'center', justifyContent: 'center' },
   cardValue: { fontSize: 16, fontWeight: '900', color: '#FFF', marginTop: 8 },
   cardUnit: { fontSize: 10, fontWeight: '600' },
   cardLabel: { fontSize: 10, color: '#FFF', fontWeight: '700', marginTop: 4 },

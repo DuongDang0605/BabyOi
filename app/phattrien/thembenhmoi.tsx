@@ -113,7 +113,7 @@ export default function AddIllnessScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Tên bệnh hoặc triệu chứng</Text>
           <TextInput
-            style={styles.inputRounded}
+            style={[styles.inputRounded, styles.primaryInput]}
             placeholder="VD: Viêm họng, sốt mọc răng..."
             placeholderTextColor="#b0bec5"
             value={illnessType}
@@ -124,11 +124,11 @@ export default function AddIllnessScreen() {
         <View style={styles.row}>
           <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
             <Text style={styles.label}>Ngày bắt đầu</Text>
-            <TextInput style={styles.inputRounded} value={startAt} onChangeText={setStartAt} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
+            <TextInput style={[styles.inputRounded, styles.dateInput]} value={startAt} onChangeText={setStartAt} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
           </View>
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.label}>Ngày kết thúc</Text>
-            <TextInput style={styles.inputRounded} value={endAt} onChangeText={setEndAt} placeholder="Bỏ trống nếu chưa khỏi" keyboardType="numbers-and-punctuation" />
+            <TextInput style={[styles.inputRounded, styles.dateInput]} value={endAt} onChangeText={setEndAt} placeholder="Bỏ trống nếu chưa khỏi" keyboardType="numbers-and-punctuation" />
           </View>
         </View>
 
@@ -150,7 +150,7 @@ export default function AddIllnessScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Chi tiết triệu chứng & thuốc</Text>
           <TextInput
-            style={[styles.inputRounded, styles.textArea]}
+            style={[styles.inputRounded, styles.textArea, styles.noteInput]}
             placeholder="Bé có sốt không? Đã dùng thuốc gì hoặc đi khám ở đâu chưa?"
             placeholderTextColor="#b0bec5"
             multiline
@@ -178,23 +178,26 @@ export default function AddIllnessScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FFF7EE' },
   scrollArea: { padding: 20 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 16, fontWeight: '800', color: '#5C7A8A', marginBottom: 10, marginLeft: 5 },
-  inputRounded: { backgroundColor: '#ffffff', paddingHorizontal: 20, paddingVertical: 15, borderRadius: 20, fontSize: 15, color: '#333333', borderWidth: 2, borderColor: '#f0f4f8', elevation: 2, shadowColor: '#FFB6C1', shadowOpacity: 0.1 },
+  inputRounded: { backgroundColor: '#ffffff', paddingHorizontal: 20, paddingVertical: 15, borderRadius: 20, fontSize: 15, color: '#333333', borderWidth: 2, borderColor: '#f0f4f8', elevation: 2, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 6 },
+  primaryInput: { borderColor: '#FFE5EC', backgroundColor: '#FFF8FA' },
+  dateInput: { borderColor: '#DDF5FB', backgroundColor: '#F6FDFF' },
+  noteInput: { borderColor: '#FFE8A8', backgroundColor: '#FFFBF0' },
   textArea: { height: 120, textAlignVertical: 'top' },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   pillContainer: { flexDirection: 'row', gap: 10 },
   pillButton: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderWidth: 2 },
-  pillActive: { backgroundColor: '#FFD166', borderColor: '#FFD166' },
+  pillActive: { backgroundColor: '#FFD166', borderColor: '#FFD166', shadowColor: '#FFD166', shadowOpacity: 0.28, shadowRadius: 6, elevation: 2 },
   pillInactive: { backgroundColor: '#ffffff', borderColor: '#f0f4f8' },
   pillActiveText: { color: '#ffffff', fontWeight: '900', fontSize: 13 },
   pillInactiveText: { color: '#a0aab2', fontWeight: '700', fontSize: 13 },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.95)' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(255, 247, 238, 0.96)', borderTopWidth: 1, borderTopColor: '#FFE5EC' },
   aiButton: { flexDirection: 'row', backgroundColor: '#ffffff', paddingVertical: 16, borderRadius: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ff8fab', marginBottom: 12, shadowColor: '#ff8fab', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
   aiButtonText: { color: '#ff8fab', fontSize: 16, fontWeight: '900' },
   saveButton: { backgroundColor: '#ff8fab', paddingVertical: 16, borderRadius: 30, alignItems: 'center', shadowColor: '#ff8fab', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 5, elevation: 5 },

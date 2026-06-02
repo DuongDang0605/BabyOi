@@ -1,4 +1,5 @@
 import React from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 interface AlertCardProps {
@@ -9,44 +10,96 @@ interface AlertCardProps {
 
 export const AlertCard = ({ title, subtitle, badgeText }: AlertCardProps) => {
   return (
-    <View style={styles.alertCard}>
-      <Image
-        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }}
-        style={styles.alertIconAnime}
-      />
+    <LinearGradient
+      colors={['#FF8FAB', '#FFB6C1', '#FFE1EA']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.alertCard}
+    >
+      <View style={styles.alertGlowTop} />
+      <View style={styles.alertGlowMint} />
+      <View style={styles.alertGlowYellow} />
+      <View style={styles.alertIconWrap}>
+        <Image
+          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }}
+          style={styles.alertIconAnime}
+        />
+      </View>
       <View style={styles.alertTextContent}>
+        <Text style={styles.alertEyebrow}>Nhắc lịch hôm nay</Text>
         <Text style={styles.alertTitle}>{title}</Text>
-        <Text style={styles.alertSubtitle}>{subtitle}</Text>
+        <Text style={styles.alertSubtitle} numberOfLines={2}>{subtitle}</Text>
         <View style={styles.alertDateBadge}>
           <Text style={styles.alertDateText}>{badgeText}</Text>
         </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   alertCard: {
-    backgroundColor: '#FFB6C1',
     padding: 18,
     borderRadius: 30,
     marginBottom: 25,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'hidden',
     shadowColor: '#FFB6C1',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
     elevation: 5
   },
-  alertIconAnime: { width: 50, height: 50, marginRight: 12 },
+  alertGlowTop: {
+    position: 'absolute',
+    top: -28,
+    right: 18,
+    width: 120,
+    height: 70,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    transform: [{ rotate: '-16deg' }],
+  },
+  alertGlowMint: {
+    position: 'absolute',
+    bottom: -26,
+    left: 70,
+    width: 98,
+    height: 58,
+    borderRadius: 28,
+    backgroundColor: 'rgba(184,239,207,0.28)',
+    transform: [{ rotate: '12deg' }],
+  },
+  alertGlowYellow: {
+    position: 'absolute',
+    top: 14,
+    right: 12,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#FFE08A',
+  },
+  alertIconWrap: {
+    width: 66,
+    height: 66,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+  },
+  alertIconAnime: { width: 52, height: 52 },
   alertTextContent: { flex: 1 },
-  alertTitle: { fontSize: 17, fontWeight: '900', color: '#FFF' },
-  alertSubtitle: { fontSize: 13, color: '#FFF', marginBottom: 5 },
+  alertEyebrow: { fontSize: 11, color: '#FFF', fontWeight: '900', opacity: 0.86, marginBottom: 3, textTransform: 'uppercase' },
+  alertTitle: { fontSize: 18, fontWeight: '900', color: '#FFF', lineHeight: 23 },
+  alertSubtitle: { fontSize: 13, color: '#FFF', marginTop: 2, marginBottom: 7, fontWeight: '700', opacity: 0.95 },
   alertDateBadge: {
     backgroundColor: '#FFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     alignSelf: 'flex-start'
   },
   alertDateText: { fontSize: 11, color: '#FF8FAB', fontWeight: '900' },

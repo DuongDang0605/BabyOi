@@ -221,6 +221,11 @@ export default function AppHomeScreen() {
   return (
     <View style={styles.mainContainer}>
       <Stack.Screen options={{ headerShown: false }} />
+      <View pointerEvents="none" style={styles.backgroundAccentTop} />
+      <View pointerEvents="none" style={styles.backgroundAccentMid} />
+      <View pointerEvents="none" style={styles.backgroundAccentMint} />
+      <View pointerEvents="none" style={styles.backgroundAccentYellow} />
+      <View pointerEvents="none" style={styles.backgroundStripe} />
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
 
@@ -264,6 +269,7 @@ export default function AppHomeScreen() {
       </ScrollView>
 
       {/* --- Floating AI Button --- */}
+      <View pointerEvents="none" style={styles.aiButtonHalo} />
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
         <View style={styles.aiSparkleContainer}>
           <Ionicons name="sparkles" size={20} color="#ff8fab" />
@@ -351,18 +357,65 @@ function getProfileSubtitle(profile: ProfileResponse) {
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
   scrollContainer: { paddingHorizontal: 20 },
+  backgroundAccentTop: {
+    position: 'absolute',
+    top: 52,
+    left: -36,
+    width: 150,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 182, 193, 0.18)',
+    transform: [{ rotate: '-18deg' }],
+  },
+  backgroundAccentMid: {
+    position: 'absolute',
+    top: 260,
+    right: -50,
+    width: 170,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 143, 171, 0.12)',
+    transform: [{ rotate: '18deg' }],
+  },
+  backgroundAccentMint: {
+    position: 'absolute',
+    top: 540,
+    left: -42,
+    width: 138,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(184, 239, 207, 0.28)',
+    transform: [{ rotate: '20deg' }],
+  },
+  backgroundAccentYellow: {
+    position: 'absolute',
+    top: 628,
+    right: 24,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 209, 102, 0.55)',
+  },
+  backgroundStripe: {
+    position: 'absolute',
+    left: 28,
+    right: 28,
+    top: 148,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 225, 234, 0.9)',
+  },
 
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)', 
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    paddingTop: 145, 
-    paddingRight: 20,
+    backgroundColor: 'transparent',
   },
   menuContainer: {
-    width: width * 0.55,
+    position: 'absolute',
+    top: 108,
+    right: 18,
+    width: Math.min(245, width - 40),
     backgroundColor: '#FFF',
     borderRadius: 20,
     padding: 10,
@@ -371,11 +424,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
+    zIndex: 50,
   },
   menuArrow: {
     position: 'absolute',
     top: -8,
-    right: 22,
+    right: 28,
     width: 16,
     height: 16,
     backgroundColor: '#FFF',
@@ -407,7 +461,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
-  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FFB6C1', paddingHorizontal: 20, height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 8 },
-  aiSparkleContainer: { backgroundColor: '#FFF', padding: 4, borderRadius: 15, marginRight: 8 },
-  aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 16 },
+  aiButtonHalo: { position: 'absolute', bottom: 24, right: 14, width: 120, height: 72, borderRadius: 36, backgroundColor: 'rgba(255, 143, 171, 0.22)' },
+  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FF6F9B', paddingHorizontal: 22, height: 62, borderRadius: 31, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowColor: '#FF6F9B', shadowOpacity: 0.55, shadowRadius: 16, borderWidth: 2, borderColor: '#FFFFFF' },
+  aiSparkleContainer: { width: 34, height: 34, backgroundColor: '#FFF', borderRadius: 17, marginRight: 9, alignItems: 'center', justifyContent: 'center' },
+  aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 17 },
 });
