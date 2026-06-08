@@ -7,7 +7,6 @@
     "icon": "./assets/images/logo1.png",
     "scheme": "babyoi",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.duongdang2526.BabyOi",

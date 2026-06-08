@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
-import { clearSelectedProfile } from './profile-session';
 
 export type AuthResponse = {
   accessToken: string;
@@ -174,6 +173,34 @@ export type HealthFilterParams = {
   month?: number;
   year?: number;
   status?: number;
+};
+
+export type DiaryEntryPayload = {
+  profileId: number;
+  title: string;
+  content: string;
+  imageUrl?: string | null;
+  milestone?: string | null;
+  entryDate: string;
+};
+
+export type DiaryEntryResponse = {
+  id: number;
+  profileId: number;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  milestone: string | null;
+  entryDate: string;
+  status: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type DiaryFilterParams = {
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
 };
 
 export type AiTeachingLessonResponse = {
@@ -579,6 +606,8 @@ function openErrorScreen(status: string, message: string) {
 }
 
 async function redirectToLogin() {
+  const { clearSelectedProfile } = await import('./profile-session');
+
   await clearSelectedProfile();
   await clearAuthSession();
 
@@ -836,6 +865,13 @@ function getUploadFileName(uri: string) {
   return `profile-avatar-${Date.now()}.${safeExtension}`;
 }
 
+function getDiaryUploadFileName(uri: string) {
+  const cleanUri = uri.split('?')[0] || uri;
+  const extension = cleanUri.split('.').pop()?.toLowerCase();
+  const safeExtension = extension && extension.length <= 5 ? extension : 'jpg';
+  return `diary-image-${Date.now()}.${safeExtension}`;
+}
+
 function getUploadMimeType(uri: string) {
   const extension = (uri.split('?')[0] || uri).split('.').pop()?.toLowerCase();
   if (extension === 'png') {
@@ -856,6 +892,18 @@ export async function uploadProfileAvatar(uri: string) {
   } as any);
 
   const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData);
+  return response.imageUrl;
+}
+
+export async function uploadDiaryImage(uri: string) {
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    name: getDiaryUploadFileName(uri),
+    type: getUploadMimeType(uri),
+  } as any);
+
+  const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/diary-entries/image', formData);
   return response.imageUrl;
 }
 
@@ -1009,6 +1057,46 @@ export function updateIllnessEvent(eventId: number | string, payload: IllnessEve
 
 export function deleteIllnessEvent(eventId: number | string) {
   return request<void>(`/api/illness-events/${eventId}`, {
+    method: 'DELETE',
+  });
+}
+
+/* =========================
+   DIARY API
+========================= */
+
+export function getDiaryEntries(profileId: number | string, params?: DiaryFilterParams) {
+  return request<DiaryEntryResponse[]>(`/api/diary-entries/profile/${profileId}${buildQueryString({
+    fromDate: params?.fromDate,
+    toDate: params?.toDate,
+    search: params?.search,
+  })}`, {
+    method: 'GET',
+  });
+}
+
+export function getDiaryEntry(entryId: number | string) {
+  return request<DiaryEntryResponse>(`/api/diary-entries/${entryId}`, {
+    method: 'GET',
+  });
+}
+
+export function createDiaryEntry(payload: DiaryEntryPayload) {
+  return request<DiaryEntryResponse>('/api/diary-entries', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDiaryEntry(entryId: number | string, payload: DiaryEntryPayload) {
+  return request<DiaryEntryResponse>(`/api/diary-entries/${entryId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteDiaryEntry(entryId: number | string) {
+  return request<void>(`/api/diary-entries/${entryId}`, {
     method: 'DELETE',
   });
 }

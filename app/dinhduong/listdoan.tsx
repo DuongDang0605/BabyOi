@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -522,6 +523,22 @@ export default function ListDoAnScreen() {
                 <Text style={styles.headerTitle}>Dinh Dưỡng</Text>
                 <View style={styles.headerActionSpace} />
               </View>
+              <LinearGradient colors={['#FF8FAB', '#FFD166', '#A7E4F5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+                <View style={styles.heroBubbleOne} />
+                <View style={styles.heroBubbleTwo} />
+                <View style={styles.heroIcon}>
+                  <Ionicons name="restaurant" size={28} color="#FFF" />
+                </View>
+                <View style={styles.heroCopy}>
+                  <Text style={styles.heroKicker}>{audienceLabel === 'Mẹ' ? 'Thực đơn cho mẹ' : 'Bữa ngon cho bé'}</Text>
+                  <Text style={styles.heroTitle}>{totalElements || filteredDishes.length} món đang gợi ý</Text>
+                  <Text style={styles.heroSubtitle}>Lọc nhanh theo độ tuổi, mục tiêu và món yêu thích.</Text>
+                </View>
+                <View style={styles.heroChip}>
+                  <Ionicons name="sparkles" size={14} color="#FF8FAB" />
+                  <Text style={styles.heroChipText}>AI gợi ý</Text>
+                </View>
+              </LinearGradient>
               <View style={styles.searchContainer}>
                 <Ionicons name="search" size={20} color="#FF8FAB" />
                 <TextInput
@@ -620,6 +637,16 @@ const styles = StyleSheet.create({
   backButton: { width: 45 },
   headerActionSpace: { width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#FF8FAB' },
+  heroCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 14, borderRadius: 28, padding: 16, overflow: 'hidden', shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
+  heroBubbleOne: { position: 'absolute', right: -28, top: -34, width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(255,255,255,0.24)' },
+  heroBubbleTwo: { position: 'absolute', left: 118, bottom: -46, width: 118, height: 118, borderRadius: 59, backgroundColor: 'rgba(255,255,255,0.17)' },
+  heroIcon: { width: 58, height: 58, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.24)', alignItems: 'center', justifyContent: 'center', marginRight: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+  heroCopy: { flex: 1 },
+  heroKicker: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', opacity: 0.92 },
+  heroTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', marginTop: 2 },
+  heroSubtitle: { color: '#FFF8FA', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 3 },
+  heroChip: { position: 'absolute', right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  heroChipText: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', marginLeft: 5 },
   searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#FFE5EC' },
   searchInput: { flex: 1, marginLeft: 10, fontWeight: '700', color: '#5C7A8A' },
   navSection: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16 },

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
   Modal,
   ScrollView,
@@ -115,7 +116,7 @@ const MAIN_FEATURES = [
   { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
   { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/tiemchung.png'), route: '/lichtiem/listlichtiem' },
   { id: '3', title: 'Dinh dưỡng', icon:require('../../assets/images/doan.png'), route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/coming-soon?feature=Nhật%20ký' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
@@ -127,13 +128,25 @@ const MORE_FEATURES = [
 
 export default function AppHomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
+  const menuAnim = useRef(new Animated.Value(0)).current;
   const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
   const [nearestVaccine, setNearestVaccine] = useState<{ record: VaccineRecordResponse; date: Date } | null>(null);
   const [vaccineReminderError, setVaccineReminderError] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [teachingTip, setTeachingTip] = useState('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
 
-  const toggleMenu = () => setMenuVisible(!menuVisible);
+  const toggleMenu = () => setMenuVisible((visible) => !visible);
+  const closeMenu = () => setMenuVisible(false);
+
+  useEffect(() => {
+    Animated.spring(menuAnim, {
+      toValue: menuVisible ? 1 : 0,
+      useNativeDriver: true,
+      damping: 16,
+      stiffness: 180,
+      mass: 0.7,
+    }).start();
+  }, [menuAnim, menuVisible]);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
@@ -284,13 +297,34 @@ export default function AppHomeScreen() {
         animationType="fade"
         onRequestClose={toggleMenu}
       >
-        <TouchableWithoutFeedback onPress={toggleMenu}>
+        <TouchableWithoutFeedback onPress={closeMenu}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.menuContainer}>
+              <Animated.View
+                style={[
+                  styles.menuContainer,
+                  {
+                    opacity: menuAnim,
+                    transform: [
+                      {
+                        translateY: menuAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-16, 0],
+                        }),
+                      },
+                      {
+                        scale: menuAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.96, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <View style={styles.menuArrow} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/profile/profile'); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); router.push('/profile/profile'); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#E8F9ED' }]}>
                     <Ionicons name="person-outline" size={18} color="#2E7D32" />
                   </View>
@@ -299,7 +333,7 @@ export default function AppHomeScreen() {
 
                 <View style={styles.menuDivider} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/profile/select-profile'); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); router.push('/profile/select-profile'); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#FFF4D6' }]}>
                     <Ionicons name="people-outline" size={18} color="#FF9800" />
                   </View>
@@ -308,7 +342,7 @@ export default function AppHomeScreen() {
 
                 <View style={styles.menuDivider} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/setting/setting'); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); router.push('/setting/setting'); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
                     <Ionicons name="settings-outline" size={18} color="#2196F3" />
                   </View>
@@ -317,13 +351,13 @@ export default function AppHomeScreen() {
 
                 <View style={styles.menuDivider} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); handleLogout(); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); handleLogout(); }}>
                   <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
                     <Ionicons name="log-out-outline" size={18} color="#F44336" />
                   </View>
                   <Text style={[styles.menuText, { color: '#F44336' }]}>Đăng xuất</Text>
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>

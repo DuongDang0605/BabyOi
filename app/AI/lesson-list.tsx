@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -120,6 +121,7 @@ export default function LessonListScreen() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.customHeader}>
@@ -132,7 +134,7 @@ export default function LessonListScreen() {
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        <View style={styles.summaryCard}>
+        <LinearGradient colors={['#FFFFFF', '#FFF5F8', '#E9F8FD']} style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Image source={require('../../assets/images/avt.png')} style={styles.avatar} />
             <View style={{ flex: 1, marginLeft: 15 }}>
@@ -140,7 +142,7 @@ export default function LessonListScreen() {
               <Text style={styles.summaryText}>Ốc đã hoàn thành 2 bài. Mẹ nhớ cập nhật biểu hiện của bé để AI theo dõi sát sao nhé!</Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         <Text style={styles.sectionTitle}>Lịch sử & Hiện tại</Text>
         
@@ -230,12 +232,13 @@ export default function LessonListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25, paddingHorizontal: 20 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
   rightPlaceholder: { width: 45 },
   scrollContent: { paddingHorizontal: 20 },
-  summaryCard: { backgroundColor: '#FFF0F5', padding: 20, borderRadius: 25, marginBottom: 25, borderWidth: 1, borderColor: '#FFB6C1' },
+  summaryCard: { padding: 20, borderRadius: 26, marginBottom: 25, borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 14, elevation: 4 },
   summaryHeader: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#FFF' },
   summaryTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 5 },
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
   timelineContainer: { paddingLeft: 10 },
   emptyText: { textAlign: 'center', color: '#8899AA', marginTop: 24, fontWeight: '700' },
   bottomBar: { position: 'absolute', bottom: 0, width: '100%', padding: 20, backgroundColor: '#FEF9F3', borderTopWidth: 1, borderColor: '#F0F4F8' },
-  aiAssessButton: { flexDirection: 'row', backgroundColor: '#FF8FAB', paddingVertical: 18, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  aiAssessButton: { flexDirection: 'row', backgroundColor: '#FF8FAB', paddingVertical: 18, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 12 },
   aiAssessText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBox: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, elevation: 10 },

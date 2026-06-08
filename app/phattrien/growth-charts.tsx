@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -59,6 +60,7 @@ export default function GrowthChartsScreen() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient colors={['#FEF9F3', '#FFF7EE', '#F1FBFA']} style={styles.screenGlow} />
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -70,7 +72,7 @@ export default function GrowthChartsScreen() {
           <View style={{ width: 45 }} />
         </View>
 
-        <View style={styles.heroCard}>
+        <LinearGradient colors={['#FF8FAB', '#FFD166', '#A7E4F5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <View style={styles.heroBubbleTop} />
           <View style={styles.heroBubbleBottom} />
           <View style={styles.heroIcon}>
@@ -80,7 +82,7 @@ export default function GrowthChartsScreen() {
             <Text style={styles.heroTitle}>Theo dõi thể chất</Text>
             <Text style={styles.heroSubtitle}>Cập nhật chỉ số, xem xu hướng và lịch sử sức khỏe của bé.</Text>
           </View>
-        </View>
+        </LinearGradient>
 
         {loading ? (
           <View style={styles.stateBox}>
@@ -176,12 +178,13 @@ export default function GrowthChartsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF7EE' },
+  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   scrollContent: { padding: 20 },
   customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  heroCard: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#FF8FAB', borderRadius: 28, padding: 18, marginBottom: 20, shadowColor: '#FF8FAB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 5 },
+  heroCard: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderRadius: 28, padding: 18, marginBottom: 20, shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 5 },
   heroBubbleTop: { position: 'absolute', right: -28, top: -30, width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(255,255,255,0.24)' },
   heroBubbleBottom: { position: 'absolute', left: 112, bottom: -46, width: 122, height: 122, borderRadius: 61, backgroundColor: 'rgba(255,209,102,0.32)' },
   heroIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginRight: 14 },

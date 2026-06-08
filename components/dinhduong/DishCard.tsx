@@ -56,6 +56,11 @@ export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, on
           <View style={[styles.tagBadge, { backgroundColor: accentColor }, isRestricted && { backgroundColor: '#ABBEC8' }]}>
             <Text style={styles.tagText}>{item.tag}</Text>
           </View>
+          {!isRestricted && (
+            <View style={styles.sparkleBadge}>
+              <Ionicons name="sparkles" size={12} color="#FFD166" />
+            </View>
+          )}
         </View>
 
         <View style={styles.infoBox}>
@@ -93,13 +98,14 @@ export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, on
 });
 
 const styles = StyleSheet.create({
-  dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 3, overflow: 'hidden', borderWidth: 1, borderColor: '#F4EEF2' },
+  dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 4, overflow: 'hidden', borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 12 },
   imageBox: { height: 105 },
   dishImage: { width: '100%', height: '100%' },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1FBFA' },
   imagePlaceholderText: { color: '#FF8FAB', fontSize: 10, fontWeight: '800', marginTop: 4 },
   tagBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, borderRadius: 8 },
   tagText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
+  sparkleBadge: { position: 'absolute', right: 8, top: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
   infoBox: { padding: 12 },
   dishName: { fontSize: 13, fontWeight: '800', color: '#5C7A8A' },
   dishDesc: { fontSize: 10, color: '#5C7A8A', height: 28, marginTop: 2 },

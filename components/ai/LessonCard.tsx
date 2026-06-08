@@ -36,6 +36,11 @@ export const LessonCard = ({ lesson, isLast, onEditPress, onHistoryPress }: Less
 
       {/* Card part */}
       <View style={[styles.lessonCard, isLocked && styles.lessonCardLocked]}>
+        {!isLocked && (
+          <View style={styles.cardSparkle}>
+            <Ionicons name="sparkles" size={14} color="#FFD166" />
+          </View>
+        )}
         <View style={styles.lessonHeader}>
           <View style={[styles.iconBg, isLocked && { backgroundColor: '#F0F4F8' }]}>
             <Image
@@ -52,18 +57,18 @@ export const LessonCard = ({ lesson, isLast, onEditPress, onHistoryPress }: Less
 
           {/* Status Icon */}
           {lesson.status === 'completed' && <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />}
-          {lesson.status === 'completed_with_note' && <Ionicons name="warning" size={24} color="#FF9800" />}
-          {lesson.status === 'in_progress' && <ActivityIndicator size="small" color="#2196F3" />}
+          {lesson.status === 'completed_with_note' && <Ionicons name="warning" size={24} color="#FFD166" />}
+          {lesson.status === 'in_progress' && <ActivityIndicator size="small" color="#A7E4F5" />}
           {lesson.status === 'locked' && <Ionicons name="lock-closed" size={24} color="#B0BEC5" />}
 
           {/* Action Buttons */}
           {!isLocked && (
             <View style={{ flexDirection: 'row', marginLeft: 10 }}>
               <TouchableOpacity
-                style={[styles.editBtn, { backgroundColor: '#E3F2FD', marginRight: 8 }]}
+                style={[styles.editBtn, styles.historyBtn]}
                 onPress={() => onHistoryPress(lesson)}
               >
-                <Ionicons name="time-outline" size={18} color="#2196F3" />
+                <Ionicons name="time-outline" size={18} color="#5C7A8A" />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.editBtn} onPress={() => onEditPress(lesson)}>
@@ -76,7 +81,7 @@ export const LessonCard = ({ lesson, isLast, onEditPress, onHistoryPress }: Less
         {/* Note Box */}
         {lesson.note ? (
           <View style={styles.noteBox}>
-            <Ionicons name="document-text-outline" size={16} color="#FF9800" style={{ marginRight: 5 }} />
+            <Ionicons name="document-text-outline" size={16} color="#FF8FAB" style={{ marginRight: 5 }} />
             <Text style={styles.noteText}>Ghi chú: {lesson.note}</Text>
           </View>
         ) : null}
@@ -90,18 +95,20 @@ const styles = StyleSheet.create({
   timelineLine: { width: 30, alignItems: 'center', marginRight: 10 },
   dot: { width: 14, height: 14, borderRadius: 7, zIndex: 1 },
   dotCompleted: { backgroundColor: '#4CAF50', borderWidth: 3, borderColor: '#E8F9ED' },
-  dotWarning: { backgroundColor: '#FF9800', borderWidth: 3, borderColor: '#FFF3E0' },
-  dotProgress: { backgroundColor: '#2196F3', borderWidth: 3, borderColor: '#E3F2FD' },
+  dotWarning: { backgroundColor: '#FFD166', borderWidth: 3, borderColor: '#FFF9EC' },
+  dotProgress: { backgroundColor: '#A7E4F5', borderWidth: 3, borderColor: '#E9F8FD' },
   dotLocked: { backgroundColor: '#B0BEC5', borderWidth: 3, borderColor: '#F0F4F8' },
-  line: { flex: 1, width: 2, backgroundColor: '#E0E0E0', marginTop: -5, marginBottom: -15 },
-  lessonCard: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 20, elevation: 2 },
+  line: { flex: 1, width: 2, backgroundColor: '#FFE5EC', marginTop: -5, marginBottom: -15 },
+  lessonCard: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 22, elevation: 3, borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 12 },
   lessonCardLocked: { backgroundColor: '#F9FAFB', elevation: 0, borderWidth: 1, borderColor: '#F0F4F8' },
+  cardSparkle: { position: 'absolute', right: 12, top: 10, width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF9EC', alignItems: 'center', justifyContent: 'center' },
   lessonHeader: { flexDirection: 'row', alignItems: 'center' },
-  iconBg: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#FFF0F5', justifyContent: 'center', alignItems: 'center' },
+  iconBg: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#FFF5F8', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE5EC' },
   lessonIcon: { width: 28, height: 28 },
-  lessonTitle: { fontSize: 15, fontWeight: '800', color: '#333', marginBottom: 3 },
-  lessonTime: { fontSize: 12, color: '#8899AA', fontWeight: '600' },
-  noteBox: { marginTop: 12, padding: 10, backgroundColor: '#FFF3E0', borderRadius: 10, flexDirection: 'row', alignItems: 'flex-start' },
-  noteText: { flex: 1, fontSize: 13, color: '#E65100', lineHeight: 18, fontWeight: '600' },
+  lessonTitle: { fontSize: 15, fontWeight: '800', color: '#334455', marginBottom: 3, paddingRight: 6 },
+  lessonTime: { fontSize: 12, color: '#5C7A8A', fontWeight: '600' },
+  noteBox: { marginTop: 12, padding: 10, backgroundColor: '#FFF8FA', borderRadius: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: '#FFE5EC' },
+  noteText: { flex: 1, fontSize: 13, color: '#5C7A8A', lineHeight: 18, fontWeight: '600' },
   editBtn: { padding: 8, backgroundColor: '#FFF0F5', borderRadius: 12 },
+  historyBtn: { backgroundColor: '#E9F8FD', marginRight: 8 },
 });

@@ -1,4 +1,5 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -31,7 +32,9 @@ export const HandbookCard = ({ post, onCommentPress, onSharePress, onPress }: Ha
       {/* Ảnh cover của bài viết */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: post.image }} style={styles.coverImage} />
+        <LinearGradient colors={['transparent', 'rgba(51,68,85,0.52)']} style={styles.imageShade} />
         <View style={styles.categoryBadge}>
+          <Ionicons name="sparkles" size={12} color="#FF8FAB" />
           <Text style={styles.categoryBadgeText}>{post.category}</Text>
         </View>
       </View>
@@ -77,15 +80,15 @@ export const HandbookCard = ({ post, onCommentPress, onSharePress, onPress }: Ha
 const styles = StyleSheet.create({
   articleCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 24,
     marginBottom: 25,
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
+    borderWidth: 1.5,
+    borderColor: '#FFE5EC',
     shadowColor: '#a7e4f5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 4,
     overflow: 'hidden',
   },
   imageContainer: {
@@ -97,19 +100,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  imageShade: {
+    ...StyleSheet.absoluteFillObject,
+  },
   categoryBadge: {
     position: 'absolute',
     top: 15,
     left: 15,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   categoryBadgeText: {
     color: '#d46b08',
     fontSize: 12,
     fontWeight: 'bold',
+    marginLeft: 5,
   },
   cardContent: {
     padding: 18,
@@ -123,7 +132,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ff9c6e',
+    backgroundColor: '#FF8FAB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -161,7 +170,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1.5,
     borderTopColor: '#f0f4f8',
     paddingVertical: 12,
-    backgroundColor: '#fafbfc',
+    backgroundColor: '#FFF8FA',
   },
   interactionBtn: {
     flexDirection: 'row',
