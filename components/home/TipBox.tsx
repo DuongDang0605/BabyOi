@@ -13,7 +13,7 @@ export const TipBox = ({ tip }: TipBoxProps) => {
       <View style={styles.colorDotBlue} />
       <View style={styles.tipStickerWrap}>
         <Image
-          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }}
+          source={require('../../assets/images/AI_chatBox_transparent.png')}
           style={styles.tipSticker}
         />
       </View>
@@ -59,15 +59,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(123, 220, 242, 0.2)',
   },
   tipStickerWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: '#FFF8E8',
+    width: 58,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  tipSticker: { width: 40, height: 40 },
+  tipSticker: { width: 60, height: 60, resizeMode: 'contain' },
   tipContent: { flex: 1 },
   tipLabel: { fontSize: 12, color: '#FF8FAB', fontWeight: '900', marginBottom: 3 },
   tipText: { fontSize: 13, color: '#5C7A8A', fontWeight: '700', lineHeight: 18 },

@@ -31,7 +31,6 @@ export default function UpdateIndexScreen() {
   const { showNotification } = useNotification();
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
-  const [heartRate, setHeartRate] = useState('');
   const [recordDate, setRecordDate] = useState(toDisplayDate(todayIsoDate()));
   const [saving, setSaving] = useState(false);
 
@@ -47,7 +46,6 @@ export default function UpdateIndexScreen() {
       profileId: profile.id,
       height: parseNumber(height),
       weight: parseNumber(weight),
-      heartRate: parseNumber(heartRate),
       recordDate: isoRecordDate || '',
     };
 
@@ -55,7 +53,7 @@ export default function UpdateIndexScreen() {
       showNotification({ type: 'error', title: 'Ngày không hợp lệ', message: 'Ngày ghi nhận cần theo định dạng DD/MM/YYYY.' });
       return;
     }
-    if (!payload.height && !payload.weight && !payload.heartRate) {
+    if (!payload.height && !payload.weight) {
       showNotification({ type: 'error', title: 'Thiếu chỉ số', message: 'Hãy nhập ít nhất một chỉ số sức khỏe.' });
       return;
     }
@@ -138,13 +136,6 @@ export default function UpdateIndexScreen() {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nhịp tim (lần/phút)</Text>
-              <View style={[styles.inputWrapper, styles.heartInput]}>
-                <TextInput style={styles.input} value={heartRate} onChangeText={setHeartRate} keyboardType="numeric" placeholder="Ví dụ: 110" />
-                <Text style={styles.unitText}>(bpm)</Text>
-              </View>
-            </View>
           </View>
 
           <TouchableOpacity
@@ -182,7 +173,6 @@ const styles = StyleSheet.create({
   dateInput: { borderColor: '#FFE5EC', backgroundColor: '#FFF8FA' },
   heightInput: { borderColor: '#DDF5FB', backgroundColor: '#F6FDFF' },
   weightInput: { borderColor: '#DFF5E6', backgroundColor: '#F6FFF8' },
-  heartInput: { borderColor: '#DFF5E6', backgroundColor: '#F6FFF8' },
   input: { flex: 1, fontSize: 18, fontWeight: '800', color: '#333' },
   unitText: { color: '#999', fontWeight: '700', fontSize: 14 },
   saveButton: { backgroundColor: '#98D8AA', height: 60, borderRadius: 30, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 40, elevation: 5, shadowColor: '#98D8AA', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6 },

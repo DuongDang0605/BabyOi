@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface AiPlannerCardProps {
   onPress: () => void;
@@ -17,7 +16,7 @@ export const AiPlannerCard = ({ onPress }: AiPlannerCardProps) => {
         <Text style={styles.aiSub}>Tự động thiết kế thực đơn khoa học cho 7 ngày</Text>
       </View>
       <View style={styles.aiIconBg}>
-        <Ionicons name="sparkles" size={28} color="#FFF" />
+        <Image source={require('../../assets/images/AI_food_transparent.png')} style={styles.aiIcon} />
       </View>
     </TouchableOpacity>
   );
@@ -29,7 +28,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 25,
-    padding: 20,
+    paddingVertical: 18,
+    paddingLeft: 20,
+    paddingRight: 14,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 8
@@ -47,11 +48,10 @@ const styles = StyleSheet.create({
   aiTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
   aiSub: { color: '#FFF', fontSize: 11, fontWeight: '500', opacity: 0.9, marginTop: 2 },
   aiIconBg: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 15,
+    width: 76,
+    height: 76,
     justifyContent: 'center',
     alignItems: 'center'
   },
+  aiIcon: { width: 78, height: 78, resizeMode: 'contain' },
 });

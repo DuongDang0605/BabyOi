@@ -19,7 +19,7 @@ export default function ChatBoxAIScreen() {
           <Ionicons name="arrow-back" size={28} color="#ff8fab" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AI Trợ Lý</Text>
-        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.headerSticker} />
+        <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.headerSticker} />
       </View>
 
       {/* 1. Chat Area */}
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
   headerTitle: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5, zIndex: -1 },
-  headerSticker: { width: 40, height: 40 },
+  headerSticker: { width: 52, height: 52, resizeMode: 'contain' },
   chatArea: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
   inputArea: {
     flexDirection: 'row',

@@ -19,6 +19,10 @@ export const ChatMessage = ({
   onActionPress
 }: ChatMessageProps) => {
   if (isAi) {
+    const avatarSource = avatar
+      ? { uri: avatar }
+      : require('../../assets/images/AI_chatBox_transparent.png');
+
     // Process text to highlight parts if needed (Simplified for now, assuming highlightText is a single string)
     const renderText = () => {
       if (!highlightText) return <Text style={styles.text_AI}>{text}</Text>;
@@ -38,7 +42,7 @@ export const ChatMessage = ({
 
     return (
       <View style={styles.messageWrapper_AI}>
-        <Image source={{ uri: avatar || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.aiAvatar} />
+        <Image source={avatarSource} style={styles.aiAvatar} />
         <View style={styles.bubble_AI}>
           {renderText()}
 
@@ -72,11 +76,10 @@ const styles = StyleSheet.create({
     paddingRight: 50,
   },
   aiAvatar: {
-    width: 38,
-    height: 38,
+    width: 46,
+    height: 46,
     marginRight: 10,
-    borderRadius: 19,
-    backgroundColor: '#ffffff',
+    resizeMode: 'contain',
   },
   bubble_AI: {
     backgroundColor: '#ffffff',

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -336,13 +337,26 @@ export default function AddVaccineScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+      <View pointerEvents="none" style={styles.backgroundAccentTop} />
+      <View pointerEvents="none" style={styles.backgroundAccentMint} />
+      <View pointerEvents="none" style={styles.backgroundSparkle}>
+        <Ionicons name="sparkles" size={22} color="#FFD36E" />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea} keyboardShouldPersistTaps="handled">
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+            <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{isConfirmMode ? 'Xác nhận đã tiêm' : 'Thêm Mũi Tiêm'}</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerSparkle}>✦</Text>
+            <Text style={styles.headerTitle}>{isConfirmMode ? 'Xác nhận đã tiêm' : 'Thêm Mũi Tiêm'}</Text>
+            <Text style={styles.headerSubtitle}>{isConfirmMode ? 'Hoàn tất thông tin mũi tiêm của bé' : 'Lưu lịch và ghi chú chăm sóc bé'}</Text>
+          </View>
+          <View style={styles.headerGhostButton}>
+            <Ionicons name={isConfirmMode ? 'checkmark-circle' : 'medical'} size={21} color={isConfirmMode ? '#5ABF7A' : '#FF8FAB'} />
+          </View>
         </View>
 
         <View style={styles.inputGroup}>
@@ -543,7 +557,10 @@ export default function AddVaccineScreen() {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>💖 Lưu vào Sổ Tiêm</Text>
+          <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButtonGradient}>
+            <Ionicons name="heart" size={21} color="#FFFFFF" />
+            <Text style={styles.saveButtonText}>Lưu vào Sổ Tiêm</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -551,22 +568,120 @@ export default function AddVaccineScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   scrollArea: { padding: 20 },
-  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 30 },
-  backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
-  headerTitle: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5, zIndex: -1 },
-  inputGroup: { marginBottom: 25 },
-  label: { fontSize: 16, fontWeight: '700', color: '#5c7a8a', marginBottom: 10, marginLeft: 5 },
+  backgroundAccentTop: {
+    position: 'absolute',
+    top: 58,
+    left: -42,
+    width: 154,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 182, 193, 0.18)',
+    transform: [{ rotate: '-18deg' }],
+  },
+  backgroundAccentMint: {
+    position: 'absolute',
+    top: 498,
+    right: -48,
+    width: 150,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(184, 239, 207, 0.24)',
+    transform: [{ rotate: '18deg' }],
+  },
+  backgroundSparkle: {
+    position: 'absolute',
+    top: 118,
+    left: 32,
+    opacity: 0.78,
+    transform: [{ rotate: '-12deg' }],
+  },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 42,
+    marginBottom: 24,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  headerCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerSparkle: {
+    position: 'absolute',
+    left: '19%',
+    top: 0,
+    color: '#FFD8E5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  headerTitle: {
+    textAlign: 'center',
+    fontSize: 23,
+    fontWeight: '900',
+    color: '#FF8FAB',
+  },
+  headerSubtitle: {
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  headerGhostButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  inputGroup: { marginBottom: 23 },
+  label: { fontSize: 15, fontWeight: '900', color: '#5C7A8A', marginBottom: 10, marginLeft: 5 },
   labelSticker: { fontSize: 18 },
-  inputRounded: { backgroundColor: '#ffffff', paddingHorizontal: 20, paddingVertical: 15, borderRadius: 25, fontSize: 16, color: '#333333', borderWidth: 2, borderColor: '#f0f4f8', elevation: 3 },
+  inputRounded: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+    borderRadius: 22,
+    fontSize: 15,
+    color: '#334455',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 3,
+    fontWeight: '700',
+  },
   dateInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     elevation: 3,
     paddingRight: 10,
   },
@@ -574,8 +689,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 15,
-    fontSize: 16,
-    color: '#333333',
+    fontSize: 15,
+    color: '#334455',
+    fontWeight: '700',
   },
   dateIconButton: {
     paddingHorizontal: 10,
@@ -590,28 +706,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dropdownWrapper: { zIndex: 10 },
-  inputActive: { borderBottomLeftRadius: 5, borderBottomRightRadius: 5, borderColor: '#a7e4f5' },
-  dropdownBox: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#a7e4f5', borderTopWidth: 0, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden', elevation: 4 },
-  dropdownItem: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f0f4f8' },
-  dropdownText: { fontSize: 15, color: '#333333', marginBottom: 4 },
+  inputActive: { borderBottomLeftRadius: 8, borderBottomRightRadius: 8, borderColor: '#A7E4F5' },
+  dropdownBox: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#A7E4F5', borderTopWidth: 0, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden', elevation: 4 },
+  dropdownItem: { paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#F0F4F8' },
+  dropdownText: { fontSize: 15, color: '#334455', marginBottom: 4 },
   dropdownSubtext: { fontSize: 13, color: '#8899aa', fontStyle: 'italic' },
   lockedVaccineBox: {
-    backgroundColor: '#fffaf3',
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#ffd59e',
-    paddingHorizontal: 20,
+    backgroundColor: '#FFF8E8',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#FFE6BA',
+    paddingHorizontal: 18,
     paddingVertical: 15,
   },
   lockedVaccineText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#5c7a8a',
+    color: '#5C7A8A',
   },
   locationDropdownBox: {
     backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#a7e4f5',
+    borderWidth: 1,
+    borderColor: '#A7E4F5',
     borderTopWidth: 0,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -622,34 +738,49 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f4f8',
+    borderBottomColor: '#F0F4F8',
   },
   locationDropdownText: {
     fontSize: 15,
-    color: '#333333',
+    color: '#334455',
   },
   confirmStatusBox: {
-    backgroundColor: '#e7f8ee',
-    borderRadius: 25,
-    paddingHorizontal: 20,
+    backgroundColor: '#E8F9ED',
+    borderRadius: 22,
+    paddingHorizontal: 18,
     paddingVertical: 15,
-    borderWidth: 2,
-    borderColor: '#a7e4b8',
+    borderWidth: 1,
+    borderColor: '#D7F5E3',
   },
   confirmStatusText: {
     fontSize: 16,
     fontWeight: '800',
     color: '#2e7d32',
   },
-  textBold: { fontWeight: 'bold', color: '#ff8fab' },
+  textBold: { fontWeight: '900', color: '#FF8FAB' },
   textArea: { height: 100, textAlignVertical: 'top', borderRadius: 20 },
   pillContainer: { flexDirection: 'row', justifyContent: 'space-between' },
-  pillButton: { flex: 1, paddingVertical: 14, borderRadius: 25, alignItems: 'center', borderWidth: 2 },
-  pillActive: { backgroundColor: '#c1f0d0', borderColor: '#a3d9b1', marginRight: 10 },
-  pillActiveText: { color: '#2e7d32', fontWeight: 'bold', fontSize: 15 },
-  pillInactive: { backgroundColor: '#ffffff', borderColor: '#f0f4f8', marginLeft: 10 },
-  pillInactiveText: { color: '#a0aab2', fontWeight: '600', fontSize: 15 },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.9)' },
-  saveButton: { backgroundColor: '#ff8fab', paddingVertical: 16, borderRadius: 30, alignItems: 'center', elevation: 5 },
-  saveButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  pillButton: { flex: 1, paddingVertical: 14, borderRadius: 22, alignItems: 'center', borderWidth: 1 },
+  pillActive: { backgroundColor: '#E8F9ED', borderColor: '#B8EFCF', marginRight: 10 },
+  pillActiveText: { color: '#2E7D32', fontWeight: '900', fontSize: 15 },
+  pillInactive: { backgroundColor: '#FFFFFF', borderColor: '#FFE5EC', marginLeft: 10 },
+  pillInactiveText: { color: '#8A96A3', fontWeight: '800', fontSize: 15 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.95)' },
+  saveButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#FF8FAB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  saveButtonGradient: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '900', marginLeft: 8 },
 });

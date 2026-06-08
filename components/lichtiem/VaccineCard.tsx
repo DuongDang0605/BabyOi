@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -20,122 +22,293 @@ interface VaccineCardProps {
   onCancelPress?: (vaccine: Vaccine) => void;
 }
 
+const getDoneLabel = (status: Vaccine['status']) => status === 'oral_completed' ? 'Đã uống' : 'Đã tiêm';
+
 export const VaccineCard = ({ vaccine, onConfirmPress, onCancelPress }: VaccineCardProps) => {
   const isUpcoming = vaccine.status === 'upcoming';
 
-  const getStatusBadge = () => {
-    if (vaccine.status === 'upcoming') {
-      return (
-        <View style={styles.statusBadge_Upcoming}>
-          <Text style={styles.statusText_Upcoming}>Sắp tới</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.statusBadge_Done}>
-        <Text style={styles.statusText_Done}>
-          {vaccine.status === 'oral_completed' ? 'Đã uống' : 'Đã tiêm'}
-        </Text>
-      </View>
-    );
-  };
-
   return (
     <View style={[styles.vaccineCard, isUpcoming && styles.upcomingCard]}>
+      <View style={styles.cardGlowPink} />
+      <View style={styles.cardGlowMint} />
+
       <View style={styles.cardHeader}>
-        <Text style={styles.vaccineName}>{vaccine.name}</Text>
-        {getStatusBadge()}
+        <View style={[styles.iconStage, isUpcoming ? styles.upcomingIconStage : styles.doneIconStage]}>
+          <Ionicons
+            name={isUpcoming ? 'calendar-outline' : 'shield-checkmark'}
+            size={24}
+            color={isUpcoming ? '#FF9C6E' : '#5ABF7A'}
+          />
+        </View>
+
+        <View style={styles.titleBlock}>
+          <Text style={styles.vaccineName}>{vaccine.name}</Text>
+          <Text style={styles.vaccineDesc} numberOfLines={2}>{vaccine.desc}</Text>
+        </View>
+
+        <LinearGradient
+          colors={isUpcoming ? ['#FFF1C9', '#FFE6EE'] : ['#E8F9ED', '#EAFBFF']}
+          style={styles.statusBadge}
+        >
+          <Ionicons
+            name={isUpcoming ? 'time-outline' : 'checkmark-circle'}
+            size={13}
+            color={isUpcoming ? '#D46B08' : '#2E7D32'}
+          />
+          <Text style={[styles.statusText, isUpcoming ? styles.statusTextUpcoming : styles.statusTextDone]}>
+            {isUpcoming ? 'Sắp tới' : getDoneLabel(vaccine.status)}
+          </Text>
+        </LinearGradient>
       </View>
 
-      <Text style={styles.vaccineDesc}>{vaccine.desc}</Text>
-
-      {!isUpcoming && (
+      {!isUpcoming ? (
         <View style={styles.detailBox}>
-          {vaccine.location && (
+          {vaccine.location ? (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>📍 Nơi tiêm:</Text>
+              <Ionicons name="location-outline" size={16} color="#FF8FAB" />
+              <Text style={styles.detailLabel}>Nơi tiêm</Text>
               <Text style={styles.detailValue}>{vaccine.location}</Text>
             </View>
-          )}
-          {vaccine.cost && (
+          ) : null}
+          {vaccine.cost ? (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>💰 Chi phí:</Text>
+              <Ionicons name="cash-outline" size={16} color="#5EC9E8" />
+              <Text style={styles.detailLabel}>Chi phí</Text>
               <Text style={styles.detailValue}>{vaccine.cost}</Text>
             </View>
-          )}
-          {vaccine.note && (
+          ) : null}
+          {vaccine.note ? (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>📝 Ghi chú:</Text>
+              <Ionicons name="document-text-outline" size={16} color="#B55CCB" />
+              <Text style={styles.detailLabel}>Ghi chú</Text>
               <Text style={styles.detailValue}>{vaccine.note}</Text>
             </View>
-          )}
+          ) : null}
         </View>
-      )}
+      ) : null}
 
       <View style={styles.dateRow}>
-        <Text style={styles.dateIcon}>{isUpcoming ? '📅' : '💖'}</Text>
+        <View style={[styles.dateIconBubble, isUpcoming ? styles.dateUpcomingBubble : styles.dateDoneBubble]}>
+          <Ionicons
+            name={isUpcoming ? 'calendar-clear-outline' : 'heart'}
+            size={15}
+            color={isUpcoming ? '#FF9C6E' : '#FF8FAB'}
+          />
+        </View>
         <Text style={styles.dateText}>
           {isUpcoming ? `Dự kiến: ${vaccine.date}` : `Hoàn thành ngày: ${vaccine.date}`}
         </Text>
       </View>
 
-      {isUpcoming && (
+      {isUpcoming ? (
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={styles.confirmButton}
+            style={[styles.actionButton, styles.confirmButton]}
             onPress={() => onConfirmPress?.(vaccine)}
+            activeOpacity={0.86}
           >
-            <Text style={styles.confirmButtonText}>✅ Xác nhận đã tiêm</Text>
+            <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Xác nhận đã tiêm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.actionButton, styles.cancelButton]}
             onPress={() => onCancelPress?.(vaccine)}
+            activeOpacity={0.86}
           >
-            <Text style={styles.cancelButtonText}>❌ Hủy lịch</Text>
+            <Ionicons name="close-circle-outline" size={17} color="#F05F78" />
+            <Text style={styles.cancelButtonText}>Hủy lịch</Text>
           </TouchableOpacity>
         </View>
-      )}
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   vaccineCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 18,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 24,
+    padding: 14,
     marginBottom: 18,
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.17,
+    shadowRadius: 18,
+    elevation: 4,
+    overflow: 'hidden',
   },
   upcomingCard: {
-    borderColor: '#ffe08a',
-    backgroundColor: '#fffcf5',
+    borderColor: '#FFE6BA',
+    backgroundColor: 'rgba(255,252,245,0.94)',
+  },
+  cardGlowPink: {
+    position: 'absolute',
+    right: -24,
+    top: -24,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(255, 143, 171, 0.1)',
+  },
+  cardGlowMint: {
+    position: 'absolute',
+    left: -28,
+    bottom: -30,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: 'rgba(184, 239, 207, 0.14)',
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginBottom: 13,
   },
-  vaccineName: { fontSize: 16, fontWeight: '800', color: '#333333', flex: 1 },
-  statusBadge_Upcoming: { backgroundColor: '#fff0cb', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 15 },
-  statusText_Upcoming: { color: '#d46b08', fontSize: 12, fontWeight: 'bold' },
-  statusBadge_Done: { backgroundColor: '#eafaf1', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 15 },
-  statusText_Done: { color: '#2e7d32', fontSize: 12, fontWeight: 'bold' },
-  vaccineDesc: { fontSize: 14, color: '#666666', marginBottom: 15, lineHeight: 22 },
-  detailBox: { backgroundColor: '#f8fdfa', padding: 12, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#eafaf1' },
-  detailRow: { flexDirection: 'row', marginBottom: 6 },
-  detailLabel: { fontSize: 13, color: '#7a8c99', width: 75, fontWeight: '600' },
-  detailValue: { fontSize: 13, color: '#334455', flex: 1, fontWeight: '700' },
-  dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef9f3', padding: 12, borderRadius: 12 },
-  dateIcon: { marginRight: 8, fontSize: 14 },
-  dateText: { fontSize: 14, color: '#5c7a8a', fontWeight: '600' },
-  actionRow: { marginTop: 15, gap: 10 },
-  confirmButton: { backgroundColor: '#8fd3a7', paddingVertical: 12, borderRadius: 15, alignItems: 'center' },
-  confirmButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
-  cancelButton: { backgroundColor: '#ff8fab', paddingVertical: 12, borderRadius: 15, alignItems: 'center' },
-  cancelButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
+  iconStage: {
+    width: 46,
+    height: 46,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  upcomingIconStage: {
+    backgroundColor: '#FFF1C9',
+  },
+  doneIconStage: {
+    backgroundColor: '#E8F9ED',
+  },
+  titleBlock: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  vaccineName: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#334455',
+    lineHeight: 21,
+  },
+  vaccineDesc: {
+    fontSize: 13,
+    color: '#6F7D8A',
+    marginTop: 4,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 16,
+    maxWidth: 100,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '900',
+    marginLeft: 4,
+  },
+  statusTextUpcoming: {
+    color: '#D46B08',
+  },
+  statusTextDone: {
+    color: '#2E7D32',
+  },
+  detailBox: {
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    padding: 12,
+    borderRadius: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#7A8C99',
+    width: 62,
+    fontWeight: '900',
+    marginLeft: 7,
+  },
+  detailValue: {
+    fontSize: 12,
+    color: '#334455',
+    flex: 1,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(254,249,243,0.82)',
+    padding: 10,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#FFF0F4',
+  },
+  dateIconBubble: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  dateUpcomingBubble: {
+    backgroundColor: '#FFF1C9',
+  },
+  dateDoneBubble: {
+    backgroundColor: '#FFE5EC',
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#5C7A8A',
+    fontWeight: '900',
+  },
+  actionRow: {
+    marginTop: 13,
+    gap: 9,
+  },
+  actionButton: {
+    minHeight: 44,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  confirmButton: {
+    backgroundColor: '#5ABF7A',
+    shadowColor: '#5ABF7A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  cancelButton: {
+    backgroundColor: '#FFF1F4',
+    borderWidth: 1,
+    borderColor: '#FFD8E5',
+  },
+  cancelButtonText: {
+    color: '#F05F78',
+    fontWeight: '900',
+    fontSize: 14,
+    marginLeft: 6,
+  },
 });

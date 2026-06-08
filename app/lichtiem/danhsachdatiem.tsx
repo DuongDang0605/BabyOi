@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { VaccineCard } from '../../components/lichtiem/VaccineCard';
 import { getVaccineRecordsPageByProfile, type VaccineRecordResponse } from '../../lib/api';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -102,45 +104,36 @@ export default function FinishedVaccinesScreen() {
   };
 
   const renderVaccine = ({ item: vaccine }: { item: VaccineRecordResponse }) => (
-    <View style={styles.vaccineCard}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.vaccineName}>{vaccine.vaccineTypeName}</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>Đã tiêm</Text>
-        </View>
-      </View>
-
-      <Text style={styles.vaccineDesc}>{vaccine.vaccineTypeDescription || 'Phòng bệnh theo chỉ định của bác sĩ.'}</Text>
-
-      <View style={styles.detailBox}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>📍 Nơi tiêm:</Text>
-          <Text style={styles.detailValue}>{vaccine.location || 'Chưa cập nhật'}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>💰 Chi phí:</Text>
-          <Text style={styles.detailValue}>{vaccine.price ? `${vaccine.price.toLocaleString()}đ` : 'Miễn phí'}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>📝 Ghi chú:</Text>
-          <Text style={styles.detailValue}>{vaccine.note || 'Không có ghi chú'}</Text>
-        </View>
-      </View>
-
-      <View style={styles.dateRow}>
-        <Text style={styles.dateIcon}>✅</Text>
-        <Text style={styles.dateText}>Hoàn thành ngày: {vaccine.injectionDate}</Text>
-      </View>
-    </View>
+    <VaccineCard
+      vaccine={{
+        id: String(vaccine.id),
+        name: vaccine.vaccineTypeName,
+        desc: vaccine.vaccineTypeDescription || 'Phòng bệnh theo chỉ định của bác sĩ.',
+        date: vaccine.injectionDate,
+        status: 'completed',
+        location: vaccine.location || 'Chưa cập nhật',
+        cost: vaccine.price ? `${vaccine.price.toLocaleString()}đ` : 'Miễn phí',
+        note: vaccine.note || 'Không có ghi chú',
+      }}
+    />
   );
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
+    return (
+      <View style={styles.loadingContainer}>
+        <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+        <ActivityIndicator color="#ff8fab" />
+        <Text style={styles.loadingText}>Đang tải mũi đã tiêm...</Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+      <View pointerEvents="none" style={styles.backgroundAccentTop} />
+      <View pointerEvents="none" style={styles.backgroundAccentMint} />
 
       <FlatList
         data={finishedVaccines}
@@ -154,20 +147,33 @@ export default function FinishedVaccinesScreen() {
           <>
             <View style={styles.customHeader}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+                <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Đã Hoàn Thành</Text>
-              <View style={styles.rightPlaceholder} />
+              <View style={styles.headerCopy}>
+                <Text style={styles.headerSparkle}>✦</Text>
+                <Text style={styles.headerTitle}>Đã Hoàn Thành</Text>
+                <Text style={styles.headerSubtitle}>Những mũi bảo vệ bé đã nhận</Text>
+              </View>
+              <View style={styles.headerGhostButton}>
+                <Ionicons name="shield-checkmark" size={21} color="#5ABF7A" />
+              </View>
             </View>
 
-            <View style={styles.heroSection}>
+            <LinearGradient colors={['#FFFFFF', '#F0FFF6', '#EFFBFF']} style={styles.heroSection}>
+              <View style={styles.heroSparkle} />
+              <Ionicons name="ribbon" size={26} color="#5ABF7A" />
               <Text style={styles.heroText}>Bé đã dũng cảm hoàn thành</Text>
               <Text style={styles.heroNumber}>{totalElements} mũi tiêm</Text>
               <Text style={styles.heroSubtext}>Ba mẹ thật tuyệt vời!</Text>
-            </View>
+            </LinearGradient>
           </>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>Không có mũi tiêm đã hoàn thành.</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <Ionicons name="shield-outline" size={28} color="#A7E4F5" />
+            <Text style={styles.emptyText}>Không có mũi tiêm đã hoàn thành.</Text>
+          </View>
+        }
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footerLoading}>
@@ -183,29 +189,151 @@ export default function FinishedVaccinesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF9F3',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#5C7A8A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
+  backgroundAccentTop: {
+    position: 'absolute',
+    top: 58,
+    left: -40,
+    width: 150,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 182, 193, 0.18)',
+    transform: [{ rotate: '-18deg' }],
+  },
+  backgroundAccentMint: {
+    position: 'absolute',
+    top: 440,
+    right: -48,
+    width: 144,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(184, 239, 207, 0.24)',
+    transform: [{ rotate: '18deg' }],
+  },
   listContent: { padding: 20 },
-  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
-  backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  rightPlaceholder: { width: 45 },
-  heroSection: { alignItems: 'center', marginBottom: 25, paddingVertical: 15 },
-  heroText: { fontSize: 15, color: '#5c7a8a', fontWeight: '600', marginBottom: 4 },
-  heroNumber: { fontSize: 28, fontWeight: '900', color: '#a3d9b1', marginBottom: 4 },
-  heroSubtext: { fontSize: 14, color: '#ff8fab', fontWeight: 'bold' },
-  vaccineCard: { backgroundColor: '#ffffff', borderRadius: 20, padding: 18, marginBottom: 20, borderWidth: 2, borderColor: '#eafaf1', elevation: 3 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  vaccineName: { fontSize: 16, fontWeight: '900', color: '#334455', flex: 1, marginRight: 10 },
-  statusBadge: { backgroundColor: '#eafaf1', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  statusText: { color: '#2e7d32', fontSize: 12, fontWeight: 'bold' },
-  vaccineDesc: { fontSize: 14, color: '#666666', marginBottom: 15, lineHeight: 22 },
-  detailBox: { backgroundColor: '#f8fdfa', padding: 14, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#eafaf1' },
-  detailRow: { flexDirection: 'row', marginBottom: 8 },
-  detailLabel: { fontSize: 13, color: '#7a8c99', width: 90, fontWeight: '700' },
-  detailValue: { fontSize: 13, color: '#334455', flex: 1, fontWeight: '600', lineHeight: 20 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef9f3', padding: 12, borderRadius: 12 },
-  dateIcon: { marginRight: 8, fontSize: 15 },
-  dateText: { fontSize: 14, color: '#5c7a8a', fontWeight: '800' },
-  emptyText: { textAlign: 'center', color: '#8899aa', marginTop: 20 },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 42,
+    marginBottom: 18,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  headerCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerSparkle: {
+    position: 'absolute',
+    left: '19%',
+    top: 0,
+    color: '#FFD8E5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  headerTitle: {
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FF8FAB',
+  },
+  headerSubtitle: {
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  headerGhostButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#D7F5E3',
+    overflow: 'hidden',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  heroSparkle: {
+    position: 'absolute',
+    top: 14,
+    right: 24,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFE9A8',
+  },
+  heroText: {
+    fontSize: 14,
+    color: '#5C7A8A',
+    fontWeight: '800',
+    marginTop: 7,
+  },
+  heroNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#5ABF7A',
+    marginTop: 3,
+  },
+  heroSubtext: {
+    fontSize: 13,
+    color: '#FF8FAB',
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: 34,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(255,255,255,0.76)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#5C7A8A',
+    marginTop: 9,
+    fontWeight: '800',
+  },
   footerLoading: { paddingVertical: 18 },
 });

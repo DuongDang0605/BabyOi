@@ -58,7 +58,7 @@ export default function EduCoachingScreen() {
 
             <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.introBox}>
-                    <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' }} style={styles.introIcon} />
+                    <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.introIcon} />
                     <View style={{ flex: 1 }}>
                         <Text style={styles.introTitle}>Cổng kiểm tra: 5.5 Tháng</Text>
                         <Text style={styles.introText}>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 20, fontWeight: '900', color: '#FF8FAB' },
     scrollContent: { paddingHorizontal: 20 },
     introBox: { flexDirection: 'row', backgroundColor: '#FFF', padding: 20, borderRadius: 25, marginBottom: 20, borderWidth: 1, borderColor: '#F0F4F8', elevation: 3 },
-    introIcon: { width: 50, height: 50, marginRight: 15 },
+    introIcon: { width: 64, height: 64, marginRight: 15, resizeMode: 'contain' },
     introTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB', marginBottom: 5 },
     introText: { fontSize: 14, color: '#5C7A8A', lineHeight: 22, fontWeight: '500' },
     questionCard: { backgroundColor: '#FFF', borderRadius: 25, padding: 20, elevation: 4, marginBottom: 25 },

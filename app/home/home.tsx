@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -234,11 +236,21 @@ export default function AppHomeScreen() {
   return (
     <View style={styles.mainContainer}>
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
       <View pointerEvents="none" style={styles.backgroundAccentTop} />
       <View pointerEvents="none" style={styles.backgroundAccentMid} />
       <View pointerEvents="none" style={styles.backgroundAccentMint} />
       <View pointerEvents="none" style={styles.backgroundAccentYellow} />
       <View pointerEvents="none" style={styles.backgroundStripe} />
+      <View pointerEvents="none" style={styles.backgroundHeart}>
+        <Ionicons name="heart" size={30} color="#FF9DBA" />
+      </View>
+      <View pointerEvents="none" style={styles.backgroundSparkleOne}>
+        <Ionicons name="sparkles" size={22} color="#FFD36E" />
+      </View>
+      <View pointerEvents="none" style={styles.backgroundSparkleTwo}>
+        <Ionicons name="sparkles-outline" size={20} color="#83DDF1" />
+      </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
 
@@ -258,6 +270,26 @@ export default function AppHomeScreen() {
           subtitle={reminderSubtitle}
           badgeText={reminderBadgeText}
         />
+
+        <LinearGradient
+          colors={['#FFFFFF', '#FFF8FA', '#EFFBFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.memorySparkleCard}
+        >
+          <View style={styles.memorySparkleDotPink} />
+          <View style={styles.memorySparkleDotYellow} />
+          <View style={styles.memorySparkleIcon}>
+            <Ionicons name="sparkles" size={20} color="#FF8FAB" />
+          </View>
+          <View style={styles.memorySparkleCopy}>
+            <Text style={styles.memorySparkleTitle}>Khoảnh khắc hôm nay</Text>
+            <Text style={styles.memorySparkleText}>Thêm chút bling bling để mẹ lưu lại ngày đẹp của bé.</Text>
+          </View>
+          <View style={styles.memorySparkleHeart}>
+            <Ionicons name="heart" size={23} color="#FF9DBA" />
+          </View>
+        </LinearGradient>
 
         {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
         <FeatureGrid
@@ -284,8 +316,8 @@ export default function AppHomeScreen() {
       {/* --- Floating AI Button --- */}
       <View pointerEvents="none" style={styles.aiButtonHalo} />
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
-        <View style={styles.aiSparkleContainer}>
-          <Ionicons name="sparkles" size={20} color="#ff8fab" />
+        <View style={styles.aiImageContainer}>
+          <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.aiButtonImage} />
         </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
@@ -390,6 +422,7 @@ function getProfileSubtitle(profile: ProfileResponse) {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   scrollContainer: { paddingHorizontal: 20 },
   backgroundAccentTop: {
     position: 'absolute',
@@ -438,6 +471,94 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 2,
     backgroundColor: 'rgba(255, 225, 234, 0.9)',
+  },
+  backgroundHeart: {
+    position: 'absolute',
+    top: 176,
+    right: 36,
+    opacity: 0.38,
+    transform: [{ rotate: '14deg' }],
+  },
+  backgroundSparkleOne: {
+    position: 'absolute',
+    top: 118,
+    left: 32,
+    opacity: 0.78,
+    transform: [{ rotate: '-10deg' }],
+  },
+  backgroundSparkleTwo: {
+    position: 'absolute',
+    top: 468,
+    right: 30,
+    opacity: 0.7,
+    transform: [{ rotate: '18deg' }],
+  },
+  memorySparkleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -8,
+    marginBottom: 24,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    overflow: 'hidden',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  memorySparkleDotPink: {
+    position: 'absolute',
+    top: -18,
+    right: 54,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(255, 143, 171, 0.16)',
+  },
+  memorySparkleDotYellow: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#FFE9A8',
+  },
+  memorySparkleIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: '#FFE5EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  memorySparkleCopy: { flex: 1, paddingRight: 12 },
+  memorySparkleTitle: {
+    color: '#334455',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  memorySparkleText: {
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  memorySparkleHeart: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFF8E7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // MODAL STYLES
@@ -495,8 +616,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
-  aiButtonHalo: { position: 'absolute', bottom: 24, right: 14, width: 120, height: 72, borderRadius: 36, backgroundColor: 'rgba(255, 143, 171, 0.22)' },
-  floatingAiButton: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#FF6F9B', paddingHorizontal: 22, height: 62, borderRadius: 31, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowColor: '#FF6F9B', shadowOpacity: 0.55, shadowRadius: 16, borderWidth: 2, borderColor: '#FFFFFF' },
-  aiSparkleContainer: { width: 34, height: 34, backgroundColor: '#FFF', borderRadius: 17, marginRight: 9, alignItems: 'center', justifyContent: 'center' },
+  aiButtonHalo: { position: 'absolute', bottom: 22, right: 12, width: 138, height: 78, borderRadius: 39, backgroundColor: 'rgba(255, 143, 171, 0.22)' },
+  floatingAiButton: { position: 'absolute', bottom: 28, right: 18, backgroundColor: '#FF6F9B', paddingLeft: 10, paddingRight: 22, height: 68, borderRadius: 34, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowColor: '#FF6F9B', shadowOpacity: 0.55, shadowRadius: 16, borderWidth: 2, borderColor: '#FFFFFF' },
+  aiImageContainer: { width: 58, height: 58, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
+  aiButtonImage: { width: 64, height: 64, resizeMode: 'contain' },
   aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 17 },
 });

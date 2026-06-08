@@ -19,7 +19,18 @@ import {
   View,
 } from 'react-native';
 
-import { FoodIngredientResponse, FoodResponse, getFoodDetail, resolveAssetUrl, resolveOptimizedAssetUrl } from '../../lib/api';
+import {
+  FoodIngredientResponse,
+  FoodResponse,
+  addFavoriteFood,
+  deleteFavoriteFood,
+  getFavoriteFoodIds,
+  getFoodDetail,
+  resolveAssetUrl,
+  resolveOptimizedAssetUrl,
+} from '../../lib/api';
+import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { useNotification } from '../../lib/notification';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,8 +39,31 @@ type AdjustableIngredient = FoodIngredientResponse & { currentAmount: string };
 type SavedIngredientAmounts = Record<string, string>;
 
 const FOOD_AMOUNT_STORAGE_PREFIX = 'babyoi_food_detail_amounts';
+const LOCAL_FAVORITE_IDS_KEY = 'babyoi_guest_favorite_food_ids';
 const IMAGE_PREFETCH_TIMEOUT_MS = 700;
 const foodDetailCache = new Map<string, FoodResponse>();
+
+async function getCurrentSession() {
+  return getAuthSession() || await hydrateAuthSession();
+}
+
+async function readLocalFavoriteIds() {
+  const raw = await AsyncStorage.getItem(LOCAL_FAVORITE_IDS_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeLocalFavoriteIds(ids: string[]) {
+  await AsyncStorage.setItem(LOCAL_FAVORITE_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
+}
 
 function getFoodAmountStorageKey(foodId: string | number, profileId?: string | number | null) {
   return `${FOOD_AMOUNT_STORAGE_PREFIX}:${profileId ?? 'guest'}:${foodId}`;
@@ -149,11 +183,14 @@ function formatTargetCodeText(content?: string | null) {
   );
 }
 export default function RecipeDetailScreen() {
+  const { showNotification } = useNotification();
   const params = useLocalSearchParams<{ id?: string; image?: string }>();
   const [food, setFood] = useState<FoodResponse | null>(null);
   const [ingredients, setIngredients] = useState<AdjustableIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteUpdating, setFavoriteUpdating] = useState(false);
   const [failedImageUris, setFailedImageUris] = useState<Record<string, boolean>>({});
   const amountsLoadedRef = useRef(false);
   const saveAmountsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -261,6 +298,51 @@ export default function RecipeDetailScreen() {
   }, [params.id]);
 
   useEffect(() => {
+    let mounted = true;
+
+    async function loadFavoriteState() {
+      if (!params.id) {
+        return;
+      }
+
+      const foodId = String(params.id);
+      const session = await getCurrentSession();
+      const profile = session?.userId ? (getSelectedProfile() || await hydrateSelectedProfile()) : null;
+
+      try {
+        if (!session?.userId) {
+          const localIds = await readLocalFavoriteIds();
+          if (mounted) {
+            setIsFavorite(localIds.includes(foodId));
+          }
+          return;
+        }
+
+        if (!profile?.id) {
+          if (mounted) {
+            setIsFavorite(false);
+          }
+          return;
+        }
+
+        const favoriteIds = await getFavoriteFoodIds(profile.id);
+        if (mounted) {
+          setIsFavorite(favoriteIds.map(String).includes(foodId));
+        }
+      } catch {
+        if (mounted) {
+          setIsFavorite(false);
+        }
+      }
+    }
+
+    loadFavoriteState();
+    return () => {
+      mounted = false;
+    };
+  }, [params.id]);
+
+  useEffect(() => {
     if (!params.id || !amountsLoadedRef.current || ingredients.length === 0) {
       return;
     }
@@ -337,6 +419,55 @@ export default function RecipeDetailScreen() {
 
       return nextIngredients;
     });
+  };
+
+  const toggleFavorite = async () => {
+    if (!food || favoriteUpdating) {
+      return;
+    }
+
+    const foodId = String(food.id);
+    const previousFavorite = isFavorite;
+    setFavoriteUpdating(true);
+    setIsFavorite(!previousFavorite);
+
+    try {
+      const session = await getCurrentSession();
+
+      if (!session?.userId) {
+        const localIds = await readLocalFavoriteIds();
+        const nextIds = previousFavorite
+          ? localIds.filter((item) => item !== foodId)
+          : [...localIds, foodId];
+        await writeLocalFavoriteIds(nextIds);
+      } else {
+        const profile = getSelectedProfile() || await hydrateSelectedProfile();
+        if (!profile?.id) {
+          throw new Error('Vui lòng chọn hồ sơ trước khi cập nhật món yêu thích.');
+        }
+
+        if (previousFavorite) {
+          await deleteFavoriteFood(profile.id, foodId);
+        } else {
+          await addFavoriteFood(profile.id, foodId);
+        }
+      }
+
+      showNotification({
+        type: 'success',
+        title: previousFavorite ? 'Đã bỏ yêu thích' : 'Đã thêm yêu thích',
+        message: previousFavorite ? 'Món ăn đã được bỏ khỏi danh sách yêu thích.' : 'Món ăn đã được lưu vào danh sách yêu thích.',
+      });
+    } catch (err) {
+      setIsFavorite(previousFavorite);
+      showNotification({
+        type: 'error',
+        title: 'Không thể cập nhật',
+        message: err instanceof Error ? err.message : 'Vui lòng thử lại sau.',
+      });
+    } finally {
+      setFavoriteUpdating(false);
+    }
   };
 
   const renderFireIcon = () => {
@@ -531,8 +662,16 @@ export default function RecipeDetailScreen() {
       {renderContent()}
       {!loading && food && (
         <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Thêm vào món yêu thích</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, isFavorite && styles.saveButtonActive, favoriteUpdating && { opacity: 0.75 }]}
+            activeOpacity={0.85}
+            disabled={favoriteUpdating}
+            onPress={toggleFavorite}
+          >
+            <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.saveButtonText}>
+              {favoriteUpdating ? 'Đang lưu...' : isFavorite ? 'Đã yêu thích' : 'Thêm vào món yêu thích'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -677,6 +816,7 @@ const styles = StyleSheet.create({
   infoTitle: { color: '#FF8FAB', fontSize: 16, fontWeight: '900', marginLeft: 8 },
   infoContent: { color: '#5C7A8A', fontSize: 13, lineHeight: 20, fontWeight: '600' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: 'rgba(254, 249, 243, 0.95)', paddingBottom: 35 },
-  saveButton: { backgroundColor: '#FFB6C1', height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 10 },
+  saveButton: { backgroundColor: '#FFB6C1', height: 60, borderRadius: 30, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#FFB6C1', shadowOpacity: 0.4, shadowRadius: 10 },
+  saveButtonActive: { backgroundColor: '#FF8FAB' },
   saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
 });

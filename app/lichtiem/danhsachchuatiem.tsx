@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { VaccineCard } from '../../components/lichtiem/VaccineCard';
 import { deleteVaccineRecord, getVaccineRecordsPageByProfile, type VaccineRecordResponse } from '../../lib/api';
 import { useNotification } from '../../lib/notification';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -131,58 +133,49 @@ export default function UpcomingVaccinesScreen() {
   };
 
   const renderVaccine = ({ item: vaccine }: { item: VaccineRecordResponse }) => (
-    <View style={styles.vaccineCard}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.vaccineName}>{vaccine.vaccineTypeName}</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>Sắp tới</Text>
-        </View>
-      </View>
-
-      <Text style={styles.vaccineDesc}>{vaccine.vaccineTypeDescription || 'Phòng bệnh theo chỉ định của bác sĩ.'}</Text>
-
-      <View style={styles.dateRow}>
-        <Text style={styles.dateIcon}>📅</Text>
-        <Text style={styles.dateText}>Dự kiến: {vaccine.injectionDate}</Text>
-      </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={styles.confirmButton}
-          onPress={() =>
-            router.push({
-              pathname: '/lichtiem/themmuitiem',
-              params: {
-                profileId: currentProfileId,
-                mode: 'confirm',
-                recordId: vaccine.id,
-                vaccineTypeId: vaccine.vaccineTypeId,
-                vaccineName: vaccine.vaccineTypeName,
-                injectionDate: vaccine.injectionDate,
-              },
-            })
-          }
-        >
-          <Text style={styles.confirmButtonText}>✅ Xác nhận đã tiêm</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => handleCancelVaccine(vaccine.id)}
-        >
-          <Text style={styles.cancelButtonText}>❌ Hủy lịch</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <VaccineCard
+      vaccine={{
+        id: String(vaccine.id),
+        name: vaccine.vaccineTypeName,
+        desc: vaccine.vaccineTypeDescription || 'Phòng bệnh theo chỉ định của bác sĩ.',
+        date: vaccine.injectionDate,
+        vaccineTypeId: vaccine.vaccineTypeId,
+        injectionDate: vaccine.injectionDate,
+        status: 'upcoming',
+      }}
+      onConfirmPress={() =>
+        router.push({
+          pathname: '/lichtiem/themmuitiem',
+          params: {
+            profileId: currentProfileId,
+            mode: 'confirm',
+            recordId: vaccine.id,
+            vaccineTypeId: vaccine.vaccineTypeId,
+            vaccineName: vaccine.vaccineTypeName,
+            injectionDate: vaccine.injectionDate,
+          },
+        })
+      }
+      onCancelPress={() => handleCancelVaccine(vaccine.id)}
+    />
   );
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
+    return (
+      <View style={styles.loadingContainer}>
+        <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+        <ActivityIndicator color="#ff8fab" />
+        <Text style={styles.loadingText}>Đang tải lịch sắp tới...</Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+      <View pointerEvents="none" style={styles.backgroundAccentTop} />
+      <View pointerEvents="none" style={styles.backgroundAccentYellow} />
 
       <FlatList
         data={upcomingVaccines}
@@ -196,20 +189,33 @@ export default function UpcomingVaccinesScreen() {
           <>
             <View style={styles.customHeader}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+                <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Lịch Sắp Tới</Text>
-              <View style={styles.rightPlaceholder} />
+              <View style={styles.headerCopy}>
+                <Text style={styles.headerSparkle}>✦</Text>
+                <Text style={styles.headerTitle}>Lịch Sắp Tới</Text>
+                <Text style={styles.headerSubtitle}>Nhắc mẹ những mũi quan trọng</Text>
+              </View>
+              <View style={styles.headerGhostButton}>
+                <Ionicons name="calendar-outline" size={21} color="#FF9C6E" />
+              </View>
             </View>
 
-            <View style={styles.heroSection}>
-              <Text style={styles.heroText}>Tháng tới bé sẽ có thêm các mốc quan trọng!</Text>
+            <LinearGradient colors={['#FFFFFF', '#FFF8E8', '#FFF5F8']} style={styles.heroSection}>
+              <View style={styles.heroSparkle} />
+              <Ionicons name="sparkles" size={25} color="#FFD36E" />
+              <Text style={styles.heroText}>Tháng tới bé có thêm các mốc quan trọng</Text>
               <Text style={styles.heroNumber}>{totalElements} lịch tiêm</Text>
               <Text style={styles.heroSubtext}>Mẹ nhớ đặt lịch để bảo vệ sức khỏe cho con nhé.</Text>
-            </View>
+            </LinearGradient>
           </>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>Không có lịch tiêm sắp tới.</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <Ionicons name="calendar-clear-outline" size={28} color="#A7E4F5" />
+            <Text style={styles.emptyText}>Không có lịch tiêm sắp tới.</Text>
+          </View>
+        }
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footerLoading}>
@@ -225,30 +231,153 @@ export default function UpcomingVaccinesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF9F3',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#5C7A8A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
+  backgroundAccentTop: {
+    position: 'absolute',
+    top: 58,
+    left: -40,
+    width: 150,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 182, 193, 0.18)',
+    transform: [{ rotate: '-18deg' }],
+  },
+  backgroundAccentYellow: {
+    position: 'absolute',
+    top: 420,
+    right: -44,
+    width: 150,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(255, 209, 102, 0.2)',
+    transform: [{ rotate: '18deg' }],
+  },
   listContent: { padding: 20 },
-  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 25 },
-  backButton: { justifyContent: 'center', alignItems: 'flex-start', paddingVertical: 5, width: 45 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5 },
-  rightPlaceholder: { width: 45 },
-  heroSection: { alignItems: 'center', marginBottom: 25, paddingVertical: 15, backgroundColor: '#fffcf5', borderRadius: 20, borderWidth: 2, borderColor: '#ffe08a', borderStyle: 'dashed' },
-  heroText: { fontSize: 16, color: '#d46b08', fontWeight: '800', marginBottom: 6, textAlign: 'center' },
-  heroNumber: { fontSize: 24, color: '#d46b08', fontWeight: '900', marginBottom: 4 },
-  heroSubtext: { fontSize: 14, color: '#5c7a8a', fontWeight: '600', textAlign: 'center', paddingHorizontal: 10 },
-  vaccineCard: { backgroundColor: '#fffcf5', borderRadius: 20, padding: 18, marginBottom: 20, borderWidth: 2, borderColor: '#ffe08a', elevation: 3 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  vaccineName: { fontSize: 16, fontWeight: '900', color: '#334455', flex: 1, marginRight: 10 },
-  statusBadge: { backgroundColor: '#fff0cb', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  statusText: { color: '#d46b08', fontSize: 12, fontWeight: 'bold' },
-  vaccineDesc: { fontSize: 14, color: '#666666', marginBottom: 15, lineHeight: 22 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12 },
-  dateIcon: { marginRight: 8, fontSize: 15 },
-  dateText: { fontSize: 14, color: '#5c7a8a', fontWeight: '800' },
-  actionRow: { marginTop: 15, gap: 10 },
-  confirmButton: { backgroundColor: '#8fd3a7', paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
-  confirmButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
-  cancelButton: { backgroundColor: '#ff8fab', paddingVertical: 14, borderRadius: 15, alignItems: 'center' },
-  cancelButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 14 },
-  emptyText: { textAlign: 'center', color: '#8899aa', marginTop: 20 },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 42,
+    marginBottom: 18,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  headerCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerSparkle: {
+    position: 'absolute',
+    left: '20%',
+    top: 0,
+    color: '#FFD8E5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  headerTitle: {
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FF8FAB',
+  },
+  headerSubtitle: {
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  headerGhostButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#FFE6BA',
+    overflow: 'hidden',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  heroSparkle: {
+    position: 'absolute',
+    top: 16,
+    right: 24,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFE9A8',
+  },
+  heroText: {
+    fontSize: 14,
+    color: '#5C7A8A',
+    fontWeight: '800',
+    marginTop: 7,
+    textAlign: 'center',
+  },
+  heroNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FF9C6E',
+    marginTop: 3,
+  },
+  heroSubtext: {
+    fontSize: 13,
+    color: '#5C7A8A',
+    fontWeight: '800',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: 34,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(255,255,255,0.76)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#5C7A8A',
+    marginTop: 9,
+    fontWeight: '800',
+  },
   footerLoading: { paddingVertical: 18 },
 });

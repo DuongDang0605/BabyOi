@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -211,26 +212,50 @@ export default function VaccineScheduleScreen() {
   };
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} color="#ff8fab" />;
+    return (
+      <View style={styles.loadingContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+        <ActivityIndicator color="#ff8fab" />
+        <Text style={styles.loadingText}>Đang tải sổ tiêm...</Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
+      <View pointerEvents="none" style={styles.backgroundAccentTop} />
+      <View pointerEvents="none" style={styles.backgroundAccentMint} />
+      <View pointerEvents="none" style={styles.backgroundSparkle}>
+        <Ionicons name="sparkles" size={23} color="#FFD36E" />
+      </View>
+      <View pointerEvents="none" style={styles.backgroundHeart}>
+        <Ionicons name="heart" size={28} color="#FF9DBA" />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color="#ff8fab" />
+            <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Sổ Tiêm Chủng</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerSparkle}>✦</Text>
+            <Text style={styles.headerTitle}>Sổ Tiêm Chủng</Text>
+            <Text style={styles.headerSubtitle}>Theo dõi từng mũi bảo vệ của bé</Text>
+          </View>
+          <View style={styles.headerGhostButton}>
+            <Ionicons name="shield-checkmark" size={21} color="#5ABF7A" />
+          </View>
         </View>
 
         {selectedProfile ? (
-          <View style={styles.profileBanner}>
+          <LinearGradient colors={['#FFFFFF', '#FFF8FA']} style={styles.profileBanner}>
             <Ionicons name="person-circle-outline" size={20} color="#ff8fab" />
             <Text style={styles.profileBannerText}>Hồ sơ đang xem: {selectedProfile.name}</Text>
-          </View>
+            <Ionicons name="sparkles" size={14} color="#FFD36E" />
+          </LinearGradient>
         ) : null}
 
         <VaccineSummary completedCount={stats.success} upcomingCount={stats.pending} />
@@ -305,7 +330,10 @@ export default function VaccineScheduleScreen() {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.addButton} onPress={openAddVaccine}>
-          <Text style={styles.addButtonText}>✨ + Thêm mũi tiêm mới</Text>
+          <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButtonGradient}>
+            <Ionicons name="add-circle" size={23} color="#FFFFFF" />
+            <Text style={styles.addButtonText}>Thêm mũi tiêm mới</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -323,19 +351,176 @@ export default function VaccineScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fef9f3' },
+  container: { flex: 1, backgroundColor: '#FEF9F3' },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF9F3',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#5C7A8A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   scrollArea: { padding: 20 },
-  customHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, marginBottom: 20 },
-  backButton: { width: 45 },
-  headerTitle: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.5, zIndex: -1 },
-  profileBanner: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#fff0f5', borderRadius: 18, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 18, borderWidth: 1, borderColor: '#ffccd8' },
-  profileBannerText: { marginLeft: 6, color: '#5c7a8a', fontWeight: '800', fontSize: 13 },
+  backgroundAccentTop: {
+    position: 'absolute',
+    top: 62,
+    left: -42,
+    width: 154,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 182, 193, 0.18)',
+    transform: [{ rotate: '-18deg' }],
+  },
+  backgroundAccentMint: {
+    position: 'absolute',
+    top: 454,
+    right: -46,
+    width: 144,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(184, 239, 207, 0.24)',
+    transform: [{ rotate: '18deg' }],
+  },
+  backgroundSparkle: {
+    position: 'absolute',
+    top: 120,
+    left: 32,
+    opacity: 0.78,
+    transform: [{ rotate: '-12deg' }],
+  },
+  backgroundHeart: {
+    position: 'absolute',
+    top: 202,
+    right: 34,
+    opacity: 0.35,
+    transform: [{ rotate: '14deg' }],
+  },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 42,
+    marginBottom: 18,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  headerCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerSparkle: {
+    position: 'absolute',
+    left: '23%',
+    top: 0,
+    color: '#FFD8E5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  headerTitle: {
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FF8FAB',
+  },
+  headerSubtitle: {
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  headerGhostButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A7E4F5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  profileBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: 19,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  profileBannerText: {
+    marginHorizontal: 7,
+    color: '#5C7A8A',
+    fontWeight: '900',
+    fontSize: 13,
+  },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 5 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#5c7a8a' },
-  seeAllText: { fontSize: 14, fontWeight: 'bold', color: '#ff8fab' },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: '#334455' },
+  seeAllText: { fontSize: 13, fontWeight: '900', color: '#FF8FAB' },
   disabledText: { color: '#c7cfd6' },
-  emptyText: { textAlign: 'center', color: '#8899aa', marginVertical: 20, fontStyle: 'italic' },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.95)' },
-  addButton: { backgroundColor: '#ff8fab', paddingVertical: 16, borderRadius: 30, alignItems: 'center', elevation: 5 },
-  addButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  emptyText: {
+    textAlign: 'center',
+    color: '#6F7D8A',
+    marginVertical: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    fontWeight: '700',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: 35,
+    backgroundColor: 'rgba(254, 249, 243, 0.95)',
+  },
+  addButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#FF8FAB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  addButtonGradient: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '900',
+    marginLeft: 8,
+  },
 });
