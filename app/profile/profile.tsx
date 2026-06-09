@@ -36,11 +36,11 @@ import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile, setSe
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
-  const usDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
-  if (usDate) {
-    const month = Number(usDate[1]);
-    const day = Number(usDate[2]);
-    const year = Number(usDate[3]);
+  const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (displayDate) {
+    const day = Number(displayDate[1]);
+    const month = Number(displayDate[2]);
+    const year = Number(displayDate[3]);
     const parsed = new Date(year, month - 1, day);
     if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
       return parsed;
@@ -97,7 +97,7 @@ function validateProfileForm(payload: ProfilePayload) {
     return 'Tên hồ sơ cần từ 2 đến 50 ký tự.';
   }
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(payload.dateOfBirth.trim())) {
-    return 'Ngày sinh cần nhập theo định dạng MM/DD/YYYY.';
+    return 'Ngày sinh cần nhập theo định dạng DD/MM/YYYY.';
   }
   if (Number.isNaN(dob.getTime()) || dob > now) {
     return 'Ngày sinh không hợp lệ.';
@@ -456,7 +456,7 @@ export default function ProfileScreen() {
                 <Text style={styles.label}>Ngày sinh</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="MM/DD/YYYY"
+                  placeholder="DD/MM/YYYY"
                   keyboardType="number-pad"
                   maxLength={10}
                   value={form.dateOfBirth}

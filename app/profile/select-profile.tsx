@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -60,10 +59,6 @@ function normalizeProfileDateInput(value: string) {
     return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   }
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function formatProfileDate(date: Date) {
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
 function parseNumberInput(value: string) {
@@ -131,7 +126,6 @@ export default function SelectProfileScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
-  const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
   const [error, setError] = useState('');
   const [healthForm, setHealthForm] = useState({ height: '', weight: '' });
   const [form, setForm] = useState<ProfilePayload>({
@@ -232,16 +226,6 @@ export default function SelectProfileScreen() {
       profileType,
       sex: profileType === 'MOTHER' ? 'FEMALE' : current.sex,
     }));
-  };
-
-  const handleBirthDatePickerChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowBirthDatePicker(false);
-
-    if (!selectedDate) {
-      return;
-    }
-
-    setForm((current) => ({ ...current, dateOfBirth: formatProfileDate(selectedDate) }));
   };
 
   const applyPickedImage = async (result: ImagePicker.ImagePickerResult) => {
@@ -482,26 +466,14 @@ export default function SelectProfileScreen() {
               />
 
               <Text style={styles.label}>Ngày sinh</Text>
-              <TouchableOpacity
-                style={styles.datePickerButton}
-                activeOpacity={0.85}
-                onPress={() => setShowBirthDatePicker(true)}
-              >
-                <Text style={form.dateOfBirth ? styles.datePickerText : styles.datePickerPlaceholder}>
-                  {form.dateOfBirth || 'DD/MM/YYYY'}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color="#FF8FAB" />
-              </TouchableOpacity>
-
-              {showBirthDatePicker ? (
-                <DateTimePicker
-                  value={parseProfileDate(form.dateOfBirth).getTime() ? parseProfileDate(form.dateOfBirth) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={handleBirthDatePickerChange}
-                />
-              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="DD/MM/YYYY"
+                keyboardType="number-pad"
+                maxLength={10}
+                value={form.dateOfBirth}
+                onChangeText={(dateOfBirth) => setForm((current) => ({ ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) }))}
+              />
 
               {form.profileType === 'CHILD' && (
                 <>
@@ -612,9 +584,6 @@ const styles = StyleSheet.create({
   photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 34, borderRadius: 14, backgroundColor: '#FFF6F8', borderWidth: 1.5, borderColor: '#FFD2DE' },
   photoButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '900' },
   input: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 2, borderColor: '#F0F4F8', color: '#334455', fontWeight: '700', marginBottom: 16 },
-  datePickerButton: { minHeight: 50, backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: 2, borderColor: '#F0F4F8', marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  datePickerText: { color: '#334455', fontSize: 15, fontWeight: '800' },
-  datePickerPlaceholder: { color: '#AAB7C2', fontSize: 15, fontWeight: '700' },
   sexRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   sexButton: { flex: 1, paddingVertical: 11, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F0F4F8', alignItems: 'center' },
   sexButtonActive: { backgroundColor: '#FFE5EC', borderColor: '#FF8FAB' },
