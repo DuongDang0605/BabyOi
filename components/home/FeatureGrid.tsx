@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '47%',
     backgroundColor: '#FFF',
-    minHeight: 124,
-    paddingVertical: 16,
+    minHeight: 134,
+    paddingVertical: 14,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   iconStage: {
-    width: 72,
-    height: 66,
+    width: 88,
+    height: 78,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FFB6C1',
   },
-  mainIcon: { width: 58, height: 58, resizeMode: 'contain' },
+  mainIcon: { width: 78, height: 72, resizeMode: 'contain' },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
   cardFoot: { position: 'absolute', left: 18, right: 18, bottom: 0, height: 3, borderRadius: 3, backgroundColor: '#FFE1EA' },
 });

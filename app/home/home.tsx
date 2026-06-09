@@ -115,10 +115,10 @@ function getTeachingTip(lesson: AiTeachingLessonResponse | null) {
 }
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/suckhoe.png') , route: '/phattrien/growth-charts' },
-  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/tiemchung.png'), route: '/lichtiem/listlichtiem' },
-  { id: '3', title: 'Dinh dưỡng', icon:require('../../assets/images/doan.png'), route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/nhatki.png'), route: '/nhatki/nhatki' },
+  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/home_health.png'), route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/home_vaccine.png'), route: '/lichtiem/listlichtiem' },
+  { id: '3', title: 'Dinh dưỡng', icon: require('../../assets/images/home_nutrition.png'), route: '/dinhduong/listdoan' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/home_diary.png'), route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
@@ -270,26 +270,6 @@ export default function AppHomeScreen() {
           subtitle={reminderSubtitle}
           badgeText={reminderBadgeText}
         />
-
-        <LinearGradient
-          colors={['#FFFFFF', '#FFF8FA', '#EFFBFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.memorySparkleCard}
-        >
-          <View style={styles.memorySparkleDotPink} />
-          <View style={styles.memorySparkleDotYellow} />
-          <View style={styles.memorySparkleIcon}>
-            <Ionicons name="sparkles" size={20} color="#FF8FAB" />
-          </View>
-          <View style={styles.memorySparkleCopy}>
-            <Text style={styles.memorySparkleTitle}>Khoảnh khắc hôm nay</Text>
-            <Text style={styles.memorySparkleText}>Thêm chút bling bling để mẹ lưu lại ngày đẹp của bé.</Text>
-          </View>
-          <View style={styles.memorySparkleHeart}>
-            <Ionicons name="heart" size={23} color="#FF9DBA" />
-          </View>
-        </LinearGradient>
 
         {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
         <FeatureGrid
@@ -493,74 +473,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     transform: [{ rotate: '18deg' }],
   },
-  memorySparkleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -8,
-    marginBottom: 24,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#FFE5EC',
-    overflow: 'hidden',
-    shadowColor: '#A7E4F5',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  memorySparkleDotPink: {
-    position: 'absolute',
-    top: -18,
-    right: 54,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(255, 143, 171, 0.16)',
-  },
-  memorySparkleDotYellow: {
-    position: 'absolute',
-    right: 16,
-    bottom: 12,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#FFE9A8',
-  },
-  memorySparkleIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: '#FFE5EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 11,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  memorySparkleCopy: { flex: 1, paddingRight: 12 },
-  memorySparkleTitle: {
-    color: '#334455',
-    fontSize: 15,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  memorySparkleText: {
-    color: '#5C7A8A',
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-  },
-  memorySparkleHeart: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFF8E7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   // MODAL STYLES
   modalOverlay: {
     flex: 1,

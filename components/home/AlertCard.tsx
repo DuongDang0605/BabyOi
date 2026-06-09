@@ -21,7 +21,7 @@ export const AlertCard = ({ title, subtitle, badgeText }: AlertCardProps) => {
       <View style={styles.alertGlowYellow} />
       <View style={styles.alertIconWrap}>
         <Image
-          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/9334/9334338.png' }}
+          source={require('../../assets/images/AI_nurse_transparent.png')}
           style={styles.alertIconAnime}
         />
       </View>
@@ -80,17 +80,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE08A',
   },
   alertIconWrap: {
-    width: 66,
-    height: 66,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    width: 76,
+    height: 76,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
   },
-  alertIconAnime: { width: 52, height: 52 },
+  alertIconAnime: { width: 82, height: 82, resizeMode: 'contain' },
   alertTextContent: { flex: 1 },
   alertEyebrow: { fontSize: 11, color: '#FFF', fontWeight: '900', opacity: 0.86, marginBottom: 3, textTransform: 'uppercase' },
   alertTitle: { fontSize: 18, fontWeight: '900', color: '#FFF', lineHeight: 23 },

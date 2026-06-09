@@ -13,7 +13,7 @@ export const TipBox = ({ tip }: TipBoxProps) => {
       <View style={styles.colorDotBlue} />
       <View style={styles.tipStickerWrap}>
         <Image
-          source={require('../../assets/images/AI_chatBox_transparent.png')}
+          source={require('../../assets/images/AI_Teacher_transparent.png')}
           style={styles.tipSticker}
         />
       </View>
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  tipSticker: { width: 60, height: 60, resizeMode: 'contain' },
+  tipSticker: { width: 64, height: 64, resizeMode: 'contain' },
   tipContent: { flex: 1 },
   tipLabel: { fontSize: 12, color: '#FF8FAB', fontWeight: '900', marginBottom: 3 },
   tipText: { fontSize: 13, color: '#5C7A8A', fontWeight: '700', lineHeight: 18 },

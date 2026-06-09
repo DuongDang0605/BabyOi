@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -17,17 +18,18 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
+import { todayIsoDate } from '../../lib/health-format';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
-  const usDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
-  if (usDate) {
-    const month = Number(usDate[1]);
-    const day = Number(usDate[2]);
-    const year = Number(usDate[3]);
+  const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (displayDate) {
+    const day = Number(displayDate[1]);
+    const month = Number(displayDate[2]);
+    const year = Number(displayDate[3]);
     const parsed = new Date(year, month - 1, day);
     if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
       return parsed;
@@ -60,6 +62,20 @@ function normalizeProfileDateInput(value: string) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
+function formatProfileDate(date: Date) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function parseNumberInput(value: string) {
+  const normalized = value.replace(',', '.').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function calculateAgeLabel(dateOfBirth: string, profileType: string) {
   const dob = parseProfileDate(dateOfBirth);
   if (Number.isNaN(dob.getTime())) {
@@ -86,7 +102,7 @@ function validateProfileForm(payload: ProfilePayload) {
     return 'Tên hồ sơ cần từ 2 đến 50 ký tự.';
   }
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(payload.dateOfBirth.trim())) {
-    return 'Ngày sinh cần nhập theo định dạng MM/DD/YYYY.';
+    return 'Ngày sinh cần nhập theo định dạng DD/MM/YYYY.';
   }
   if (!payload.dateOfBirth || Number.isNaN(dob.getTime()) || dob > now) {
     return 'Ngày sinh không hợp lệ.';
@@ -115,7 +131,9 @@ export default function SelectProfileScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
   const [error, setError] = useState('');
+  const [healthForm, setHealthForm] = useState({ height: '', weight: '' });
   const [form, setForm] = useState<ProfilePayload>({
     userId: 0,
     name: '',
@@ -197,6 +215,7 @@ export default function SelectProfileScreen() {
       profileCode: null,
       functionCode: null,
     });
+    setHealthForm({ height: '', weight: '' });
     setError('');
     setModalVisible(true);
   };
@@ -213,6 +232,16 @@ export default function SelectProfileScreen() {
       profileType,
       sex: profileType === 'MOTHER' ? 'FEMALE' : current.sex,
     }));
+  };
+
+  const handleBirthDatePickerChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowBirthDatePicker(false);
+
+    if (!selectedDate) {
+      return;
+    }
+
+    setForm((current) => ({ ...current, dateOfBirth: formatProfileDate(selectedDate) }));
   };
 
   const applyPickedImage = async (result: ImagePicker.ImagePickerResult) => {
@@ -279,6 +308,16 @@ export default function SelectProfileScreen() {
       return;
     }
 
+    const height = parseNumberInput(healthForm.height);
+    const weight = parseNumberInput(healthForm.weight);
+    if (!height || height <= 0 || !weight || weight <= 0) {
+      setError(form.profileType === 'CHILD'
+        ? 'Vui lòng nhập chiều cao và cân nặng của bé.'
+        : 'Vui lòng nhập chiều cao và cân nặng của mẹ.'
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError('');
@@ -286,6 +325,13 @@ export default function SelectProfileScreen() {
         ...form,
         name: form.name.trim(),
         sex: form.profileType === 'MOTHER' ? 'FEMALE' : form.sex,
+      });
+
+      await createHealthRecord({
+        profileId: created.id,
+        height,
+        weight,
+        recordDate: todayIsoDate(),
       });
 
       setModalVisible(false);
@@ -436,14 +482,26 @@ export default function SelectProfileScreen() {
               />
 
               <Text style={styles.label}>Ngày sinh</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="MM/DD/YYYY"
-                keyboardType="number-pad"
-                maxLength={10}
-                value={form.dateOfBirth}
-                onChangeText={(dateOfBirth) => setForm((current) => ({ ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) }))}
-              />
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                activeOpacity={0.85}
+                onPress={() => setShowBirthDatePicker(true)}
+              >
+                <Text style={form.dateOfBirth ? styles.datePickerText : styles.datePickerPlaceholder}>
+                  {form.dateOfBirth || 'DD/MM/YYYY'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#FF8FAB" />
+              </TouchableOpacity>
+
+              {showBirthDatePicker ? (
+                <DateTimePicker
+                  value={parseProfileDate(form.dateOfBirth).getTime() ? parseProfileDate(form.dateOfBirth) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={handleBirthDatePickerChange}
+                />
+              ) : null}
 
               {form.profileType === 'CHILD' && (
                 <>
@@ -461,8 +519,46 @@ export default function SelectProfileScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+
                 </>
               )}
+
+              <View style={styles.healthBox}>
+                <View style={styles.healthBoxHeader}>
+                  <Ionicons name="body-outline" size={18} color="#FF8FAB" />
+                  <Text style={styles.healthBoxTitle}>
+                    {form.profileType === 'CHILD' ? 'Sức khỏe ban đầu của bé' : 'Sức khỏe ban đầu của mẹ'}
+                  </Text>
+                </View>
+                <View style={styles.healthInputRow}>
+                  <View style={styles.healthInputGroup}>
+                    <Text style={styles.healthLabel}>Chiều cao</Text>
+                    <View style={styles.healthInputWrap}>
+                      <TextInput
+                        style={styles.healthInput}
+                        value={healthForm.height}
+                        onChangeText={(height) => setHealthForm((current) => ({ ...current, height }))}
+                        keyboardType="numeric"
+                        placeholder={form.profileType === 'CHILD' ? '58' : '160'}
+                      />
+                      <Text style={styles.healthUnit}>cm</Text>
+                    </View>
+                  </View>
+                  <View style={styles.healthInputGroup}>
+                    <Text style={styles.healthLabel}>Cân nặng</Text>
+                    <View style={styles.healthInputWrap}>
+                      <TextInput
+                        style={styles.healthInput}
+                        value={healthForm.weight}
+                        onChangeText={(weight) => setHealthForm((current) => ({ ...current, weight }))}
+                        keyboardType="numeric"
+                        placeholder={form.profileType === 'CHILD' ? '5.3' : '55'}
+                      />
+                      <Text style={styles.healthUnit}>kg</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
 
               {!!error && <Text style={styles.modalError}>{error}</Text>}
 
@@ -516,11 +612,23 @@ const styles = StyleSheet.create({
   photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 34, borderRadius: 14, backgroundColor: '#FFF6F8', borderWidth: 1.5, borderColor: '#FFD2DE' },
   photoButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '900' },
   input: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 2, borderColor: '#F0F4F8', color: '#334455', fontWeight: '700', marginBottom: 16 },
+  datePickerButton: { minHeight: 50, backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: 2, borderColor: '#F0F4F8', marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  datePickerText: { color: '#334455', fontSize: 15, fontWeight: '800' },
+  datePickerPlaceholder: { color: '#AAB7C2', fontSize: 15, fontWeight: '700' },
   sexRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   sexButton: { flex: 1, paddingVertical: 11, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F0F4F8', alignItems: 'center' },
   sexButtonActive: { backgroundColor: '#FFE5EC', borderColor: '#FF8FAB' },
   sexText: { color: '#7D95A1', fontWeight: '900' },
   sexTextActive: { color: '#FF8FAB' },
+  healthBox: { backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1.5, borderColor: '#FFE5EC', padding: 14, marginBottom: 16 },
+  healthBoxHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  healthBoxTitle: { color: '#FF8FAB', fontSize: 14, fontWeight: '900', marginLeft: 7 },
+  healthInputRow: { flexDirection: 'row', gap: 10 },
+  healthInputGroup: { flex: 1 },
+  healthLabel: { color: '#5C7A8A', fontSize: 12, fontWeight: '900', marginBottom: 6 },
+  healthInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8FA', borderRadius: 16, borderWidth: 1.5, borderColor: '#FFD2DE', paddingHorizontal: 10 },
+  healthInput: { flex: 1, minHeight: 42, color: '#334455', fontSize: 15, fontWeight: '900' },
+  healthUnit: { color: '#7D95A1', fontSize: 12, fontWeight: '900' },
   modalError: { color: '#D64545', fontWeight: '800', textAlign: 'center', marginBottom: 12 },
   createButton: { backgroundColor: '#FF8FAB', borderRadius: 22, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
   disabledButton: { opacity: 0.7 },

@@ -19,7 +19,18 @@ import {
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { ProfileInfo } from '../../components/profile/ProfileInfo';
 import { StatCard } from '../../components/profile/StatCard';
-import { ApiError, ProfilePayload, ProfileResponse, deleteProfile, updateProfile, updateProfileAvatar, uploadProfileAvatar } from '../../lib/api';
+import {
+  ApiError,
+  HealthRecordResponse,
+  ProfilePayload,
+  ProfileResponse,
+  deleteProfile,
+  getHealthRecords,
+  getVaccineStatistics,
+  updateProfile,
+  updateProfileAvatar,
+  uploadProfileAvatar,
+} from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 
@@ -62,6 +73,21 @@ function normalizeProfileDateInput(value: string) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
+function getLatestHealthRecord(records: HealthRecordResponse[]) {
+  return [...records].sort((a, b) => {
+    const dateDiff = new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime();
+    return dateDiff !== 0 ? dateDiff : b.id - a.id;
+  })[0] ?? null;
+}
+
+function formatStatNumber(value?: number | null, unit = '', digits = 1) {
+  if (value == null || Number.isNaN(Number(value))) {
+    return '-';
+  }
+
+  return `${Number(value).toFixed(digits)}${unit}`;
+}
+
 function validateProfileForm(payload: ProfilePayload) {
   const name = payload.name.trim();
   const dob = parseProfileDate(payload.dateOfBirth);
@@ -100,6 +126,8 @@ export default function ProfileScreen() {
   const [imageUploading, setImageUploading] = useState(false);
   const [editError, setEditError] = useState('');
   const [form, setForm] = useState<ProfilePayload | null>(null);
+  const [latestHealth, setLatestHealth] = useState<HealthRecordResponse | null>(null);
+  const [completedVaccines, setCompletedVaccines] = useState<number | null>(null);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
@@ -108,6 +136,31 @@ export default function ProfileScreen() {
       const selected = getSelectedProfile() || await hydrateSelectedProfile();
       if (mounted) {
         setProfile(selected);
+      }
+
+      if (!selected?.id) {
+        if (mounted) {
+          setLatestHealth(null);
+          setCompletedVaccines(null);
+        }
+        return;
+      }
+
+      try {
+        const [healthRecords, vaccineStats] = await Promise.all([
+          getHealthRecords(selected.id),
+          getVaccineStatistics(selected.id),
+        ]);
+
+        if (mounted) {
+          setLatestHealth(getLatestHealthRecord(healthRecords));
+          setCompletedVaccines(vaccineStats.success ?? 0);
+        }
+      } catch {
+        if (mounted) {
+          setLatestHealth(null);
+          setCompletedVaccines(null);
+        }
       }
     }
 
@@ -301,13 +354,13 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <StatCard
             label="Cân nặng"
-            value="-"
+            value={formatStatNumber(latestHealth?.weight, 'kg')}
             icon="speedometer-outline"
             color="#FF8FAB"
           />
           <StatCard
             label="Chiều cao"
-            value="-"
+            value={formatStatNumber(latestHealth?.height, 'cm')}
             icon="resize-outline"
             color="#FFD166"
           />
@@ -315,13 +368,13 @@ export default function ProfileScreen() {
         <View style={[styles.statsRow, { marginTop: 15 }]}>
           <StatCard
             label="Mũi đã tiêm"
-            value="-"
+            value={completedVaccines ?? '-'}
             icon="checkmark-circle-outline"
             color="#4CAF50"
           />
           <StatCard
             label="BMI"
-            value="16.4"
+            value={formatStatNumber(latestHealth?.bmi)}
             icon="bar-chart-outline"
             color="#A7E4F5"
           />

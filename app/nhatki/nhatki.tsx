@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { DiaryBanner } from '../../components/nhatki/DiaryBanner';
@@ -12,6 +12,7 @@ import { useNotification } from '../../lib/notification';
 import { ensureCurrentUserSelectedProfile } from '../../lib/profile-session';
 
 const DEFAULT_AVATAR_URL = 'https://cdn-icons-png.flaticon.com/512/1154/1154444.png';
+type DiaryFilter = 'all' | 'milestone' | 'timeline';
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -89,6 +90,7 @@ export default function BabyDiaryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [activeFilter, setActiveFilter] = useState<DiaryFilter>('all');
 
   const loadDiary = useCallback(async () => {
     const selectedProfile = await ensureCurrentUserSelectedProfile();
@@ -117,6 +119,16 @@ export default function BabyDiaryScreen() {
   useFocusEffect(useCallback(() => {
     loadDiary();
   }, [loadDiary]));
+
+  const filteredPosts = useMemo(() => {
+    if (activeFilter === 'milestone') {
+      return posts.filter((post) => post.milestone);
+    }
+    if (activeFilter === 'timeline') {
+      return posts.filter((post) => !post.milestone);
+    }
+    return posts;
+  }, [activeFilter, posts]);
 
   const handleDelete = (post: DiaryPost) => {
     Alert.alert(
@@ -161,10 +173,16 @@ export default function BabyDiaryScreen() {
         </View>
       );
     }
+    const emptyText = activeFilter === 'milestone'
+      ? 'Chưa có kỷ niệm nào. Mẹ đánh dấu cột mốc khi lưu khoảnh khắc nhé.'
+      : activeFilter === 'timeline'
+        ? 'Chưa có bài thường nào trong dòng thời gian.'
+        : 'Chưa có khoảnh khắc nào. Mẹ lưu kỷ niệm đầu tiên cho bé nhé.';
+
     return (
       <View style={styles.stateBox}>
         <Ionicons name="book-outline" size={28} color="#A7E4F5" />
-        <Text style={styles.stateText}>Chưa có khoảnh khắc nào. Mẹ lưu kỷ niệm đầu tiên cho bé nhé.</Text>
+        <Text style={styles.stateText}>{emptyText}</Text>
       </View>
     );
   };
@@ -179,7 +197,7 @@ export default function BabyDiaryScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
-        data={posts}
+        data={filteredPosts}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -190,7 +208,6 @@ export default function BabyDiaryScreen() {
                 <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
               </TouchableOpacity>
               <View style={styles.headerCopy}>
-                <Text style={styles.headerSparkle}>❤</Text>
                 <Text style={styles.headerTitle}>Nhật Ký của Bé</Text>
                 <Text style={styles.headerSubtitle}>Lưu lại từng khoảnh khắc lớn lên</Text>
               </View>
@@ -222,17 +239,17 @@ export default function BabyDiaryScreen() {
             />
 
             <View style={styles.filterBar}>
-              <TouchableOpacity style={[styles.filterTab, styles.filterTabActive]}>
-                <Ionicons name="calendar-outline" size={17} color="#FF8FAB" />
-                <Text style={styles.filterTextActive}>Tất cả</Text>
+              <TouchableOpacity style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]} onPress={() => setActiveFilter('all')}>
+                <Ionicons name="calendar-outline" size={17} color={activeFilter === 'all' ? '#FF8FAB' : '#7B8794'} />
+                <Text style={activeFilter === 'all' ? styles.filterTextActive : styles.filterText}>Tất cả</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.filterTab}>
-                <Ionicons name="star-outline" size={17} color="#7B8794" />
-                <Text style={styles.filterText}>Kỷ niệm</Text>
+              <TouchableOpacity style={[styles.filterTab, activeFilter === 'milestone' && styles.filterTabActive]} onPress={() => setActiveFilter('milestone')}>
+                <Ionicons name="star-outline" size={17} color={activeFilter === 'milestone' ? '#FF8FAB' : '#7B8794'} />
+                <Text style={activeFilter === 'milestone' ? styles.filterTextActive : styles.filterText}>Kỷ niệm</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.filterTab}>
-                <Ionicons name="sparkles-outline" size={17} color="#7B8794" />
-                <Text style={styles.filterText}>Dòng thời gian</Text>
+              <TouchableOpacity style={[styles.filterTab, activeFilter === 'timeline' && styles.filterTabActive]} onPress={() => setActiveFilter('timeline')}>
+                <Ionicons name="sparkles-outline" size={17} color={activeFilter === 'timeline' ? '#FF8FAB' : '#7B8794'} />
+                <Text style={activeFilter === 'timeline' ? styles.filterTextActive : styles.filterText}>Dòng thời gian</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.filterSettings}>
                 <Ionicons name="options-outline" size={19} color="#202D3A" />
@@ -244,7 +261,7 @@ export default function BabyDiaryScreen() {
         renderItem={({ item, index }) => (
           <DiaryCard
             post={item}
-            isLast={index === posts.length - 1}
+            isLast={index === filteredPosts.length - 1}
             onEdit={(post) => router.push({ pathname: '/nhatki/themnhatki', params: { id: post.id } })}
             onShare={() => Alert.alert('Chia sẻ', 'Tính năng chia sẻ sẽ được mở rộng sau khi mẹ chọn kênh chia sẻ.')}
             onDelete={handleDelete}
@@ -300,7 +317,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerCopy: { flex: 1, alignItems: 'center' },
-  headerSparkle: { position: 'absolute', left: '22%', top: 0, color: '#FFD8E5', fontSize: 14, fontWeight: '900' },
   headerTitle: { textAlign: 'center', fontSize: 24, fontWeight: '900', color: '#FF8FAB' },
   headerSubtitle: { color: '#5C7A8A', fontSize: 12, fontWeight: '800', marginTop: 3 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 22, borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, marginBottom: 16, shadowColor: '#FF8FAB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 2 },
