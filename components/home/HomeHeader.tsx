@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface HomeHeaderProps {
   babyName: string;
@@ -12,7 +13,7 @@ interface HomeHeaderProps {
   onNotificationPress?: () => void;
 }
 
-export const HomeHeader = ({ babyName, babyAge, avatarSource, onAvatarPress, unreadCount = 0, onNotificationPress }: HomeHeaderProps) => {
+export const HomeHeader = React.memo(({ babyName, babyAge, avatarSource, onAvatarPress, unreadCount = 0, onNotificationPress }: HomeHeaderProps) => {
   return (
     <View style={styles.header}>
       <View style={styles.copyBlock}>
@@ -32,14 +33,20 @@ export const HomeHeader = ({ babyName, babyAge, avatarSource, onAvatarPress, unr
 
         <TouchableOpacity style={styles.avatarFrame} onPress={onAvatarPress} activeOpacity={0.8}>
           <LinearGradient colors={['#FF8FAB', '#FFE1EA']} style={styles.avatarRing}>
-            <Image source={avatarSource} style={styles.avatar} />
+            <Image
+              source={avatarSource}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              priority="high"
+            />
           </LinearGradient>
           <View style={styles.onlineDot} />
         </TouchableOpacity>
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   header: {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface FeatureItem {
   id: string;
@@ -22,7 +23,7 @@ const FEATURE_ACCENTS = [
   { card: '#FFF8E8', gradient: ['#FFFFFF', '#FFF1C9'], dot: '#D8B56D', foot: '#EAD9B6', border: '#EFE0C6' },
 ] as const;
 
-export const FeatureGrid = ({ title, features, onFeaturePress }: FeatureGridProps) => {
+export const FeatureGrid = React.memo(({ title, features, onFeaturePress }: FeatureGridProps) => {
   return (
     <View>
       <View style={styles.sectionHeader}>
@@ -45,7 +46,13 @@ export const FeatureGrid = ({ title, features, onFeaturePress }: FeatureGridProp
                 style={styles.iconStage}
               >
                 <View style={[styles.iconSpark, { backgroundColor: accent.dot }]} />
-                <Image source={item.icon} style={styles.mainIcon} />
+                <Image
+                  source={item.icon}
+                  style={styles.mainIcon}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  priority="high"
+                />
               </LinearGradient>
               <Text style={styles.gridText}>{item.title}</Text>
               <View style={[styles.cardFoot, { backgroundColor: accent.foot }]} />
@@ -55,7 +62,7 @@ export const FeatureGrid = ({ title, features, onFeaturePress }: FeatureGridProp
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
@@ -96,7 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FFB6C1',
   },
-  mainIcon: { width: 78, height: 72, resizeMode: 'contain' },
+  mainIcon: { width: 78, height: 72 },
   gridText: { fontSize: 15, fontWeight: '800', color: '#5C7A8A' },
   cardFoot: { position: 'absolute', left: 18, right: 18, bottom: 0, height: 3, borderRadius: 3, backgroundColor: '#FFE1EA' },
 });

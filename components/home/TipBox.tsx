@@ -1,20 +1,23 @@
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface TipBoxProps {
   tip: string;
 }
 
-export const TipBox = ({ tip }: TipBoxProps) => {
+export const TipBox = React.memo(({ tip }: TipBoxProps) => {
   return (
     <LinearGradient colors={['#FFF8FA', '#F0FFF6', '#EFFBFF']} style={styles.tipCard}>
       <View style={styles.colorDotPink} />
       <View style={styles.colorDotBlue} />
       <View style={styles.tipStickerWrap}>
         <Image
-          source={require('../../assets/images/AI_Teacher_transparent.png')}
+          source={require('../../assets/images/home_optimized/ai_teacher.png')}
           style={styles.tipSticker}
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
       </View>
       <View style={styles.tipContent}>
@@ -23,7 +26,7 @@ export const TipBox = ({ tip }: TipBoxProps) => {
       </View>
     </LinearGradient>
   );
-};
+});
 
 const styles = StyleSheet.create({
   tipCard: {
@@ -65,7 +68,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  tipSticker: { width: 64, height: 64, resizeMode: 'contain' },
+  tipSticker: { width: 64, height: 64 },
   tipContent: { flex: 1 },
   tipLabel: { fontSize: 12, color: '#FF8FAB', fontWeight: '900', marginBottom: 3 },
   tipText: { fontSize: 13, color: '#5C7A8A', fontWeight: '700', lineHeight: 18 },

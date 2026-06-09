@@ -181,6 +181,7 @@ export default function ProfileScreen() {
   const displayDob = profile?.dateOfBirth || 'Chưa có ngày sinh';
   const displayGender = profile?.sex === 'MALE' ? 'Nam' : profile?.sex === 'FEMALE' ? 'Nữ' : 'Khác';
   const displayAvatar = profile?.imageUrl ? { uri: profile.imageUrl } : require('../../assets/images/avt.png');
+  const profileHeaderTitle = profile?.profileType === 'MOTHER' ? 'Hồ Sơ Của Mẹ' : 'Hồ Sơ Của Bé';
 
   const handleLogout = async () => {
     await clearSelectedProfile();
@@ -330,7 +331,7 @@ export default function ProfileScreen() {
 
       {/* --- HEADER --- */}
       <CustomHeader
-        title="Hồ Sơ Của Bé"
+        title={profileHeaderTitle}
         rightElement={
           <TouchableOpacity onPress={openEditModal}>
             <Ionicons name="settings-outline" size={24} color="#ff8fab" />

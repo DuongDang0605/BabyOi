@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ConfirmSheet } from '../../components/common/ConfirmSheet';
@@ -129,9 +129,26 @@ function matchesDiseaseSearch(item: VaccineProgressResponse, keyword: string) {
   return searchableText.includes(normalizedKeyword);
 }
 
+async function loadVaccineOverview(profileId: number | string) {
+  const [progressData, statistics] = await Promise.all([
+    getVaccineProgress(profileId, { silent: true }),
+    getVaccineStatistics(profileId, { silent: true }),
+  ]);
+
+  return {
+    progress: Array.isArray(progressData) ? progressData : [],
+    stats: {
+      pending: statistics.pending,
+      success: statistics.success,
+      canceled: statistics.canceled,
+    },
+  };
+}
+
 export default function VaccineScheduleScreen() {
   const confirmSheet = useConfirmSheet();
   const { showNotification } = useNotification();
+  const hasLoadedDataRef = useRef(false);
   const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
   const [stats, setStats] = useState({ pending: 0, success: 0, canceled: 0 });
   const [diseaseProgress, setDiseaseProgress] = useState<VaccineProgressResponse[]>([]);
@@ -143,15 +160,33 @@ export default function VaccineScheduleScreen() {
   const visibleDiseaseProgress = filteredDiseaseProgress.slice(0, visibleCount);
   const canLoadMore = visibleCount < filteredDiseaseProgress.length;
 
-  useFocusEffect(useCallback(() => {
-    let mounted = true;
+  const refreshVaccineData = useCallback(async () => {
+    if (!selectedProfile) {
+      return;
+    }
 
-    async function loadSelectedProfile() {
-      try {
+    try {
+      const overview = await loadVaccineOverview(selectedProfile.id);
+      setDiseaseProgress(overview.progress);
+      setStats(overview.stats);
+    } catch {
+      setDiseaseProgress([]);
+      setStats({ pending: 0, success: 0, canceled: 0 });
+    }
+  }, [selectedProfile]);
+
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+
+    async function loadScreenData() {
+      if (!hasLoadedDataRef.current) {
         setLoading(true);
+      }
+
+      try {
         const profile = getSelectedProfile() || (await hydrateSelectedProfile());
 
-        if (!mounted) {
+        if (cancelled) {
           return;
         }
 
@@ -159,97 +194,51 @@ export default function VaccineScheduleScreen() {
         if (!profile) {
           setDiseaseProgress([]);
           setStats({ pending: 0, success: 0, canceled: 0 });
-          setLoading(false);
+          return;
+        }
+
+        try {
+          const overview = await loadVaccineOverview(profile.id);
+
+          if (!cancelled) {
+            setDiseaseProgress(overview.progress);
+            setStats(overview.stats);
+          }
+        } catch {
+          if (!cancelled) {
+            setDiseaseProgress([]);
+            setStats({ pending: 0, success: 0, canceled: 0 });
+          }
         }
       } catch {
-        if (mounted) {
+        if (!cancelled) {
           setSelectedProfileState(null);
           setDiseaseProgress([]);
           setStats({ pending: 0, success: 0, canceled: 0 });
+        }
+      } finally {
+        if (!cancelled) {
+          hasLoadedDataRef.current = true;
           setLoading(false);
         }
       }
     }
 
-    loadSelectedProfile();
+    loadScreenData();
 
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, []));
 
-  const refreshVaccineData = useCallback(async () => {
-    if (!selectedProfile) {
+  const returnToHome = () => {
+    if (router.canGoBack()) {
+      router.back();
       return;
     }
 
-    try {
-      const [progressData, statistics] = await Promise.all([
-        getVaccineProgress(selectedProfile.id),
-        getVaccineStatistics(selectedProfile.id),
-      ]);
-
-      setDiseaseProgress(Array.isArray(progressData) ? progressData : []);
-      setStats({
-        pending: statistics.pending,
-        success: statistics.success,
-        canceled: statistics.canceled,
-      });
-    } catch {
-      setDiseaseProgress([]);
-      setStats({ pending: 0, success: 0, canceled: 0 });
-    }
-  }, [selectedProfile]);
-
-  useEffect(() => {
-    if (!selectedProfile) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchVaccineData() {
-      setLoading(true);
-      try {
-        await refreshVaccineData();
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchVaccineData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProfile, refreshVaccineData]);
-
-  useFocusEffect(useCallback(() => {
-    if (!selectedProfile) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function reloadOnFocus() {
-      setLoading(true);
-      try {
-        await refreshVaccineData();
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    reloadOnFocus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProfile, refreshVaccineData]));
+    router.replace('/home/home');
+  };
 
   const openChangeSchedule = (item: VaccineProgressResponse) => {
     if (!selectedProfile) {
@@ -378,7 +367,7 @@ export default function VaccineScheduleScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         <View style={styles.customHeader}>
-          <TouchableOpacity onPress={() => router.replace('/home/home')} style={styles.backButton}>
+          <TouchableOpacity onPress={returnToHome} style={styles.backButton}>
             <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
           <View style={styles.headerCopy}>

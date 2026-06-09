@@ -1,6 +1,7 @@
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface AlertCardProps {
   title: string;
@@ -8,7 +9,7 @@ interface AlertCardProps {
   badgeText: string;
 }
 
-export const AlertCard = ({ title, subtitle, badgeText }: AlertCardProps) => {
+export const AlertCard = React.memo(({ title, subtitle, badgeText }: AlertCardProps) => {
   return (
     <LinearGradient
       colors={['#FF8FAB', '#FFB6C1', '#FFE1EA']}
@@ -21,8 +22,11 @@ export const AlertCard = ({ title, subtitle, badgeText }: AlertCardProps) => {
       <View style={styles.alertGlowYellow} />
       <View style={styles.alertIconWrap}>
         <Image
-          source={require('../../assets/images/AI_nurse_transparent.png')}
+          source={require('../../assets/images/home_optimized/ai_nurse.png')}
           style={styles.alertIconAnime}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          priority="high"
         />
       </View>
       <View style={styles.alertTextContent}>
@@ -35,7 +39,7 @@ export const AlertCard = ({ title, subtitle, badgeText }: AlertCardProps) => {
       </View>
     </LinearGradient>
   );
-};
+});
 
 const styles = StyleSheet.create({
   alertCard: {
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  alertIconAnime: { width: 82, height: 82, resizeMode: 'contain' },
+  alertIconAnime: { width: 82, height: 82 },
   alertTextContent: { flex: 1 },
   alertEyebrow: { fontSize: 11, color: '#FFF', fontWeight: '900', opacity: 0.86, marginBottom: 3, textTransform: 'uppercase' },
   alertTitle: { fontSize: 18, fontWeight: '900', color: '#FFF', lineHeight: 23 },

@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface FeatureItem {
   id: string;
@@ -22,7 +23,7 @@ const MORE_ACCENTS = [
   ['#FFFFFF', '#FFF8E8'],
 ] as const;
 
-export const MoreFeatures = ({ title, features, onFeaturePress }: MoreFeaturesProps) => {
+export const MoreFeatures = React.memo(({ title, features, onFeaturePress }: MoreFeaturesProps) => {
   return (
     <View>
       <View style={styles.sectionHeader}>
@@ -42,7 +43,12 @@ export const MoreFeatures = ({ title, features, onFeaturePress }: MoreFeaturesPr
             activeOpacity={0.84}
           >
             <LinearGradient colors={MORE_ACCENTS[index % MORE_ACCENTS.length]} style={styles.slideIconCircle}>
-              <Image source={item.icon} style={styles.slideIcon} />
+              <Image
+                source={item.icon}
+                style={styles.slideIcon}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
             </LinearGradient>
             <Text style={styles.slideText}>{item.title}</Text>
           </TouchableOpacity>
@@ -50,7 +56,7 @@ export const MoreFeatures = ({ title, features, onFeaturePress }: MoreFeaturesPr
       </ScrollView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },
@@ -72,6 +78,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFEAF0'
   },
-  slideIcon: { width: 40, height: 40, resizeMode: 'contain' },
+  slideIcon: { width: 40, height: 40 },
   slideText: { fontSize: 12, fontWeight: '700', color: '#5C7A8A', textAlign: 'center' },
 });

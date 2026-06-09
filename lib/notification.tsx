@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -61,6 +62,7 @@ const typeStyles = {
 } as const;
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
   const [notification, setNotification] = useState<Notification | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,19 +100,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     <NotificationContext.Provider value={contextValue}>
       {children}
       {notification && currentStyle ? (
-        <Pressable style={styles.overlay} onPress={dismiss}>
-          <View style={[styles.toast, { borderColor: currentStyle.borderColor, backgroundColor: currentStyle.backgroundColor }]}>
+        <View pointerEvents="box-none" style={[styles.overlay, { top: Math.max(insets.top, 12) + 10 }]}>
+          <Pressable
+            style={[styles.toast, { borderColor: currentStyle.borderColor, backgroundColor: currentStyle.backgroundColor }]}
+            onPress={dismiss}
+          >
             <View style={[styles.iconBubble, { backgroundColor: currentStyle.bubbleColor }]}>
               <Ionicons name={currentStyle.iconName} size={22} color={currentStyle.iconColor} />
             </View>
             <View style={styles.toastContent}>
-              <Text style={[styles.title, { color: currentStyle.titleColor }]}>{notification.title}</Text>
+              <Text style={[styles.title, { color: currentStyle.titleColor }]} numberOfLines={2}>{notification.title}</Text>
               {notification.message ? (
-                <Text style={[styles.message, { color: currentStyle.messageColor }]}>{notification.message}</Text>
+                <Text style={[styles.message, { color: currentStyle.messageColor }]} numberOfLines={3}>{notification.message}</Text>
               ) : null}
             </View>
-          </View>
-        </Pressable>
+            <Ionicons name="close" size={17} color={currentStyle.messageColor} />
+          </Pressable>
+        </View>
       ) : null}
     </NotificationContext.Provider>
   );
@@ -129,13 +135,15 @@ export function useNotification() {
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    top: 50,
     left: 0,
     right: 0,
     zIndex: 9999,
     paddingHorizontal: 16,
+    alignItems: 'center',
   },
   toast: {
+    width: '100%',
+    maxWidth: 560,
     borderRadius: 22,
     borderWidth: 1,
     paddingHorizontal: 14,

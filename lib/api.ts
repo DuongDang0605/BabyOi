@@ -549,6 +549,7 @@ type ErrorPayload = {
 
 type ApiRequestInit = RequestInit & {
   skipAuth?: boolean;
+  silent?: boolean;
 };
 
 type ProfileAvatarUploadResponse = {
@@ -742,7 +743,7 @@ export function resolveOptimizedAssetUrl(
 ========================= */
 
 function shouldRedirectToLogin(status: number) {
-  return status === 401 || status === 403 || status === 404 || status >= 500;
+  return status === 401 || status === 403;
 }
 
 function openErrorScreen(status: string, message: string) {
@@ -765,7 +766,7 @@ async function redirectToLogin() {
   }, 0);
 }
 
-async function parseError(response: Response): Promise<never> {
+async function parseError(response: Response, init?: ApiRequestInit): Promise<never> {
   let payload: ErrorPayload | null = null;
 
   try {
@@ -791,6 +792,8 @@ async function parseError(response: Response): Promise<never> {
 
   if (shouldRedirectToLogin(response.status)) {
     await redirectToLogin();
+  } else if (response.status >= 500 && !init?.silent) {
+    openErrorScreen(payload?.status || String(response.status), message);
   }
 
   throw new ApiError(message, {
@@ -821,7 +824,7 @@ function buildHeaders(init?: ApiRequestInit, options?: { jsonContentType?: boole
 async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const { skipAuth, ...fetchInit } = init ?? {};
+  const { skipAuth, silent, ...fetchInit } = init ?? {};
   const url = `${API_BASE_URL}${path}`;
 
   let response: Response;
@@ -832,12 +835,14 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
       headers: buildHeaders(init),
     });
   } catch (error) {
-    openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
+    if (!silent) {
+      openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
+    }
     throw error;
   }
 
   if (!response.ok) {
-    await parseError(response);
+    await parseError(response, init);
   }
 
   if (response.status === 204) {
@@ -850,7 +855,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
 async function requestMultipart<T>(path: string, formData: FormData, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const { skipAuth, ...fetchInit } = init ?? {};
+  const { skipAuth, silent, ...fetchInit } = init ?? {};
   const url = `${API_BASE_URL}${path}`;
 
   let response: Response;
@@ -863,12 +868,14 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
       headers: buildHeaders(init, { jsonContentType: false }),
     });
   } catch (error) {
-    openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
+    if (!silent) {
+      openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
+    }
     throw error;
   }
 
   if (!response.ok) {
-    await parseError(response);
+    await parseError(response, init);
   }
 
   return (await response.json()) as T;
@@ -1175,26 +1182,30 @@ export function deleteVaccineRecord(recordId: number | string) {
   });
 }
 
-export function getVaccineStatistics(profileId: number | string) {
+export function getVaccineStatistics(profileId: number | string, init?: ApiRequestInit) {
   return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
+    ...init,
     method: 'GET',
   });
 }
 
-export function getVaccineProgress(profileId: number | string) {
+export function getVaccineProgress(profileId: number | string, init?: ApiRequestInit) {
   return request<VaccineProgressResponse[]>(`/api/vaccine-catalog/profiles/${profileId}/progress`, {
+    ...init,
     method: 'GET',
   });
 }
 
 export function stopProfileDiseaseSchedule(profileId: number | string, diseaseId: number | string) {
   return request<VaccineProgressResponse>(`/api/vaccine-catalog/profiles/${profileId}/child-diseases/${diseaseId}/stop`, {
+    silent: true,
     method: 'PATCH',
   });
 }
 
 export function resumeProfileDiseaseSchedule(profileId: number | string, diseaseId: number | string) {
   return request<VaccineProgressResponse>(`/api/vaccine-catalog/profiles/${profileId}/child-diseases/${diseaseId}/resume`, {
+    silent: true,
     method: 'PATCH',
   });
 }
@@ -1327,8 +1338,9 @@ export function deleteDiaryEntry(entryId: number | string) {
   });
 }
 
-export function getAiTeachingLessonsByProfile(profileId: number | string) {
+export function getAiTeachingLessonsByProfile(profileId: number | string, init?: ApiRequestInit) {
   return request<AiTeachingLessonResponse[]>(`/api/ai-teaching/profiles/${profileId}/lessons`, {
+    ...init,
     method: 'GET',
   });
 }
@@ -1466,24 +1478,28 @@ export function getNotifications(params?: { page?: number; size?: number }) {
     page: params?.page,
     size: params?.size,
   })}`, {
+    silent: true,
     method: 'GET',
   });
 }
 
 export function getUnreadNotificationCount() {
   return request<{ count: number }>('/api/notifications/unread-count', {
+    silent: true,
     method: 'GET',
   });
 }
 
 export function markNotificationRead(notificationId: number | string) {
   return request<AppNotificationResponse>(`/api/notifications/${notificationId}/read`, {
+    silent: true,
     method: 'PATCH',
   });
 }
 
 export function markAllNotificationsRead() {
   return request<void>('/api/notifications/read-all', {
+    silent: true,
     method: 'PATCH',
   });
 }
@@ -1495,6 +1511,7 @@ export function registerDeviceToken(payload: {
   appVersion?: string | null;
 }) {
   return request<void>('/api/notifications/device-tokens', {
+    silent: true,
     method: 'POST',
     body: JSON.stringify(payload),
   });

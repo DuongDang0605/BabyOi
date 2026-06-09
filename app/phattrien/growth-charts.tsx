@@ -6,7 +6,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 
 import { GrowthLineChart } from '../../components/phattrien/GrowthLineChart';
 import { GrowthSummary } from '../../components/phattrien/GrowthSummary';
-import type { HealthRecordResponse } from '../../lib/api';
+import type { HealthRecordResponse, ProfileResponse } from '../../lib/api';
 import { getHealthRecords } from '../../lib/api';
 import { formatNullableNumber, toDisplayMonth } from '../../lib/health-format';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -26,11 +26,13 @@ function buildChartData(records: HealthRecordResponse[]) {
 
 export default function GrowthChartsScreen() {
   const [records, setRecords] = useState<HealthRecordResponse[]>([]);
+  const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(() => getSelectedProfile());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadRecords = useCallback(async () => {
     const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    setActiveProfile(profile ?? null);
     if (!profile?.id) {
       setError('Vui lòng chọn hồ sơ trước khi xem sức khỏe.');
       setRecords([]);
@@ -57,6 +59,7 @@ export default function GrowthChartsScreen() {
   const latest = records[0] || null;
   const chartData = useMemo(() => buildChartData(records), [records]);
   const hasChartData = records.length > 0;
+  const showDailySchedule = activeProfile?.profileType === 'CHILD';
 
   return (
     <View style={styles.container}>
@@ -80,7 +83,7 @@ export default function GrowthChartsScreen() {
           </View>
           <View style={styles.heroTextGroup}>
             <Text style={styles.heroTitle}>Theo dõi thể chất</Text>
-            <Text style={styles.heroSubtitle}>Cập nhật chỉ số, xem xu hướng và lịch sử sức khỏe của bé.</Text>
+            <Text style={styles.heroSubtitle}>Cập nhật chỉ số, xem xu hướng và lịch sử sức khỏe.</Text>
           </View>
         </LinearGradient>
 
@@ -137,16 +140,18 @@ export default function GrowthChartsScreen() {
             <Ionicons name="chevron-forward" size={20} color="#FFB6C1" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.longButton, { borderColor: '#E8F5E9' }]}
-            onPress={() => router.push('/phattrien/daily-schedule')}
-          >
-            <View style={[styles.btnIconCircle, { backgroundColor: '#98D8AA' }]}>
-              <Ionicons name="calendar-outline" size={22} color="white" />
-            </View>
-            <Text style={[styles.longButtonText, { color: '#5C7A8A' }]}>Lịch sinh hoạt của bé</Text>
-            <Ionicons name="chevron-forward" size={20} color="#98D8AA" />
-          </TouchableOpacity>
+          {showDailySchedule && (
+            <TouchableOpacity
+              style={[styles.longButton, { borderColor: '#E8F5E9' }]}
+              onPress={() => router.push('/phattrien/daily-schedule')}
+            >
+              <View style={[styles.btnIconCircle, { backgroundColor: '#98D8AA' }]}>
+                <Ionicons name="calendar-outline" size={22} color="white" />
+              </View>
+              <Text style={[styles.longButtonText, { color: '#5C7A8A' }]}>Lịch sinh hoạt của bé</Text>
+              <Ionicons name="chevron-forward" size={20} color="#98D8AA" />
+            </TouchableOpacity>
+          )}
 
           <View style={styles.rowButtons}>
             <TouchableOpacity

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
+  InteractionManager,
   Modal,
   ScrollView,
   StyleSheet,
@@ -26,7 +27,7 @@ import {
   getUnreadNotificationCount,
   getVaccineProgress,
   ProfileResponse,
-  resolveAssetUrl,
+  resolveOptimizedAssetUrl,
   VaccineProgressResponse,
 } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
@@ -67,12 +68,27 @@ function formatDisplayDate(date: Date) {
 
 function getNearestVaccine(progressItems: VaccineProgressResponse[]) {
   const today = startOfDay(new Date()).getTime();
+  let nearest: NearestVaccine = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
 
-  return progressItems
-    .filter((item) => !item.stopped && item.nextInjectionDate)
-    .map((progress) => ({ progress, date: parseApiDate(progress.nextInjectionDate!) }))
-    .filter((item) => !Number.isNaN(item.date.getTime()))
-    .sort((left, right) => Math.abs(startOfDay(left.date).getTime() - today) - Math.abs(startOfDay(right.date).getTime() - today))[0] ?? null;
+  for (const progress of progressItems) {
+    if (progress.stopped || !progress.nextInjectionDate) {
+      continue;
+    }
+
+    const date = parseApiDate(progress.nextInjectionDate);
+    if (Number.isNaN(date.getTime())) {
+      continue;
+    }
+
+    const distance = Math.abs(startOfDay(date).getTime() - today);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = { progress, date };
+    }
+  }
+
+  return nearest;
 }
 
 function getVaccineBadgeText(date: Date) {
@@ -116,30 +132,113 @@ function getTeachingTip(lesson: AiTeachingLessonResponse | null) {
 }
 
 const MAIN_FEATURES = [
-  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/home_health.png'), route: '/phattrien/growth-charts' },
-  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/home_vaccine.png'), route: '/lichtiem/listlichtiem' },
-  { id: '3', title: 'Dinh dưỡng', icon: require('../../assets/images/home_nutrition.png'), route: '/dinhduong/listdoan' },
-  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/home_diary.png'), route: '/nhatki/nhatki' },
+  { id: '1', title: 'Sức khỏe', icon: require('../../assets/images/home_optimized/home_health.png'), route: '/phattrien/growth-charts' },
+  { id: '2', title: 'Sổ tiêm', icon: require('../../assets/images/home_optimized/home_vaccine.png'), route: '/lichtiem/listlichtiem' },
+  { id: '3', title: 'Dinh dưỡng', icon: require('../../assets/images/home_optimized/home_nutrition.png'), route: '/dinhduong/listdoan' },
+  { id: '4', title: 'Nhật ký', icon: require('../../assets/images/home_optimized/home_diary.png'), route: '/nhatki/nhatki' },
 ];
 
 const MORE_FEATURES = [
-  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/shop.png'), route: '/coming-soon?feature=Cửa%20hàng' },
-  { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/camnangicon.png'), route: '/camnang/camnang' },
-  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/booking.png'), route: '/coming-soon?feature=Đặt%20lịch' },
-  { id: '8', title: 'Giáo trình', icon: require('../../assets/images/edu.png'), route: '/AI/lesson-list' },
+  { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/home_optimized/shop.png'), route: '/coming-soon?feature=Cửa%20hàng' },
+  { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/home_optimized/camnangicon.png'), route: '/camnang/camnang' },
+  { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/home_optimized/booking.png'), route: '/coming-soon?feature=Đặt%20lịch' },
+  { id: '8', title: 'Giáo trình', icon: require('../../assets/images/home_optimized/edu.png'), route: '/AI/lesson-list' },
 ];
+
+const DEFAULT_TEACHING_TIP = 'Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!';
+const HOME_WIDGET_CACHE_TTL_MS = 60_000;
+const UNREAD_NOTIFICATION_CACHE_TTL_MS = 30_000;
+
+type NearestVaccine = { progress: VaccineProgressResponse; date: Date } | null;
+
+type HomeWidgetCache = {
+  profileId: number;
+  nearestVaccine: NearestVaccine;
+  teachingTip: string;
+  updatedAt: number;
+};
+
+let homeWidgetCache: HomeWidgetCache | null = null;
+let homeWidgetRequest: Promise<HomeWidgetCache> | null = null;
+let homeWidgetRequestProfileId: number | null = null;
+let unreadNotificationCache: { count: number; updatedAt: number } | null = null;
+let unreadNotificationRequest: Promise<number> | null = null;
+let pushRegistrationAttempted = false;
+
+async function fetchHomeWidgets(profile: ProfileResponse) {
+  const [vaccineProgress, teachingLessons] = await Promise.all([
+    profile.profileType === 'MOTHER'
+      ? Promise.resolve([] as VaccineProgressResponse[])
+      : getVaccineProgress(profile.id, { silent: true }),
+    getAiTeachingLessonsByProfile(profile.id, { silent: true }),
+  ]);
+
+  const cache: HomeWidgetCache = {
+    profileId: profile.id,
+    nearestVaccine: getNearestVaccine(Array.isArray(vaccineProgress) ? vaccineProgress : []),
+    teachingTip: getTeachingTip(getCurrentTeachingLesson(Array.isArray(teachingLessons) ? teachingLessons : [])),
+    updatedAt: Date.now(),
+  };
+
+  homeWidgetCache = cache;
+  return cache;
+}
+
+function getHomeWidgetCache(profileId: number) {
+  return homeWidgetCache?.profileId === profileId ? homeWidgetCache : null;
+}
+
+function isHomeWidgetCacheFresh(profileId: number) {
+  const cache = getHomeWidgetCache(profileId);
+  return !!cache && Date.now() - cache.updatedAt < HOME_WIDGET_CACHE_TTL_MS;
+}
+
+function getFreshUnreadNotificationCount() {
+  return unreadNotificationCache && Date.now() - unreadNotificationCache.updatedAt < UNREAD_NOTIFICATION_CACHE_TTL_MS
+    ? unreadNotificationCache.count
+    : null;
+}
+
+async function fetchUnreadNotificationCount() {
+  if (!unreadNotificationRequest) {
+    unreadNotificationRequest = getUnreadNotificationCount()
+      .then((unread) => {
+        const count = unread.count ?? 0;
+        unreadNotificationCache = { count, updatedAt: Date.now() };
+        return count;
+      })
+      .finally(() => {
+        unreadNotificationRequest = null;
+      });
+  }
+
+  return unreadNotificationRequest;
+}
+
+function registerPushNotificationsOnce() {
+  if (pushRegistrationAttempted) {
+    return;
+  }
+
+  pushRegistrationAttempted = true;
+  registerPushNotifications().catch((error) => {
+    console.warn('Không thể đăng ký push notification:', error);
+  });
+}
 
 export default function AppHomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
-  const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
-  const [nearestVaccine, setNearestVaccine] = useState<{ progress: VaccineProgressResponse; date: Date } | null>(null);
+  const currentProfileIdRef = useRef<number | null>(null);
+  const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(() => getSelectedProfile());
+  const [profileReady, setProfileReady] = useState(() => getSelectedProfile() !== null);
+  const [nearestVaccine, setNearestVaccine] = useState<NearestVaccine>(null);
   const [vaccineReminderError, setVaccineReminderError] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [teachingTip, setTeachingTip] = useState('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(() => unreadNotificationCache?.count ?? 0);
+  const [teachingTip, setTeachingTip] = useState(DEFAULT_TEACHING_TIP);
 
-  const toggleMenu = () => setMenuVisible((visible) => !visible);
-  const closeMenu = () => setMenuVisible(false);
+  const toggleMenu = useCallback(() => setMenuVisible((visible) => !visible), []);
+  const closeMenu = useCallback(() => setMenuVisible(false), []);
 
   useEffect(() => {
     Animated.spring(menuAnim, {
@@ -153,80 +252,151 @@ export default function AppHomeScreen() {
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
+    let interactionTask: { cancel?: () => void } | null = null;
 
-    async function loadHomeData() {
+    const refreshUnread = async () => {
       try {
-        const profile = getSelectedProfile() || await hydrateSelectedProfile();
-        if (!mounted) {
-          return;
-        }
-
-        setActiveProfile(profile);
-        setNearestVaccine(null);
-        setVaccineReminderError(false);
-        setTeachingTip('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
-
-        if (!profile?.id) {
-          return;
-        }
-
-        const [vaccineProgress, teachingLessons] = await Promise.all([
-          getVaccineProgress(profile.id),
-          getAiTeachingLessonsByProfile(profile.id),
-        ]);
-
+        const count = await fetchUnreadNotificationCount();
         if (mounted) {
-          setNearestVaccine(getNearestVaccine(Array.isArray(vaccineProgress) ? vaccineProgress : []));
-          setTeachingTip(getTeachingTip(getCurrentTeachingLesson(Array.isArray(teachingLessons) ? teachingLessons : [])));
-        }
-      } catch (error) {
-        console.error('Không thể tải dữ liệu home:', error);
-        if (mounted) {
-          setNearestVaccine(null);
-          setVaccineReminderError(true);
-        }
-      }
-
-      try {
-        const unread = await getUnreadNotificationCount();
-        if (mounted) {
-          setUnreadNotificationCount(unread.count ?? 0);
+          setUnreadNotificationCount(count);
         }
       } catch {
         if (mounted) {
           setUnreadNotificationCount(0);
         }
       }
+    };
 
-      registerPushNotifications().catch((error) => {
-        console.warn('Không thể đăng ký push notification:', error);
-      });
+    const refreshWidgets = async (profile: ProfileResponse) => {
+      try {
+        if (!homeWidgetRequest || homeWidgetRequestProfileId !== profile.id) {
+          homeWidgetRequestProfileId = profile.id;
+          const request = fetchHomeWidgets(profile).finally(() => {
+            if (homeWidgetRequest === request) {
+              homeWidgetRequest = null;
+              homeWidgetRequestProfileId = null;
+            }
+          });
+          homeWidgetRequest = request;
+        }
+
+        const widgets = await homeWidgetRequest;
+
+        if (mounted && widgets.profileId === currentProfileIdRef.current) {
+          setNearestVaccine(widgets.nearestVaccine);
+          setTeachingTip(widgets.teachingTip);
+          setVaccineReminderError(false);
+        }
+      } catch (error) {
+        console.error('Không thể tải dữ liệu home:', error);
+        if (mounted) {
+          setVaccineReminderError(true);
+        }
+      }
+    };
+
+    async function loadHomeData() {
+      const cachedUnread = getFreshUnreadNotificationCount();
+      if (cachedUnread !== null) {
+        setUnreadNotificationCount(cachedUnread);
+      }
+
+      try {
+        const profile = getSelectedProfile() || await hydrateSelectedProfile();
+        if (!mounted) {
+          return;
+        }
+
+        setProfileReady(true);
+        setActiveProfile(profile);
+        const previousProfileId = currentProfileIdRef.current;
+        currentProfileIdRef.current = profile?.id ?? null;
+
+        if (!profile?.id) {
+          setNearestVaccine(null);
+          setVaccineReminderError(false);
+          setTeachingTip(DEFAULT_TEACHING_TIP);
+          interactionTask = InteractionManager.runAfterInteractions(() => {
+            if (cachedUnread === null) {
+              void refreshUnread();
+            }
+            registerPushNotificationsOnce();
+          });
+          return;
+        }
+
+        const cachedWidgets = getHomeWidgetCache(profile.id);
+        if (cachedWidgets) {
+          setNearestVaccine(cachedWidgets.nearestVaccine);
+          setTeachingTip(cachedWidgets.teachingTip);
+          setVaccineReminderError(false);
+        } else if (previousProfileId !== profile.id) {
+          setNearestVaccine(null);
+          setTeachingTip(DEFAULT_TEACHING_TIP);
+          setVaccineReminderError(false);
+        }
+
+        const shouldRefreshWidgets = !isHomeWidgetCacheFresh(profile.id);
+        const shouldRefreshUnread = cachedUnread === null;
+
+        interactionTask = InteractionManager.runAfterInteractions(() => {
+          if (shouldRefreshWidgets) {
+            void refreshWidgets(profile);
+          }
+          if (shouldRefreshUnread) {
+            void refreshUnread();
+          }
+          registerPushNotificationsOnce();
+        });
+      } catch (error) {
+        console.error('Không thể tải dữ liệu home:', error);
+        if (mounted) {
+          setProfileReady(true);
+          setVaccineReminderError(true);
+          interactionTask = InteractionManager.runAfterInteractions(() => {
+            if (cachedUnread === null) {
+              void refreshUnread();
+            }
+            registerPushNotificationsOnce();
+          });
+        }
+      }
+
     }
 
     loadHomeData();
     return () => {
       mounted = false;
+      interactionTask?.cancel?.();
     };
   }, []));
 
-  const handleFeaturePress = (route: string) => {
+  const handleFeaturePress = useCallback((route: string) => {
     if (route !== '#') {
       router.push(route as any);
     }
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleNotificationPress = useCallback(() => {
+    router.push('/notification/notifications');
+  }, []);
+
+  const handleLogout = useCallback(async () => {
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');
-  };
+  }, []);
 
   const profileName = activeProfile?.name || 'Mẹ';
   const profileAge = activeProfile ? getProfileSubtitle(activeProfile) : 'Chọn hồ sơ để bắt đầu';
-  const profileAvatarUrl = resolveAssetUrl(activeProfile?.imageUrl);
-  const profileAvatar = profileAvatarUrl
-    ? { uri: profileAvatarUrl }
-    : require('../../assets/images/avt.png');
+  const profileAvatarUrl = resolveOptimizedAssetUrl(activeProfile?.imageUrl, 'avatar');
+  const profileAvatar = useMemo(
+    () => profileAvatarUrl ? { uri: profileAvatarUrl } : require('../../assets/images/home_optimized/avatar.png'),
+    [profileAvatarUrl]
+  );
+  const isMotherProfile = activeProfile?.profileType === 'MOTHER';
+  const showVaccineReminder = profileReady && activeProfile?.profileType !== 'MOTHER';
+  const profileMenuLabel = isMotherProfile ? 'Hồ sơ của mẹ' : activeProfile?.profileType === 'CHILD' ? 'Hồ sơ của bé' : 'Hồ sơ';
   const reminderSubtitle = nearestVaccine
     ? `${nearestVaccine.progress.diseaseName || 'Mũi tiêm tiếp theo'} - ${formatDisplayDate(nearestVaccine.date)}`
     : activeProfile
@@ -242,18 +412,18 @@ export default function AppHomeScreen() {
       <View pointerEvents="none" style={styles.backgroundAccentMid} />
       <View pointerEvents="none" style={styles.backgroundAccentMint} />
       <View pointerEvents="none" style={styles.backgroundAccentYellow} />
-      <View pointerEvents="none" style={styles.backgroundStripe} />
-      <View pointerEvents="none" style={styles.backgroundHeart}>
-        <Ionicons name="heart" size={30} color="#FF9DBA" />
-      </View>
-      <View pointerEvents="none" style={styles.backgroundSparkleOne}>
-        <Ionicons name="sparkles" size={22} color="#FFD36E" />
-      </View>
-      <View pointerEvents="none" style={styles.backgroundSparkleTwo}>
-        <Ionicons name="sparkles-outline" size={20} color="#83DDF1" />
-      </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <View pointerEvents="none" style={styles.backgroundStripe} />
+        <View pointerEvents="none" style={styles.backgroundHeart}>
+          <Ionicons name="heart" size={30} color="#FF9DBA" />
+        </View>
+        <View pointerEvents="none" style={styles.backgroundSparkleOne}>
+          <Ionicons name="sparkles" size={22} color="#FFD36E" />
+        </View>
+        <View pointerEvents="none" style={styles.backgroundSparkleTwo}>
+          <Ionicons name="sparkles-outline" size={20} color="#83DDF1" />
+        </View>
 
         {/* --- Header --- */}
         <HomeHeader
@@ -262,15 +432,17 @@ export default function AppHomeScreen() {
           avatarSource={profileAvatar}
           onAvatarPress={toggleMenu}
           unreadCount={unreadNotificationCount}
-          onNotificationPress={() => router.push('/notification/notifications')}
+          onNotificationPress={handleNotificationPress}
         />
 
         {/* --- ALERT CARD --- */}
-        <AlertCard
-          title="Lịch tiêm nhắc bé"
-          subtitle={reminderSubtitle}
-          badgeText={reminderBadgeText}
-        />
+        {showVaccineReminder && (
+          <AlertCard
+            title="Lịch tiêm nhắc bé"
+            subtitle={reminderSubtitle}
+            badgeText={reminderBadgeText}
+          />
+        )}
 
         {/* --- PHẦN 1: CHĂM SÓC BÉ --- */}
         <FeatureGrid
@@ -298,7 +470,13 @@ export default function AppHomeScreen() {
       <View pointerEvents="none" style={styles.aiButtonHalo} />
       <TouchableOpacity style={styles.floatingAiButton} onPress={() => router.push('/AI/chatboxAI')}>
         <View style={styles.aiImageContainer}>
-          <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.aiButtonImage} />
+          <Image
+            source={require('../../assets/images/home_optimized/ai_chatbox.png')}
+            style={styles.aiButtonImage}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            priority="high"
+          />
         </View>
         <Text style={styles.aiLabel}>Hỏi AI</Text>
       </TouchableOpacity>
@@ -341,7 +519,7 @@ export default function AppHomeScreen() {
                   <View style={[styles.iconCircle, { backgroundColor: '#E8F9ED' }]}>
                     <Ionicons name="person-outline" size={18} color="#2E7D32" />
                   </View>
-                  <Text style={styles.menuText}>Hồ sơ của bé</Text>
+                  <Text style={styles.menuText}>{profileMenuLabel}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.menuDivider} />
@@ -532,6 +710,6 @@ const styles = StyleSheet.create({
   aiButtonHalo: { position: 'absolute', bottom: 22, right: 12, width: 138, height: 78, borderRadius: 39, backgroundColor: 'rgba(255, 143, 171, 0.22)' },
   floatingAiButton: { position: 'absolute', bottom: 28, right: 18, backgroundColor: '#FF6F9B', paddingLeft: 10, paddingRight: 22, height: 68, borderRadius: 34, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowColor: '#FF6F9B', shadowOpacity: 0.55, shadowRadius: 16, borderWidth: 2, borderColor: '#FFFFFF' },
   aiImageContainer: { width: 58, height: 58, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
-  aiButtonImage: { width: 64, height: 64, resizeMode: 'contain' },
+  aiButtonImage: { width: 64, height: 64 },
   aiLabel: { color: '#FFF', fontWeight: '900', fontSize: 17 },
 });
