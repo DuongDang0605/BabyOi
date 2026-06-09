@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -22,32 +23,40 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 
 const typeStyles = {
   success: {
-    borderColor: '#8fd3a7',
-    backgroundColor: '#f1fff4',
-    icon: '✅',
-    titleColor: '#246b3b',
-    messageColor: '#3d6f4c',
+    borderColor: '#B8EFCF',
+    backgroundColor: '#F4FFF8',
+    iconName: 'checkmark-circle-outline',
+    iconColor: '#5ABF7A',
+    bubbleColor: '#E8F9ED',
+    titleColor: '#2F6F46',
+    messageColor: '#4F7A5C',
   },
   error: {
-    borderColor: '#ff8fab',
-    backgroundColor: '#fff3f5',
-    icon: '❌',
-    titleColor: '#9d1c32',
-    messageColor: '#ad2b42',
+    borderColor: '#FFD8E5',
+    backgroundColor: '#FFF6F8',
+    iconName: 'close-circle-outline',
+    iconColor: '#F05F78',
+    bubbleColor: '#FFF1F4',
+    titleColor: '#9D2A42',
+    messageColor: '#A74A5C',
   },
   warning: {
-    borderColor: '#ffd166',
-    backgroundColor: '#fff9e8',
-    icon: '⚠️',
-    titleColor: '#9c6400',
-    messageColor: '#8b5900',
+    borderColor: '#FFE6BA',
+    backgroundColor: '#FFF9EC',
+    iconName: 'warning-outline',
+    iconColor: '#D46B08',
+    bubbleColor: '#FFF1C9',
+    titleColor: '#8A5200',
+    messageColor: '#9A5A00',
   },
   info: {
-    borderColor: '#a7e4f5',
-    backgroundColor: '#f1fbff',
-    icon: 'ℹ️',
-    titleColor: '#1b5f78',
-    messageColor: '#2b7094',
+    borderColor: '#DDF5FB',
+    backgroundColor: '#F2FCFF',
+    iconName: 'sparkles-outline',
+    iconColor: '#5EC9E8',
+    bubbleColor: '#EFFBFF',
+    titleColor: '#286A7D',
+    messageColor: '#3F7D91',
   },
 } as const;
 
@@ -83,18 +92,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const contextValue = useMemo(() => ({ showNotification }), [showNotification]);
+  const currentStyle = notification ? typeStyles[notification.type] : null;
 
   return (
     <NotificationContext.Provider value={contextValue}>
       {children}
-      {notification ? (
+      {notification && currentStyle ? (
         <Pressable style={styles.overlay} onPress={dismiss}>
-          <View style={[styles.toast, typeStyles[notification.type]]}>
-            <Text style={styles.icon}>{typeStyles[notification.type].icon}</Text>
+          <View style={[styles.toast, { borderColor: currentStyle.borderColor, backgroundColor: currentStyle.backgroundColor }]}>
+            <View style={[styles.iconBubble, { backgroundColor: currentStyle.bubbleColor }]}>
+              <Ionicons name={currentStyle.iconName} size={22} color={currentStyle.iconColor} />
+            </View>
             <View style={styles.toastContent}>
-              <Text style={[styles.title, { color: typeStyles[notification.type].titleColor }]}>{notification.title}</Text>
+              <Text style={[styles.title, { color: currentStyle.titleColor }]}>{notification.title}</Text>
               {notification.message ? (
-                <Text style={[styles.message, { color: typeStyles[notification.type].messageColor }]}>{notification.message}</Text>
+                <Text style={[styles.message, { color: currentStyle.messageColor }]}>{notification.message}</Text>
               ) : null}
             </View>
           </View>
@@ -124,33 +136,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   toast: {
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#FFB6C1',
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
-  icon: {
-    fontSize: 20,
-    marginRight: 12,
+  iconBubble: {
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   toastContent: {
     flex: 1,
   },
   title: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '900',
     marginBottom: 3,
   },
   message: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
   },
 });

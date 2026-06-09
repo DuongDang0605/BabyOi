@@ -7,22 +7,27 @@ interface Vaccine {
   id: string;
   name: string;
   desc: string;
-  status: 'upcoming' | 'completed' | 'oral_completed';
+  status: 'upcoming' | 'completed' | 'oral_completed' | 'disease';
   date: string;
   vaccineTypeId?: number | string;
   injectionDate?: string;
   location?: string;
   cost?: string;
   note?: string;
+  progressText?: string;
+  doseHistory?: string[];
+  warnings?: string[];
+  isStopped?: boolean;
 }
 
 interface VaccineCardProps {
   vaccine: Vaccine;
   onConfirmPress?: (vaccine: Vaccine) => void;
   onCancelPress?: (vaccine: Vaccine) => void;
+  onDetailPress?: (vaccine: Vaccine) => void;
+  onStopPress?: (vaccine: Vaccine) => void;
+  onResumePress?: (vaccine: Vaccine) => void;
 }
-
-const getDoneLabel = (status: Vaccine['status']) => status === 'oral_completed' ? 'Đã uống' : 'Đã tiêm';
 
 const formatVaccineDate = (value?: string) => {
   if (!value) {
@@ -45,21 +50,38 @@ const formatVaccineDate = (value?: string) => {
   return `${day}-${month}-${date.getFullYear()}`;
 };
 
-export const VaccineCard = ({ vaccine, onConfirmPress, onCancelPress }: VaccineCardProps) => {
+const getBadgeText = (status: Vaccine['status']) => {
+  if (status === 'upcoming') {
+    return 'Sắp tới';
+  }
+  return status === 'oral_completed' ? 'Đã uống' : 'Đã tiêm';
+};
+
+export const VaccineCard = ({
+  vaccine,
+  onConfirmPress,
+  onCancelPress,
+  onDetailPress,
+  onStopPress,
+  onResumePress,
+}: VaccineCardProps) => {
   const isUpcoming = vaccine.status === 'upcoming';
+  const isDisease = vaccine.status === 'disease';
+  const isStopped = Boolean(vaccine.isStopped);
+  const isActive = (isUpcoming || isDisease) && !isStopped;
   const displayDate = formatVaccineDate(vaccine.date);
 
   return (
-    <View style={[styles.vaccineCard, isUpcoming && styles.upcomingCard]}>
+    <View style={[styles.vaccineCard, isActive && styles.upcomingCard, isStopped && styles.stoppedCard]}>
       <View style={styles.cardGlowPink} />
       <View style={styles.cardGlowMint} />
 
       <View style={styles.cardHeader}>
-        <View style={[styles.iconStage, isUpcoming ? styles.upcomingIconStage : styles.doneIconStage]}>
+        <View style={[styles.iconStage, isActive ? styles.upcomingIconStage : styles.doneIconStage]}>
           <Ionicons
-            name={isUpcoming ? 'calendar-outline' : 'shield-checkmark'}
+            name={isStopped ? 'pause-circle-outline' : isDisease ? 'medical-outline' : isUpcoming ? 'calendar-outline' : 'shield-checkmark'}
             size={24}
-            color={isUpcoming ? '#FF9C6E' : '#5ABF7A'}
+            color={isStopped ? '#7A8C99' : isActive ? '#FF9C6E' : '#5ABF7A'}
           />
         </View>
 
@@ -68,22 +90,56 @@ export const VaccineCard = ({ vaccine, onConfirmPress, onCancelPress }: VaccineC
           <Text style={styles.vaccineDesc} numberOfLines={2}>{vaccine.desc}</Text>
         </View>
 
-        <LinearGradient
-          colors={isUpcoming ? ['#FFF1C9', '#FFE6EE'] : ['#E8F9ED', '#EAFBFF']}
-          style={styles.statusBadge}
-        >
-          <Ionicons
-            name={isUpcoming ? 'time-outline' : 'checkmark-circle'}
-            size={13}
-            color={isUpcoming ? '#D46B08' : '#2E7D32'}
-          />
-          <Text style={[styles.statusText, isUpcoming ? styles.statusTextUpcoming : styles.statusTextDone]}>
-            {isUpcoming ? 'Sắp tới' : getDoneLabel(vaccine.status)}
-          </Text>
-        </LinearGradient>
+        {isDisease ? (
+          <TouchableOpacity
+            style={styles.headerDetailButton}
+            onPress={() => onDetailPress?.(vaccine)}
+            activeOpacity={0.86}
+          >
+            <Ionicons name="information-circle-outline" size={13} color="#5C7A8A" />
+            <Text style={styles.headerDetailButtonText}>Xem chi tiết</Text>
+          </TouchableOpacity>
+        ) : (
+          <LinearGradient
+            colors={isActive ? ['#FFF1C9', '#FFE6EE'] : ['#E8F9ED', '#EAFBFF']}
+            style={styles.statusBadge}
+          >
+            <Ionicons
+              name={isUpcoming ? 'time-outline' : 'checkmark-circle'}
+              size={13}
+              color={isActive ? '#D46B08' : '#2E7D32'}
+            />
+            <Text style={[styles.statusText, isActive ? styles.statusTextUpcoming : styles.statusTextDone]}>
+              {getBadgeText(vaccine.status)}
+            </Text>
+          </LinearGradient>
+        )}
       </View>
 
-      {!isUpcoming ? (
+      {vaccine.progressText || vaccine.doseHistory?.length || vaccine.warnings?.length ? (
+        <View style={[styles.progressBox, isStopped && styles.stoppedProgressBox]}>
+          {vaccine.progressText ? (
+            <View style={styles.progressHeaderRow}>
+              <Ionicons name="analytics-outline" size={15} color={isStopped ? '#7A8C99' : '#5EC9E8'} />
+              <Text style={styles.progressText}>{vaccine.progressText}</Text>
+            </View>
+          ) : null}
+          {vaccine.doseHistory?.slice(0, 4).map((line) => (
+            <View key={line} style={styles.doseLine}>
+              <View style={styles.doseDot} />
+              <Text style={styles.doseText}>{line}</Text>
+            </View>
+          ))}
+          {vaccine.warnings?.slice(0, 2).map((warning) => (
+            <View key={warning} style={styles.warningLine}>
+              <Ionicons name={isStopped ? 'pause-circle-outline' : 'alert-circle-outline'} size={14} color={isStopped ? '#7A8C99' : '#D46B08'} />
+              <Text style={[styles.warningText, isStopped && styles.stoppedWarningText]}>{warning}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {!isUpcoming && !isDisease ? (
         <View style={styles.detailBox}>
           {vaccine.location ? (
             <View style={styles.detailRow}>
@@ -110,19 +166,54 @@ export const VaccineCard = ({ vaccine, onConfirmPress, onCancelPress }: VaccineC
       ) : null}
 
       <View style={styles.dateRow}>
-        <View style={[styles.dateIconBubble, isUpcoming ? styles.dateUpcomingBubble : styles.dateDoneBubble]}>
+        <View style={[styles.dateIconBubble, isActive ? styles.dateUpcomingBubble : styles.dateDoneBubble]}>
           <Ionicons
-            name={isUpcoming ? 'calendar-clear-outline' : 'heart'}
+            name={isStopped ? 'pause-outline' : isDisease ? 'calendar-number-outline' : isUpcoming ? 'calendar-clear-outline' : 'heart'}
             size={15}
-            color={isUpcoming ? '#FF9C6E' : '#FF8FAB'}
+            color={isStopped ? '#7A8C99' : isActive ? '#FF9C6E' : '#FF8FAB'}
           />
         </View>
         <Text style={styles.dateText}>
-          {isUpcoming ? `Dự kiến: ${displayDate}` : `Hoàn thành ngày: ${displayDate}`}
+          {isDisease
+            ? isStopped ? 'Đã dừng lịch tiêm bệnh này' : displayDate ? `Mũi tiếp theo: ${displayDate}` : 'Chưa có mũi sắp tới'
+            : isUpcoming ? `Dự kiến: ${displayDate}` : `Hoàn thành ngày: ${displayDate}`}
         </Text>
       </View>
 
-      {isUpcoming ? (
+      {isDisease ? (
+        <View style={styles.actionRow}>
+          {!isStopped ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.confirmButton]}
+              onPress={() => onConfirmPress?.(vaccine)}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="calendar-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Thay đổi lịch tiêm</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {!isStopped ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.stopButton]}
+              onPress={() => onStopPress?.(vaccine)}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="pause-circle-outline" size={17} color="#F05F78" />
+              <Text style={styles.stopButtonText}>Dừng tiêm</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.resumeButton]}
+              onPress={() => onResumePress?.(vaccine)}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="play-circle-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.resumeButtonText}>Tiêm lại</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : isUpcoming ? (
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[styles.actionButton, styles.confirmButton]}
@@ -165,6 +256,10 @@ const styles = StyleSheet.create({
   upcomingCard: {
     borderColor: '#FFE6BA',
     backgroundColor: 'rgba(255,252,245,0.94)',
+  },
+  stoppedCard: {
+    borderColor: '#E2EAF0',
+    backgroundColor: 'rgba(248,250,251,0.94)',
   },
   cardGlowPink: {
     position: 'absolute',
@@ -228,7 +323,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 16,
-    maxWidth: 100,
+    maxWidth: 104,
+  },
+  headerDetailButton: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 9,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDF5FB',
+  },
+  headerDetailButtonText: {
+    color: '#5C7A8A',
+    fontSize: 11,
+    fontWeight: '900',
+    marginLeft: 4,
   },
   statusText: {
     fontSize: 11,
@@ -297,6 +409,70 @@ const styles = StyleSheet.create({
     color: '#5C7A8A',
     fontWeight: '900',
   },
+  progressBox: {
+    backgroundColor: 'rgba(239, 251, 255, 0.72)',
+    padding: 11,
+    borderRadius: 17,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DDF5FB',
+  },
+  stoppedProgressBox: {
+    backgroundColor: 'rgba(244, 248, 250, 0.78)',
+    borderColor: '#E2EAF0',
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  progressText: {
+    flex: 1,
+    marginLeft: 7,
+    color: '#334455',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
+  doseLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+  doseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#5ABF7A',
+    marginTop: 6,
+    marginRight: 8,
+  },
+  doseText: {
+    flex: 1,
+    color: '#5C7A8A',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  warningLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 7,
+    paddingTop: 7,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 190, 118, 0.28)',
+  },
+  warningText: {
+    flex: 1,
+    marginLeft: 6,
+    color: '#9A5A00',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  stoppedWarningText: {
+    color: '#7A8C99',
+  },
   actionRow: {
     marginTop: 13,
     gap: 9,
@@ -329,6 +505,31 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#F05F78',
+    fontWeight: '900',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  stopButton: {
+    backgroundColor: '#FFF1F4',
+    borderWidth: 1,
+    borderColor: '#FFD8E5',
+  },
+  stopButtonText: {
+    color: '#F05F78',
+    fontWeight: '900',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  resumeButton: {
+    backgroundColor: '#5ABF7A',
+    shadowColor: '#5ABF7A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  resumeButtonText: {
+    color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 14,
     marginLeft: 6,

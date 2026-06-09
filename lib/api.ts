@@ -93,12 +93,12 @@ export type VaccineTypeResponse = {
 
 export type VaccineRecordRequest = {
   profileId: number;
-  vaccineTypeId: number;
-  injectionDate: string;
+  diseaseId?: number;
+  doseOrder?: number;
+  source?: number;
+  vaccineTypeId?: number | null;
+  injectionDate?: string | null;
   location?: string;
-  locationId?: number;
-  packageId?: number;
-  packageStructureId?: number;
   actualInjectionDate?: string;
   note?: string;
   price?: number;
@@ -108,31 +108,18 @@ export type VaccineRecordRequest = {
 export type VaccineRecordResponse = {
   id: number;
   profileId: number;
+  diseaseId: number | null;
+  doseOrder: number | null;
+  source: number | null;
+  sourceCode: string | null;
   vaccineTypeId: number;
   vaccineTypeName: string;
   vaccineTypeDescription: string | null;
   injectionDate: string;
   location: string | null;
-  locationId?: number | null;
-  packageId?: number | null;
-  packageName?: string | null;
-  packageStructureId?: number | null;
   actualInjectionDate?: string | null;
   price: number | null;
   note: string | null;
-  status: number | null;
-};
-
-export type LocationVaccinePriceResponse = {
-  id: number;
-  locationId: number;
-  locationName: string | null;
-  vaccineId: number;
-  vaccineName: string | null;
-  manufacturer: string | null;
-  origin: string | null;
-  retailPrice: number;
-  stockStatus: boolean | null;
   status: number | null;
 };
 
@@ -147,11 +134,11 @@ type VaccineCatalogResponse = {
 
 type VaccineRecordApiRequest = {
   profileId: number;
-  locationId?: number;
-  vaccineId: number;
-  packageId?: number;
-  packageStructureId?: number;
-  injectionDate: string;
+  diseaseId?: number;
+  doseOrder?: number;
+  source?: number;
+  vaccineId?: number | null;
+  injectionDate?: string | null;
   actualInjectionDate?: string;
   price?: number;
   note?: string;
@@ -161,17 +148,14 @@ type VaccineRecordApiRequest = {
 type VaccineRecordApiResponse = {
   id: number;
   profileId: number;
-  locationId: number | null;
   locationName: string | null;
+  diseaseId: number | null;
+  doseOrder: number | null;
+  source: number | null;
+  sourceCode: string | null;
   vaccineId: number | null;
   vaccineName: string | null;
   vaccineDescription: string | null;
-  packageId: number | null;
-  packageName: string | null;
-  packageStructureId: number | null;
-  durationMonths: number | null;
-  recommendedAgeMonths: number | null;
-  dosageOrder: number | null;
   injectionDate: string;
   actualInjectionDate: string | null;
   price: number | null;
@@ -183,6 +167,104 @@ export type VaccineStatisticsResponse = {
   pending: number;
   canceled: number;
   success: number;
+};
+
+export type VaccineProgressDoseResponse = {
+  recordId: number | null;
+  doseOrder: number | null;
+  source: number | null;
+  sourceCode: string | null;
+  vaccineId: number | null;
+  vaccineName: string | null;
+  manufacturer: string | null;
+  injectionDate: string | null;
+  actualInjectionDate: string | null;
+  status: number | null;
+  note: string | null;
+};
+
+export type ChildVaccineDiseaseResponse = {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  required: boolean | null;
+  displayOrder: number | null;
+  status: number | null;
+};
+
+export type VaccineDiseaseCoverageResponse = {
+  id: number;
+  vaccineId: number | null;
+  vaccineName: string | null;
+  manufacturer: string | null;
+  diseaseId: number | null;
+  diseaseCode: string | null;
+  diseaseName: string | null;
+  productFamilyCode: string | null;
+  interchangeRule: number | null;
+  interchangeRuleCode: string | null;
+  status: number | null;
+};
+
+export type ChildDiseaseDoseScheduleResponse = {
+  id: number;
+  diseaseId: number | null;
+  diseaseCode: string | null;
+  diseaseName: string | null;
+  doseOrder: number | null;
+  recommendedAgeMonths: number | null;
+  intervalDays: number | null;
+  doseLabel: string | null;
+  note: string | null;
+  status: number | null;
+};
+
+export type ChildDiseaseDoseVaccineOptionResponse = {
+  id: number;
+  diseaseId: number | null;
+  doseOrder: number | null;
+  vaccineId: number | null;
+  vaccineName: string | null;
+  manufacturer: string | null;
+  origin: string | null;
+  description: string | null;
+  preferred: boolean | null;
+  displayOrder: number | null;
+  note: string | null;
+  status: number | null;
+};
+
+export type ChildDiseaseDosePlanResponse = {
+  schedule: ChildDiseaseDoseScheduleResponse;
+  vaccineOptions: ChildDiseaseDoseVaccineOptionResponse[];
+};
+
+export type ChildDiseasePlanResponse = {
+  disease: ChildVaccineDiseaseResponse;
+  doses: ChildDiseaseDosePlanResponse[];
+  coverages: VaccineDiseaseCoverageResponse[];
+};
+
+export type VaccineProgressResponse = {
+  diseaseId: number | null;
+  diseaseCode: string | null;
+  diseaseName: string | null;
+  totalDoses: number | null;
+  completedDoses: number | null;
+  pendingDoses: number | null;
+  currentDoseOrder: number | null;
+  nextDoseOrder: number | null;
+  nextInjectionDate: string | null;
+  stopped: boolean | null;
+  diseaseScheduleStatus: number | null;
+  stoppedAt: string | null;
+  stoppedDoseOrder: number | null;
+  interchangeRule: number | null;
+  interchangeRuleCode: string | null;
+  productFamilyCodes: string[] | null;
+  warnings: string[] | null;
+  doses: VaccineProgressDoseResponse[] | null;
 };
 
 export type HealthRecordPayload = {
@@ -995,22 +1077,31 @@ function mapVaccineCatalogToType(item: VaccineCatalogResponse): VaccineTypeRespo
   };
 }
 
+function extractManualLocation(note?: string | null) {
+  const match = note?.match(/Địa điểm nhập tay:\s*([^-]+)/);
+  return match?.[1]?.trim() || null;
+}
+
+function removeManualLocationFromNote(note?: string | null) {
+  return note?.replace(/\s*-\s*Địa điểm nhập tay:\s*[^-]+/, '').trim() || null;
+}
+
 function mapVaccineRecordResponse(item: VaccineRecordApiResponse): VaccineRecordResponse {
   return {
     id: item.id,
     profileId: item.profileId,
+    diseaseId: item.diseaseId,
+    doseOrder: item.doseOrder,
+    source: item.source,
+    sourceCode: item.sourceCode,
     vaccineTypeId: item.vaccineId ?? 0,
     vaccineTypeName: item.vaccineName ?? 'Vắc-xin chưa cập nhật',
     vaccineTypeDescription: item.vaccineDescription,
     injectionDate: item.injectionDate,
-    location: item.locationName,
-    locationId: item.locationId,
-    packageId: item.packageId,
-    packageName: item.packageName,
-    packageStructureId: item.packageStructureId,
+    location: item.locationName ?? extractManualLocation(item.note),
     actualInjectionDate: item.actualInjectionDate,
     price: item.price,
-    note: item.note,
+    note: removeManualLocationFromNote(item.note),
     status: item.status,
   };
 }
@@ -1018,10 +1109,10 @@ function mapVaccineRecordResponse(item: VaccineRecordApiResponse): VaccineRecord
 function mapVaccineRecordRequest(payload: VaccineRecordRequest): VaccineRecordApiRequest {
   return {
     profileId: payload.profileId,
-    locationId: payload.locationId,
-    vaccineId: payload.vaccineTypeId,
-    packageId: payload.packageId,
-    packageStructureId: payload.packageStructureId,
+    diseaseId: payload.diseaseId,
+    doseOrder: payload.doseOrder,
+    source: payload.source,
+    vaccineId: payload.vaccineTypeId ?? null,
     injectionDate: payload.injectionDate,
     actualInjectionDate: payload.actualInjectionDate,
     price: payload.price,
@@ -1040,8 +1131,20 @@ export function getVaccineTypes(keyword?: string) {
   }).then((items) => items.map(mapVaccineCatalogToType));
 }
 
-export function getLocationVaccines(locationId: number | string) {
-  return request<LocationVaccinePriceResponse[]>(`/api/vaccine-catalog/locations/${locationId}/vaccines`, {
+export function getChildVaccineDiseases() {
+  return request<ChildVaccineDiseaseResponse[]>('/api/vaccine-catalog/child-diseases', {
+    method: 'GET',
+  });
+}
+
+export function getChildDiseasePlan(diseaseId: number | string) {
+  return request<ChildDiseasePlanResponse>(`/api/vaccine-catalog/child-diseases/${diseaseId}/plan`, {
+    method: 'GET',
+  });
+}
+
+export function getChildDiseaseDoseVaccineOptions(diseaseId: number | string) {
+  return request<ChildDiseaseDoseVaccineOptionResponse[]>(`/api/vaccine-catalog/child-diseases/${diseaseId}/dose-vaccine-options`, {
     method: 'GET',
   });
 }
@@ -1060,40 +1163,39 @@ export function updateVaccineRecord(recordId: number | string, payload: VaccineR
   }).then(mapVaccineRecordResponse);
 }
 
+export function getVaccineRecord(recordId: number | string) {
+  return request<VaccineRecordApiResponse>(`/api/vaccine-records/${recordId}`, {
+    method: 'GET',
+  }).then(mapVaccineRecordResponse);
+}
+
 export function deleteVaccineRecord(recordId: number | string) {
   return request<void>(`/api/vaccine-records/${recordId}`, {
     method: 'DELETE',
   });
 }
 
-export function getVaccineRecordsByProfile(profileId: number | string, params?: { status: number; limit?: number }) {
-  return request<VaccineRecordApiResponse[]>(`/api/vaccine-records/profile/${profileId}${buildQueryString({
-    status: params?.status,
-    limit: params?.limit,
-  })}`, {
-    method: 'GET',
-  }).then((items) => items.map(mapVaccineRecordResponse));
-}
-
-export function getVaccineRecordsPageByProfile(
-  profileId: number | string,
-  params: { status: number; page?: number; size?: number }
-) {
-  return request<PageResponse<VaccineRecordApiResponse>>(`/api/vaccine-records/profile/${profileId}/page${buildQueryString({
-    status: params.status,
-    page: params.page,
-    size: params.size,
-  })}`, {
-    method: 'GET',
-  }).then((page) => ({
-    ...page,
-    content: page.content.map(mapVaccineRecordResponse),
-  }));
-}
-
 export function getVaccineStatistics(profileId: number | string) {
   return request<VaccineStatisticsResponse>(`/api/vaccine-records/profile/${profileId}/statistics`, {
     method: 'GET',
+  });
+}
+
+export function getVaccineProgress(profileId: number | string) {
+  return request<VaccineProgressResponse[]>(`/api/vaccine-catalog/profiles/${profileId}/progress`, {
+    method: 'GET',
+  });
+}
+
+export function stopProfileDiseaseSchedule(profileId: number | string, diseaseId: number | string) {
+  return request<VaccineProgressResponse>(`/api/vaccine-catalog/profiles/${profileId}/child-diseases/${diseaseId}/stop`, {
+    method: 'PATCH',
+  });
+}
+
+export function resumeProfileDiseaseSchedule(profileId: number | string, diseaseId: number | string) {
+  return request<VaccineProgressResponse>(`/api/vaccine-catalog/profiles/${profileId}/child-diseases/${diseaseId}/resume`, {
+    method: 'PATCH',
   });
 }
 

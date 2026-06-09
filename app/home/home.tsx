@@ -24,10 +24,10 @@ import {
   AiTeachingLessonResponse,
   getAiTeachingLessonsByProfile,
   getUnreadNotificationCount,
-  getVaccineRecordsByProfile,
+  getVaccineProgress,
   ProfileResponse,
   resolveAssetUrl,
-  VaccineRecordResponse,
+  VaccineProgressResponse,
 } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -65,11 +65,12 @@ function formatDisplayDate(date: Date) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-function getNearestVaccine(records: VaccineRecordResponse[]) {
+function getNearestVaccine(progressItems: VaccineProgressResponse[]) {
   const today = startOfDay(new Date()).getTime();
 
-  return records
-    .map((record) => ({ record, date: parseApiDate(record.injectionDate) }))
+  return progressItems
+    .filter((item) => !item.stopped && item.nextInjectionDate)
+    .map((progress) => ({ progress, date: parseApiDate(progress.nextInjectionDate!) }))
     .filter((item) => !Number.isNaN(item.date.getTime()))
     .sort((left, right) => Math.abs(startOfDay(left.date).getTime() - today) - Math.abs(startOfDay(right.date).getTime() - today))[0] ?? null;
 }
@@ -132,7 +133,7 @@ export default function AppHomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
   const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(null);
-  const [nearestVaccine, setNearestVaccine] = useState<{ record: VaccineRecordResponse; date: Date } | null>(null);
+  const [nearestVaccine, setNearestVaccine] = useState<{ progress: VaccineProgressResponse; date: Date } | null>(null);
   const [vaccineReminderError, setVaccineReminderError] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [teachingTip, setTeachingTip] = useState('Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!');
@@ -169,13 +170,13 @@ export default function AppHomeScreen() {
           return;
         }
 
-        const [pendingVaccines, teachingLessons] = await Promise.all([
-          getVaccineRecordsByProfile(profile.id, { status: -1, limit: 30 }),
+        const [vaccineProgress, teachingLessons] = await Promise.all([
+          getVaccineProgress(profile.id),
           getAiTeachingLessonsByProfile(profile.id),
         ]);
 
         if (mounted) {
-          setNearestVaccine(getNearestVaccine(Array.isArray(pendingVaccines) ? pendingVaccines : []));
+          setNearestVaccine(getNearestVaccine(Array.isArray(vaccineProgress) ? vaccineProgress : []));
           setTeachingTip(getTeachingTip(getCurrentTeachingLesson(Array.isArray(teachingLessons) ? teachingLessons : [])));
         }
       } catch (error) {
@@ -227,7 +228,7 @@ export default function AppHomeScreen() {
     ? { uri: profileAvatarUrl }
     : require('../../assets/images/avt.png');
   const reminderSubtitle = nearestVaccine
-    ? `${nearestVaccine.record.vaccineTypeName} - ${formatDisplayDate(nearestVaccine.date)}`
+    ? `${nearestVaccine.progress.diseaseName || 'Mũi tiêm tiếp theo'} - ${formatDisplayDate(nearestVaccine.date)}`
     : activeProfile
       ? (vaccineReminderError ? 'Chưa tải được lịch tiêm. Thử lại sau mẹ nhé.' : 'Chưa có lịch tiêm sắp tới.')
       : 'Chọn hồ sơ để xem lịch tiêm.';

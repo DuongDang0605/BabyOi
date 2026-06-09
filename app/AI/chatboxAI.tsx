@@ -40,7 +40,7 @@ export default function ChatBoxAIScreen() {
           text={"Dạ thưa mẹ, bé Ốc sắp 9 tháng tuổi là thời điểm vàng để tiêm Viêm não Nhật Bản rồi ạ! 🌟\n\nHiện tại có loại Imojev (Thái Lan) rất tốt, chỉ cần tiêm 2 mũi (thay vì 3 mũi như loại Jevax cũ) và rất ít gây sốt. Tuy nhiên, một số bé trộm vía nhạy cảm có thể hơi hâm hấp ấm đầu trong 1-2 ngày đầu mẹ nhé.\n\nMẹ có muốn em thêm mũi Imojev này vào lịch \"Sắp tới\" của bé Ốc luôn không ạ? 🥰"}
           highlightText="thời điểm vàng"
           actionText="Thêm vào sổ tiêm"
-          onActionPress={() => router.push('/lichtiem/themmuitiem')}
+          onActionPress={() => router.push('/lichtiem/listlichtiem')}
         />
 
         <View style={{ height: 20 }} />

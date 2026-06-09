@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -20,9 +19,6 @@ export const VaccineSummary = ({ completedCount, upcomingCount }: VaccineSummary
       <View style={styles.sparkleYellow} />
 
       <View style={styles.summaryBox}>
-        <View style={[styles.iconBubble, styles.doneBubble]}>
-          <Ionicons name="shield-checkmark" size={22} color="#5ABF7A" />
-        </View>
         <Text style={styles.summaryNumber}>{completedCount}</Text>
         <Text style={styles.summaryLabel}>Đã tiêm</Text>
       </View>
@@ -30,9 +26,6 @@ export const VaccineSummary = ({ completedCount, upcomingCount }: VaccineSummary
       <View style={styles.summaryDivider} />
 
       <View style={styles.summaryBox}>
-        <View style={[styles.iconBubble, styles.upcomingBubble]}>
-          <Ionicons name="calendar-outline" size={22} color="#FF9C6E" />
-        </View>
         <Text style={[styles.summaryNumber, styles.upcomingNumber]}>{upcomingCount}</Text>
         <Text style={styles.summaryLabel}>Sắp tới</Text>
       </View>
@@ -43,73 +36,62 @@ export const VaccineSummary = ({ completedCount, upcomingCount }: VaccineSummary
 const styles = StyleSheet.create({
   summaryCard: {
     flexDirection: 'row',
-    borderRadius: 28,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    marginBottom: 26,
+    alignSelf: 'center',
+    width: '88%',
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: '#FFE5EC',
     shadowColor: '#A7E4F5',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.18,
-    shadowRadius: 22,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 4,
     overflow: 'hidden',
   },
   sparklePink: {
     position: 'absolute',
-    top: -18,
-    right: 38,
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    top: -22,
+    right: 24,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: 'rgba(255, 143, 171, 0.12)',
   },
   sparkleYellow: {
     position: 'absolute',
-    left: 24,
-    bottom: 20,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
+    left: 22,
+    bottom: 18,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#FFE9A8',
   },
   summaryBox: {
     flex: 1,
     alignItems: 'center',
-  },
-  iconBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 17,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 7,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  doneBubble: {
-    backgroundColor: '#E8F9ED',
-  },
-  upcomingBubble: {
-    backgroundColor: '#FFF1C9',
+    minHeight: 58,
   },
   summaryDivider: {
     width: 1,
     backgroundColor: '#EEF0F4',
-    marginHorizontal: 14,
+    marginHorizontal: 8,
+    marginVertical: 6,
   },
   summaryNumber: {
-    fontSize: 31,
+    fontSize: 30,
     fontWeight: '900',
     color: '#5ABF7A',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   upcomingNumber: {
     color: '#FF9C6E',
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: '#5C7A8A',
   },
