@@ -5,7 +5,15 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { ApiError, createVaccineRecord, getVaccineTypes, updateVaccineRecord, type VaccineTypeResponse } from '../../lib/api';
+import {
+  ApiError,
+  createVaccineRecord,
+  getChildDiseaseDoseVaccineOptions,
+  getVaccineTypes,
+  updateVaccineRecord,
+  type ChildDiseaseDoseVaccineOptionResponse,
+  type VaccineTypeResponse,
+} from '../../lib/api';
 import { useNotification } from '../../lib/notification';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -66,6 +74,8 @@ const formatApiDateToDisplay = (value: string) => {
   return `${day}-${month}-${year}`;
 };
 
+const startOfLocalDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
 const normalizeSearchText = (value: string) =>
   value
     .trim()
@@ -82,6 +92,26 @@ const filterVaccineTypes = (items: VaccineTypeResponse[], query: string) => {
   }
 
   return items.filter((item) => normalizeSearchText(`${item.name} ${item.description ?? ''}`).includes(normalizedQuery));
+};
+
+const mapDoseOptionToVaccineType = (item: ChildDiseaseDoseVaccineOptionResponse): VaccineTypeResponse => ({
+  id: item.vaccineId ?? item.id,
+  name: item.vaccineName ?? 'Vaccine chưa cập nhật',
+  description: item.note || item.description,
+  requiredAge: null,
+  manufacturer: item.manufacturer,
+  origin: item.origin,
+});
+
+const uniqueVaccineTypes = (items: VaccineTypeResponse[]) => {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+    seen.add(item.id);
+    return true;
+  });
 };
 
 const LOCATION_SUGGESTIONS = [
@@ -101,33 +131,68 @@ const TABLE_STATUS = {
   CANCELED: -2,
 };
 
+const VACCINE_RECORD_SOURCE = {
+  STANDARD: 1,
+  CUSTOM: 2,
+};
+
 export default function AddVaccineScreen() {
-  const { profileId, mode, recordId, vaccineTypeId: routeVaccineTypeId, vaccineName, injectionDate: routeInjectionDate } = useLocalSearchParams();
+  const {
+    profileId,
+    mode,
+    recordId,
+    vaccineTypeId: routeVaccineTypeId,
+    vaccineName,
+    injectionDate: routeInjectionDate,
+    location: routeLocation,
+    price: routePrice,
+    note: routeNote,
+    allowVaccineChange,
+    diseaseId: routeDiseaseId,
+    diseaseName: routeDiseaseName,
+    doseOrder: routeDoseOrder,
+    status: routeStatus,
+    source: routeSource,
+  } = useLocalSearchParams();
   const { showNotification } = useNotification();
 
   const routeProfileId = Array.isArray(profileId) ? profileId[0] : profileId;
   const isConfirmMode = mode === 'confirm';
+  const isEditMode = mode === 'edit';
+  const isUpdateMode = isConfirmMode || isEditMode;
   const parsedRecordId = Array.isArray(recordId) ? recordId[0] : recordId;
   const parsedVaccineTypeId = Number.isFinite(Number(routeVaccineTypeId)) ? Number(routeVaccineTypeId) : null;
   const lockedVaccineName = typeof vaccineName === 'string' ? vaccineName : '';
   const defaultInjectionDate = typeof routeInjectionDate === 'string' ? formatApiDateToDisplay(routeInjectionDate) : '';
+  const defaultLocation = typeof routeLocation === 'string' ? routeLocation : '';
+  const defaultPrice = typeof routePrice === 'string' ? routePrice : '';
+  const defaultNote = typeof routeNote === 'string' ? routeNote : '';
+  const canChangeVaccine = !isUpdateMode || allowVaccineChange === '1';
+  const parsedDiseaseId = Number(Array.isArray(routeDiseaseId) ? routeDiseaseId[0] : routeDiseaseId);
+  const parsedDoseOrder = Number(Array.isArray(routeDoseOrder) ? routeDoseOrder[0] : routeDoseOrder);
+  const parsedRouteStatus = Number(Array.isArray(routeStatus) ? routeStatus[0] : routeStatus);
+  const parsedRouteSource = Number(Array.isArray(routeSource) ? routeSource[0] : routeSource);
+  const diseaseName = typeof routeDiseaseName === 'string' ? routeDiseaseName : '';
+  const hasDiseaseContext = Number.isFinite(parsedDiseaseId);
+  const isCustomDose = parsedRouteSource === VACCINE_RECORD_SOURCE.CUSTOM;
+  const shouldFilterVaccineOptionsByDose = hasDiseaseContext && Number.isFinite(parsedDoseOrder) && !isCustomDose;
 
   const [vaccineTypes, setVaccineTypes] = useState<VaccineTypeResponse[]>([]);
   const [effectiveProfileId, setEffectiveProfileId] = useState<string | null>(routeProfileId ?? null);
   const [allVaccineTypes, setAllVaccineTypes] = useState<VaccineTypeResponse[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(lockedVaccineName || '');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const [vaccineTypeId, setVaccineTypeId] = useState<number | null>(isConfirmMode ? parsedVaccineTypeId : null);
-  const [injectionDate, setInjectionDate] = useState(isConfirmMode ? defaultInjectionDate : '');
+  const [vaccineTypeId, setVaccineTypeId] = useState<number | null>(isUpdateMode ? parsedVaccineTypeId : null);
+  const [injectionDate, setInjectionDate] = useState(isUpdateMode ? defaultInjectionDate : '');
   const [dateError, setDateError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [status, setStatus] = useState(isConfirmMode ? 3 : -1);
-  const [note, setNote] = useState('');
-  const [location, setLocation] = useState('');
+  const [status, setStatus] = useState(isConfirmMode ? 3 : Number.isFinite(parsedRouteStatus) ? parsedRouteStatus : -1);
+  const [note, setNote] = useState(defaultNote);
+  const [location, setLocation] = useState(defaultLocation);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(defaultPrice);
 
   useEffect(() => {
     let mounted = true;
@@ -152,6 +217,9 @@ export default function AddVaccineScreen() {
   }, [routeProfileId]);
 
   const isCompleted = status === 3;
+  const parsedInjectionDate = parseDisplayDate(injectionDate);
+  const canConfirmInjected = Boolean(parsedInjectionDate && startOfLocalDay(parsedInjectionDate).getTime() <= startOfLocalDay(new Date()).getTime());
+  const shouldShowServiceFields = isCompleted || isUpdateMode;
   const filteredLocationSuggestions = LOCATION_SUGGESTIONS.filter((item) => {
     if (!location.trim()) {
       return true;
@@ -185,31 +253,66 @@ export default function AddVaccineScreen() {
   };
 
   useEffect(() => {
-    if (!isConfirmMode) {
+    if (!isUpdateMode) {
       return;
     }
 
     setVaccineTypeId(parsedVaccineTypeId);
     setInjectionDate(defaultInjectionDate);
-    setStatus(3);
+    setStatus(isConfirmMode ? 3 : Number.isFinite(parsedRouteStatus) ? parsedRouteStatus : -1);
     setSearchText(lockedVaccineName);
-  }, [defaultInjectionDate, isConfirmMode, lockedVaccineName, parsedVaccineTypeId]);
+    setLocation(defaultLocation);
+    setPrice(defaultPrice);
+    setNote(defaultNote);
+  }, [defaultInjectionDate, defaultLocation, defaultNote, defaultPrice, isConfirmMode, isUpdateMode, lockedVaccineName, parsedRouteStatus, parsedVaccineTypeId]);
 
-  const loadVaccineTypes = async () => {
+  useEffect(() => {
+    if (!hasDiseaseContext || isUpdateMode) {
+      return;
+    }
+
+    setSearchText('');
+    getChildDiseaseDoseVaccineOptions(parsedDiseaseId)
+      .then((items) => {
+        const data = items
+          .filter((item) => !shouldFilterVaccineOptionsByDose || item.doseOrder === parsedDoseOrder)
+          .map(mapDoseOptionToVaccineType);
+        const uniqueData = uniqueVaccineTypes(data);
+        setAllVaccineTypes(uniqueData);
+        setVaccineTypes(uniqueData);
+      })
+      .catch(() => setVaccineTypes([]));
+  }, [hasDiseaseContext, isUpdateMode, parsedDiseaseId, parsedDoseOrder, shouldFilterVaccineOptionsByDose]);
+
+  async function loadVaccineTypes() {
     if (allVaccineTypes) {
       return allVaccineTypes;
     }
 
-    const data = await getVaccineTypes();
+    const data = hasDiseaseContext
+      ? uniqueVaccineTypes((await getChildDiseaseDoseVaccineOptions(parsedDiseaseId))
+          .filter((item) => !shouldFilterVaccineOptionsByDose || item.doseOrder === parsedDoseOrder)
+          .map(mapDoseOptionToVaccineType))
+      : await getVaccineTypes();
     setAllVaccineTypes(data);
     return data;
-  };
+  }
 
   const searchVaccines = async (query: string) => {
     setSearchText(query);
     setVaccineTypeId(null);
 
     if (query.trim().length === 0) {
+      if (hasDiseaseContext) {
+        try {
+          setLoading(true);
+          setShowDropdown(true);
+          setVaccineTypes(await loadVaccineTypes());
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
       setVaccineTypes([]);
       setShowDropdown(false);
       return;
@@ -218,7 +321,7 @@ export default function AddVaccineScreen() {
     try {
       setLoading(true);
       setShowDropdown(true);
-      const data = await getVaccineTypes(query);
+      const data = hasDiseaseContext ? filterVaccineTypes(await loadVaccineTypes(), query) : await getVaccineTypes(query);
 
       if (data.length > 0) {
         setVaccineTypes(data);
@@ -239,8 +342,31 @@ export default function AddVaccineScreen() {
     }
   };
 
-  const handleSave = async () => {
-    if (!effectiveProfileId || !vaccineTypeId) {
+  const navigateAfterSave = () => {
+    if (hasDiseaseContext) {
+      router.replace({
+        pathname: '/lichtiem/chitietbenh',
+        params: {
+          profileId: effectiveProfileId ?? '',
+          diseaseId: String(parsedDiseaseId),
+          diseaseName,
+          refreshAt: Date.now().toString(),
+        },
+      });
+      return;
+    }
+
+    router.replace({
+      pathname: '/lichtiem/listlichtiem',
+      params: {
+        profileId: effectiveProfileId,
+        refreshAt: Date.now().toString(),
+      },
+    });
+  };
+
+  const handleSave = async (nextStatus = status) => {
+    if (!effectiveProfileId || (!vaccineTypeId && !hasDiseaseContext && !isUpdateMode)) {
       showNotification({
         type: 'warning',
         title: 'Thiếu thông tin',
@@ -260,7 +386,7 @@ export default function AddVaccineScreen() {
       return;
     }
 
-    if (isConfirmMode && !parsedRecordId) {
+    if (isUpdateMode && !parsedRecordId) {
       showNotification({
         type: 'error',
         title: 'Không tìm thấy lịch tiêm',
@@ -270,14 +396,19 @@ export default function AddVaccineScreen() {
     }
 
     const normalizedPrice = price.trim() === '' ? undefined : Number(price.replace(/[^0-9]/g, ''));
+    const nextIsCompleted = nextStatus === TABLE_STATUS.SUCCESS;
 
     const request = {
       profileId: Number(effectiveProfileId),
+      diseaseId: Number.isFinite(parsedDiseaseId) ? parsedDiseaseId : undefined,
+      doseOrder: Number.isFinite(parsedDoseOrder) ? parsedDoseOrder : undefined,
+      source: Number.isFinite(parsedRouteSource) ? parsedRouteSource : (hasDiseaseContext ? VACCINE_RECORD_SOURCE.STANDARD : VACCINE_RECORD_SOURCE.CUSTOM),
       vaccineTypeId,
       injectionDate: formatApiDate(parsedDate),
+      actualInjectionDate: nextIsCompleted ? formatApiDate(parsedDate) : undefined,
       note: note.trim() || undefined,
-      status: isCompleted ? TABLE_STATUS.SUCCESS : TABLE_STATUS.PENDING,
-      ...(isCompleted
+      status: nextIsCompleted ? TABLE_STATUS.SUCCESS : TABLE_STATUS.PENDING,
+      ...(shouldShowServiceFields
         ? {
             location: location.trim() || undefined,
             price: Number.isFinite(normalizedPrice) ? normalizedPrice : undefined,
@@ -286,20 +417,14 @@ export default function AddVaccineScreen() {
     };
 
     try {
-      if (isConfirmMode) {
+      if (isUpdateMode) {
         await updateVaccineRecord(parsedRecordId!, request);
         showNotification({
           type: 'success',
-          title: 'Xác nhận thành công',
-          message: 'Mũi tiêm đã được cập nhật và đã chuyển sang trạng thái đã tiêm.',
+          title: nextIsCompleted ? 'Đã xác nhận mũi tiêm' : 'Đã cập nhật thông tin',
+          message: nextIsCompleted ? 'Mũi tiêm đã chuyển sang trạng thái đã tiêm.' : 'Thông tin dự kiến của mũi tiêm đã được lưu.',
         });
-        router.replace({
-          pathname: '/lichtiem/listlichtiem',
-          params: {
-            profileId: effectiveProfileId,
-            refreshAt: Date.now().toString(),
-          },
-        });
+        navigateAfterSave();
         return;
       }
 
@@ -309,13 +434,7 @@ export default function AddVaccineScreen() {
         title: 'Thêm mũi tiêm thành công',
         message: 'Lịch tiêm đã được lưu vào sổ tiêm chủng.',
       });
-      router.replace({
-        pathname: '/lichtiem/listlichtiem',
-        params: {
-          profileId: effectiveProfileId,
-          refreshAt: Date.now().toString(),
-        },
-      });
+      navigateAfterSave();
     } catch (error) {
       const backendMessage = error instanceof ApiError
         ? error.message
@@ -344,27 +463,45 @@ export default function AddVaccineScreen() {
         <Ionicons name="sparkles" size={22} color="#FFD36E" />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
             <Text style={styles.headerSparkle}>✦</Text>
-            <Text style={styles.headerTitle}>{isConfirmMode ? 'Xác nhận đã tiêm' : 'Thêm Mũi Tiêm'}</Text>
-            <Text style={styles.headerSubtitle}>{isConfirmMode ? 'Hoàn tất thông tin mũi tiêm của bé' : 'Lưu lịch và ghi chú chăm sóc bé'}</Text>
+            <Text style={styles.headerTitle}>{isConfirmMode ? 'Xác nhận đã tiêm' : isEditMode ? 'Thay đổi lịch tiêm' : 'Thêm Mũi Tiêm'}</Text>
+            <Text style={styles.headerSubtitle}>{isConfirmMode ? 'Hoàn tất thông tin mũi tiêm của bé' : isEditMode ? 'Điều chỉnh ngày dự kiến của mũi sắp tới' : 'Lưu lịch và ghi chú chăm sóc bé'}</Text>
           </View>
           <View style={styles.headerGhostButton}>
-            <Ionicons name={isConfirmMode ? 'checkmark-circle' : 'medical'} size={21} color={isConfirmMode ? '#5ABF7A' : '#FF8FAB'} />
+            <Ionicons name={isConfirmMode ? 'checkmark-circle' : isEditMode ? 'calendar-outline' : 'medical'} size={21} color={isConfirmMode ? '#5ABF7A' : '#FF8FAB'} />
           </View>
         </View>
 
+        {hasDiseaseContext ? (
+          <View style={styles.diseaseContextBox}>
+            <Ionicons name="medical-outline" size={18} color="#5ABF7A" />
+            <View style={styles.diseaseContextCopy}>
+              <Text style={styles.diseaseContextLabel}>Bệnh đang lên lịch</Text>
+              <Text style={styles.diseaseContextText}>
+                {diseaseName || 'Bệnh chưa cập nhật'}
+                {Number.isFinite(parsedDoseOrder) ? ` - Mũi ${parsedDoseOrder}` : ''}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
-            <Text style={styles.labelSticker}>💉 </Text> {isConfirmMode ? 'Tên vắc-xin' : 'Tên vắc-xin / Bệnh phòng ngừa'}
+            <Text style={styles.labelSticker}>💉 </Text> {isUpdateMode ? 'Tên vắc-xin' : 'Tên vắc-xin / Bệnh phòng ngừa'}
           </Text>
 
-          {isConfirmMode ? (
+          {isUpdateMode && !canChangeVaccine ? (
             <View style={styles.lockedVaccineBox}>
               <Text style={styles.lockedVaccineText}>{lockedVaccineName || 'Không có tên vắc-xin'}</Text>
             </View>
@@ -377,6 +514,18 @@ export default function AddVaccineScreen() {
                 value={searchText}
                 onChangeText={searchVaccines}
                 onFocus={() => {
+                  if (hasDiseaseContext) {
+                    loadVaccineTypes()
+                      .then((items) => {
+                        setVaccineTypes(filterVaccineTypes(items, searchText));
+                        setShowDropdown(true);
+                      })
+                      .catch(() => {
+                        setVaccineTypes([]);
+                        setShowDropdown(true);
+                      });
+                    return;
+                  }
                   if (searchText.length > 0) {
                     setShowDropdown(true);
                   }
@@ -388,9 +537,9 @@ export default function AddVaccineScreen() {
                   {loading ? (
                     <ActivityIndicator color="#ff8fab" style={{ margin: 15 }} />
                   ) : vaccineTypes.length > 0 ? (
-                    vaccineTypes.map((item) => (
+                    vaccineTypes.map((item, index) => (
                       <TouchableOpacity
-                        key={item.id}
+                        key={`${item.id}-${index}`}
                         style={styles.dropdownItem}
                         onPress={() => {
                           setVaccineTypeId(item.id);
@@ -455,7 +604,7 @@ export default function AddVaccineScreen() {
           ) : null}
         </View>
 
-        {isCompleted && (
+        {shouldShowServiceFields && (
           <>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
@@ -519,6 +668,10 @@ export default function AddVaccineScreen() {
             <View style={styles.confirmStatusBox}>
               <Text style={styles.confirmStatusText}>Đã tiêm ✅</Text>
             </View>
+          ) : isEditMode ? (
+            <View style={styles.confirmStatusBox}>
+              <Text style={styles.confirmStatusText}>{status === TABLE_STATUS.SUCCESS ? 'Đã tiêm' : 'Sắp tới'}</Text>
+            </View>
           ) : (
             <View style={styles.pillContainer}>
               <TouchableOpacity
@@ -552,16 +705,39 @@ export default function AddVaccineScreen() {
           />
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: isEditMode ? 190 : 120 }} />
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButtonGradient}>
-            <Ionicons name="heart" size={21} color="#FFFFFF" />
-            <Text style={styles.saveButtonText}>Lưu vào Sổ Tiêm</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        {isEditMode ? (
+          <View style={styles.editActionColumn}>
+            <TouchableOpacity style={styles.saveButton} onPress={() => handleSave(status)} activeOpacity={0.86}>
+              <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButtonGradient}>
+                <Ionicons name="save-outline" size={21} color="#FFFFFF" />
+                <Text style={styles.saveButtonText}>Xác nhận thay đổi thông tin</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.confirmInjectedButton, !canConfirmInjected && styles.confirmInjectedDisabled]}
+              onPress={() => handleSave(TABLE_STATUS.SUCCESS)}
+              disabled={!canConfirmInjected}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="checkmark-circle" size={21} color={canConfirmInjected ? '#FFFFFF' : '#9AAAB5'} />
+              <Text style={[styles.confirmInjectedText, !canConfirmInjected && styles.confirmInjectedDisabledText]}>
+                Xác nhận đã tiêm
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.saveButton} onPress={() => handleSave()} activeOpacity={0.86}>
+            <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButtonGradient}>
+              <Ionicons name="heart" size={21} color="#FFFFFF" />
+              <Text style={styles.saveButtonText}>Lưu vào Sổ Tiêm</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -571,6 +747,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
   screenGlow: { ...StyleSheet.absoluteFillObject },
   scrollArea: { padding: 20 },
+  scrollContent: { paddingBottom: 8 },
   backgroundAccentTop: {
     position: 'absolute',
     top: 58,
@@ -651,6 +828,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 14,
     elevation: 3,
+  },
+  diseaseContextBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    padding: 13,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderWidth: 1,
+    borderColor: '#D7F5E3',
+  },
+  diseaseContextCopy: {
+    flex: 1,
+    marginLeft: 9,
+  },
+  diseaseContextLabel: {
+    color: '#7A8C99',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  diseaseContextText: {
+    marginTop: 2,
+    color: '#334455',
+    fontSize: 14,
+    fontWeight: '900',
   },
   inputGroup: { marginBottom: 23 },
   label: { fontSize: 15, fontWeight: '900', color: '#5C7A8A', marginBottom: 10, marginLeft: 5 },
@@ -766,6 +968,9 @@ const styles = StyleSheet.create({
   pillInactive: { backgroundColor: '#FFFFFF', borderColor: '#FFE5EC', marginLeft: 10 },
   pillInactiveText: { color: '#8A96A3', fontWeight: '800', fontSize: 15 },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 35, backgroundColor: 'rgba(254, 249, 243, 0.95)' },
+  editActionColumn: {
+    gap: 10,
+  },
   saveButton: {
     borderRadius: 30,
     overflow: 'hidden',
@@ -783,4 +988,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '900', marginLeft: 8 },
+  confirmInjectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#5ABF7A',
+    shadowColor: '#5ABF7A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  confirmInjectedDisabled: {
+    backgroundColor: '#EEF3F6',
+    borderWidth: 1,
+    borderColor: '#DDE7EC',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  confirmInjectedText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  confirmInjectedDisabledText: {
+    color: '#9AAAB5',
+  },
 });

@@ -7,6 +7,7 @@ export function useConfirmSheet() {
     message: string;
     confirmText?: string;
     cancelText?: string;
+    tone?: 'danger' | 'default';
     onConfirm?: () => void;
   }>({ title: '', message: '' });
 

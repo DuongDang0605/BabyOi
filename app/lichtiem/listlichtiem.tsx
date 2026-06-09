@@ -2,43 +2,146 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ConfirmSheet } from '../../components/common/ConfirmSheet';
 import { useConfirmSheet } from '../../components/common/useConfirmSheet';
 import { VaccineCard } from '../../components/lichtiem/VaccineCard';
 import { VaccineSummary } from '../../components/lichtiem/VaccineSummary';
 import {
-  deleteVaccineRecord,
-  getVaccineRecordsByProfile,
+  getVaccineProgress,
   getVaccineStatistics,
+  resumeProfileDiseaseSchedule,
+  stopProfileDiseaseSchedule,
   type ProfileResponse,
-  type VaccineRecordResponse,
+  type VaccineProgressResponse,
 } from '../../lib/api';
 import { useNotification } from '../../lib/notification';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-function sortVaccinesByDate(records: VaccineRecordResponse[], direction: 'asc' | 'desc') {
-  return [...records].sort((left, right) => {
-    const leftDate = new Date(left.injectionDate).getTime();
-    const rightDate = new Date(right.injectionDate).getTime();
+const PENDING_STATUS = -1;
+const SUCCESS_STATUS = 3;
+const INITIAL_VISIBLE_DISEASES = 6;
+const LOAD_MORE_DISEASES = 6;
 
-    if (Number.isNaN(leftDate) || Number.isNaN(rightDate)) {
-      return 0;
+function getDateTime(value?: string | null) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) {
+    return 'chưa có ngày';
+  }
+
+  const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDateMatch) {
+    const [, year, month, day] = isoDateMatch;
+    return `${day}-${month}-${year}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}-${month}-${date.getFullYear()}`;
+}
+
+function getSortedDoses(progress: VaccineProgressResponse) {
+  return [...(progress.doses ?? [])].sort((left, right) => {
+    const dateDiff = getDateTime(left.injectionDate) - getDateTime(right.injectionDate);
+    if (dateDiff !== 0) {
+      return dateDiff;
     }
-
-    return direction === 'asc' ? leftDate - rightDate : rightDate - leftDate;
+    return (left.doseOrder ?? 0) - (right.doseOrder ?? 0);
   });
 }
 
+function getNextPendingDose(progress: VaccineProgressResponse) {
+  return getSortedDoses(progress).find((dose) => dose.status === PENDING_STATUS) ?? null;
+}
+
+function buildProgressText(progress: VaccineProgressResponse) {
+  const completed = progress.completedDoses ?? 0;
+  const total = progress.totalDoses ?? progress.doses?.length ?? completed;
+  const base = `Đã tiêm ${completed}/${total} mũi`;
+
+  if (progress.nextDoseOrder) {
+    return `${base} • Mũi tiếp theo: ${progress.nextDoseOrder}`;
+  }
+
+  return `${base} • Đã đủ lịch hiện tại`;
+}
+
+function buildDoseHistory(progress: VaccineProgressResponse) {
+  return getSortedDoses(progress)
+    .filter((dose) => dose.status === SUCCESS_STATUS)
+    .map((dose) => {
+      const order = dose.doseOrder ? `Lần ${dose.doseOrder}` : 'Đã tiêm';
+      const vaccineName = dose.vaccineName ? ` - ${dose.vaccineName}` : '';
+      const date = formatShortDate(dose.actualInjectionDate || dose.injectionDate);
+      return `${order}${vaccineName}: ${date}`;
+    });
+}
+
+function getProgressKey(item: VaccineProgressResponse) {
+  return String(item.diseaseId ?? item.diseaseCode ?? item.diseaseName ?? item.doses?.map((dose) => dose.recordId).join('-') ?? 'unknown-progress');
+}
+
+function getNextDate(progress: VaccineProgressResponse) {
+  return progress.nextInjectionDate || getNextPendingDose(progress)?.injectionDate || null;
+}
+
+function canChangeVaccine(progress: VaccineProgressResponse) {
+  return !['NOT_INTERCHANGEABLE', 'SPECIAL_RESTART_REQUIRED'].includes(progress.interchangeRuleCode ?? '');
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+}
+
+function matchesDiseaseSearch(item: VaccineProgressResponse, keyword: string) {
+  const normalizedKeyword = normalizeSearchText(keyword);
+  if (!normalizedKeyword) {
+    return true;
+  }
+
+  const vaccineNames = item.doses?.map((dose) => dose.vaccineName ?? '').join(' ') ?? '';
+  const searchableText = normalizeSearchText([
+    item.diseaseName,
+    item.diseaseCode,
+    buildProgressText(item),
+    vaccineNames,
+  ].filter(Boolean).join(' '));
+
+  return searchableText.includes(normalizedKeyword);
+}
+
 export default function VaccineScheduleScreen() {
-  const { showNotification } = useNotification();
   const confirmSheet = useConfirmSheet();
+  const { showNotification } = useNotification();
   const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
   const [stats, setStats] = useState({ pending: 0, success: 0, canceled: 0 });
-  const [upcomingVaccines, setUpcomingVaccines] = useState<VaccineRecordResponse[]>([]);
-  const [completedVaccines, setCompletedVaccines] = useState<VaccineRecordResponse[]>([]);
+  const [diseaseProgress, setDiseaseProgress] = useState<VaccineProgressResponse[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_DISEASES);
   const [loading, setLoading] = useState(true);
+
+  const filteredDiseaseProgress = diseaseProgress.filter((item) => matchesDiseaseSearch(item, searchQuery));
+  const visibleDiseaseProgress = filteredDiseaseProgress.slice(0, visibleCount);
+  const canLoadMore = visibleCount < filteredDiseaseProgress.length;
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
@@ -54,18 +157,14 @@ export default function VaccineScheduleScreen() {
 
         setSelectedProfileState(profile);
         if (!profile) {
-          setUpcomingVaccines([]);
-          setCompletedVaccines([]);
+          setDiseaseProgress([]);
           setStats({ pending: 0, success: 0, canceled: 0 });
-          setLoading(false);
-        } else {
           setLoading(false);
         }
       } catch {
         if (mounted) {
           setSelectedProfileState(null);
-          setUpcomingVaccines([]);
-          setCompletedVaccines([]);
+          setDiseaseProgress([]);
           setStats({ pending: 0, success: 0, canceled: 0 });
           setLoading(false);
         }
@@ -85,22 +184,19 @@ export default function VaccineScheduleScreen() {
     }
 
     try {
-      const [pendingData, completedData, statistics] = await Promise.all([
-        getVaccineRecordsByProfile(selectedProfile.id, { status: -1, limit: 1 }),
-        getVaccineRecordsByProfile(selectedProfile.id, { status: 3, limit: 3 }),
+      const [progressData, statistics] = await Promise.all([
+        getVaccineProgress(selectedProfile.id),
         getVaccineStatistics(selectedProfile.id),
       ]);
 
-      setUpcomingVaccines(sortVaccinesByDate(Array.isArray(pendingData) ? pendingData : [], 'asc'));
-      setCompletedVaccines(sortVaccinesByDate(Array.isArray(completedData) ? completedData : [], 'desc'));
+      setDiseaseProgress(Array.isArray(progressData) ? progressData : []);
       setStats({
         pending: statistics.pending,
         success: statistics.success,
         canceled: statistics.canceled,
       });
     } catch {
-      setUpcomingVaccines([]);
-      setCompletedVaccines([]);
+      setDiseaseProgress([]);
       setStats({ pending: 0, success: 0, canceled: 0 });
     }
   }, [selectedProfile]);
@@ -155,8 +251,23 @@ export default function VaccineScheduleScreen() {
     };
   }, [selectedProfile, refreshVaccineData]));
 
-  const handleConfirmVaccine = (item: VaccineRecordResponse) => {
+  const openChangeSchedule = (item: VaccineProgressResponse) => {
     if (!selectedProfile) {
+      return;
+    }
+
+    const nextDose = getNextPendingDose(item);
+    if (!nextDose?.recordId) {
+      router.push({
+        pathname: '/lichtiem/themmuitiem',
+        params: {
+          profileId: selectedProfile.id,
+          diseaseId: item.diseaseId ?? '',
+          diseaseName: item.diseaseName ?? '',
+          doseOrder: nextDose?.doseOrder ?? item.nextDoseOrder ?? '',
+          injectionDate: nextDose?.injectionDate || item.nextInjectionDate || '',
+        },
+      });
       return;
     }
 
@@ -164,51 +275,87 @@ export default function VaccineScheduleScreen() {
       pathname: '/lichtiem/themmuitiem',
       params: {
         profileId: selectedProfile.id,
-        mode: 'confirm',
-        recordId: item.id,
-        vaccineTypeId: item.vaccineTypeId,
-        vaccineName: item.vaccineTypeName,
-        injectionDate: item.injectionDate,
+        mode: 'edit',
+        recordId: nextDose.recordId,
+        vaccineTypeId: nextDose.vaccineId,
+        vaccineName: nextDose.vaccineName || item.diseaseName || 'Vắc-xin',
+        diseaseId: item.diseaseId ?? '',
+        diseaseName: item.diseaseName ?? '',
+        doseOrder: nextDose.doseOrder ?? item.nextDoseOrder ?? '',
+        injectionDate: nextDose.injectionDate || item.nextInjectionDate || '',
+        allowVaccineChange: canChangeVaccine(item) ? '1' : '0',
       },
     });
   };
 
-  const handleCancelVaccine = (recordId: number) => {
+  const openDiseaseDetail = (item: VaccineProgressResponse) => {
+    router.push({
+      pathname: '/lichtiem/chitietbenh',
+      params: {
+        profileId: selectedProfile?.id,
+        diseaseId: item.diseaseId ?? '',
+        diseaseCode: item.diseaseCode ?? '',
+        diseaseName: item.diseaseName ?? '',
+      },
+    });
+  };
+
+  const stopDiseaseSchedule = async (item: VaccineProgressResponse) => {
+    if (!selectedProfile || !item.diseaseId || item.stopped) {
+      return;
+    }
+
     confirmSheet.show({
-      title: 'Hủy lịch tiêm',
-      message: 'Bạn có chắc chắn muốn hủy lịch này?',
-      confirmText: 'Hủy lịch',
+      title: 'Dừng tiêm bệnh này?',
+      message: `Tạm dừng lịch tiêm cho ${item.diseaseName ?? 'bệnh này'} nhé? Bé vẫn có thể tiêm lại bất cứ lúc nào.`,
       cancelText: 'Không',
+      confirmText: 'Dừng tiêm',
+      tone: 'danger',
       onConfirm: async () => {
         try {
-          await deleteVaccineRecord(recordId);
-          setLoading(true);
+          await stopProfileDiseaseSchedule(selectedProfile.id, item.diseaseId as number);
           await refreshVaccineData();
           showNotification({
             type: 'success',
-            title: 'Đã hủy lịch tiêm',
-            message: 'Lịch tiêm đã được hủy thành công.',
+            title: 'Đã tạm dừng lịch tiêm',
+            message: `${item.diseaseName ?? 'Bệnh này'} sẽ được đưa xuống dưới danh sách.`,
           });
         } catch {
           showNotification({
             type: 'error',
-            title: 'Không thể hủy lịch',
-            message: 'Vui lòng thử lại sau.',
+            title: 'Chưa dừng được lịch tiêm',
+            message: 'Có lỗi xảy ra, bạn thử lại sau một chút nhé.',
           });
-        } finally {
-          setLoading(false);
         }
       },
     });
   };
 
-  const openAddVaccine = () => {
-    if (!selectedProfile) {
-      router.push('/profile/select-profile');
+  const resumeDiseaseSchedule = async (item: VaccineProgressResponse) => {
+    if (!selectedProfile || !item.diseaseId || !item.stopped) {
       return;
     }
 
-    router.push({ pathname: '/lichtiem/themmuitiem', params: { profileId: selectedProfile.id } });
+    try {
+      await resumeProfileDiseaseSchedule(selectedProfile.id, item.diseaseId);
+      await refreshVaccineData();
+      showNotification({
+        type: 'success',
+        title: 'Đã bật tiêm lại',
+        message: `${item.diseaseName ?? 'Bệnh này'} sẽ được theo dõi tiếp trong lịch tiêm.`,
+      });
+    } catch {
+      showNotification({
+        type: 'error',
+        title: 'Chưa bật tiêm lại được',
+        message: 'Có lỗi xảy ra, bạn thử lại sau một chút nhé.',
+      });
+    }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setVisibleCount(INITIAL_VISIBLE_DISEASES);
   };
 
   if (loading) {
@@ -228,22 +375,15 @@ export default function VaccineScheduleScreen() {
       <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
       <View pointerEvents="none" style={styles.backgroundAccentTop} />
       <View pointerEvents="none" style={styles.backgroundAccentMint} />
-      <View pointerEvents="none" style={styles.backgroundSparkle}>
-        <Ionicons name="sparkles" size={23} color="#FFD36E" />
-      </View>
-      <View pointerEvents="none" style={styles.backgroundHeart}>
-        <Ionicons name="heart" size={28} color="#FF9DBA" />
-      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         <View style={styles.customHeader}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.replace('/home/home')} style={styles.backButton}>
             <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={styles.headerSparkle}>✦</Text>
             <Text style={styles.headerTitle}>Sổ Tiêm Chủng</Text>
-            <Text style={styles.headerSubtitle}>Theo dõi từng mũi bảo vệ của bé</Text>
+            <Text style={styles.headerSubtitle}>Theo dõi tiến trình theo từng bệnh</Text>
           </View>
           <View style={styles.headerGhostButton}>
             <Ionicons name="shield-checkmark" size={21} color="#5ABF7A" />
@@ -254,88 +394,88 @@ export default function VaccineScheduleScreen() {
           <LinearGradient colors={['#FFFFFF', '#FFF8FA']} style={styles.profileBanner}>
             <Ionicons name="person-circle-outline" size={20} color="#ff8fab" />
             <Text style={styles.profileBannerText}>Hồ sơ đang xem: {selectedProfile.name}</Text>
-            <Ionicons name="sparkles" size={14} color="#FFD36E" />
           </LinearGradient>
         ) : null}
 
         <VaccineSummary completedCount={stats.success} upcomingCount={stats.pending} />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>⏳ Sắp tới</Text>
-          <TouchableOpacity
-            disabled={!selectedProfile}
-            onPress={() => router.push({ pathname: '/lichtiem/danhsachchuatiem', params: { profileId: selectedProfile?.id } })}
-          >
-            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả ➔</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Danh sách bệnh</Text>
+          <Text style={styles.sectionHint}>Sắp xếp theo mũi gần nhất</Text>
         </View>
 
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color="#7A8C99" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm bệnh hoặc vắc-xin"
+            placeholderTextColor="#9AAAB5"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => handleSearchChange('')} style={styles.clearSearchButton}>
+              <Ionicons name="close-circle" size={18} color="#FF8FAB" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <Text style={styles.resultCountText}>
+          {filteredDiseaseProgress.length} bệnh phù hợp
+        </Text>
+
         {selectedProfile ? (
-          upcomingVaccines.length > 0 ? (
-            upcomingVaccines.map((item) => (
-              <VaccineCard
-                key={item.id}
-                vaccine={{
-                  id: String(item.id),
-                  name: item.vaccineTypeName,
-                  desc: item.vaccineTypeDescription ?? 'Phòng bệnh theo chỉ định của bác sĩ.',
-                  date: item.injectionDate,
-                  vaccineTypeId: item.vaccineTypeId,
-                  injectionDate: item.injectionDate,
-                  status: 'upcoming',
-                }}
-                onConfirmPress={() => handleConfirmVaccine(item)}
-                onCancelPress={() => handleCancelVaccine(item.id)}
-              />
-            ))
+          filteredDiseaseProgress.length > 0 ? (
+            <>
+            {visibleDiseaseProgress.map((item) => {
+              const nextDose = getNextPendingDose(item);
+              const stopped = Boolean(item.stopped);
+
+              return (
+                <VaccineCard
+                  key={getProgressKey(item)}
+                  vaccine={{
+                    id: getProgressKey(item),
+                    name: item.diseaseName ?? 'Bệnh chưa cập nhật',
+                    desc: buildProgressText(item),
+                    date: getNextDate(item) ?? '',
+                    vaccineTypeId: nextDose?.vaccineId ?? undefined,
+                    injectionDate: getNextDate(item) ?? undefined,
+                    status: 'disease',
+                    progressText: buildProgressText(item),
+                    doseHistory: buildDoseHistory(item),
+                    warnings: stopped ? ['Đã dừng lịch tiêm bệnh này.'] : item.warnings ?? undefined,
+                    isStopped: stopped,
+                  }}
+                  onConfirmPress={() => openChangeSchedule(item)}
+                  onDetailPress={() => openDiseaseDetail(item)}
+                  onStopPress={() => stopDiseaseSchedule(item)}
+                  onResumePress={() => resumeDiseaseSchedule(item)}
+                />
+              );
+            })}
+            {canLoadMore ? (
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={() => setVisibleCount((current) => current + LOAD_MORE_DISEASES)}
+                activeOpacity={0.86}
+              >
+                <Ionicons name="chevron-down-circle-outline" size={18} color="#FF8FAB" />
+                <Text style={styles.loadMoreText}>Xem thêm bệnh</Text>
+              </TouchableOpacity>
+            ) : null}
+            </>
           ) : (
-            <Text style={styles.emptyText}>Chưa có lịch tiêm cho {selectedProfile.name}</Text>
+            <Text style={styles.emptyText}>Không tìm thấy bệnh hoặc vắc-xin phù hợp.</Text>
           )
         ) : (
           <Text style={styles.emptyText}>Bạn chưa chọn hồ sơ. Hãy chọn hồ sơ để xem lịch tiêm.</Text>
         )}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>✅ Đã hoàn thành</Text>
-          <TouchableOpacity
-            disabled={!selectedProfile}
-            onPress={() => router.push({ pathname: '/lichtiem/danhsachdatiem', params: { profileId: selectedProfile?.id } })}
-          >
-            <Text style={[styles.seeAllText, !selectedProfile && styles.disabledText]}>Xem tất cả ➔</Text>
-          </TouchableOpacity>
-        </View>
-
-        {completedVaccines.length > 0 ? (
-          completedVaccines.map((item) => (
-            <VaccineCard
-              key={item.id}
-              vaccine={{
-                id: String(item.id),
-                name: item.vaccineTypeName,
-                desc: item.vaccineTypeDescription ?? 'Phòng bệnh theo chỉ định của bác sĩ.',
-                date: item.injectionDate,
-                status: 'completed',
-                location: item.location ?? undefined,
-                cost: item.price ? `${item.price.toLocaleString()}đ` : 'Miễn phí',
-                note: item.note ?? undefined,
-              }}
-            />
-          ))
-        ) : (
-          <Text style={styles.emptyText}>Chưa có mũi tiêm đã hoàn thành.</Text>
-        )}
-
-        <View style={{ height: 120 }} />
+        <View style={{ height: 34 }} />
       </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.addButton} onPress={openAddVaccine}>
-          <LinearGradient colors={['#FF8FAB', '#FFB86C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButtonGradient}>
-            <Ionicons name="add-circle" size={23} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Thêm mũi tiêm mới</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
 
       <ConfirmSheet
         visible={confirmSheet.visible}
@@ -343,6 +483,7 @@ export default function VaccineScheduleScreen() {
         message={confirmSheet.payload.message}
         confirmText={confirmSheet.payload.confirmText}
         cancelText={confirmSheet.payload.cancelText}
+        tone={confirmSheet.payload.tone}
         onCancel={confirmSheet.hide}
         onConfirm={confirmSheet.handleConfirm}
       />
@@ -386,20 +527,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(184, 239, 207, 0.24)',
     transform: [{ rotate: '18deg' }],
   },
-  backgroundSparkle: {
-    position: 'absolute',
-    top: 120,
-    left: 32,
-    opacity: 0.78,
-    transform: [{ rotate: '-12deg' }],
-  },
-  backgroundHeart: {
-    position: 'absolute',
-    top: 202,
-    right: 34,
-    opacity: 0.35,
-    transform: [{ rotate: '14deg' }],
-  },
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,14 +548,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
-  headerSparkle: {
-    position: 'absolute',
-    left: '23%',
-    top: 0,
-    color: '#FFD8E5',
-    fontSize: 14,
-    fontWeight: '900',
-  },
   headerTitle: {
     textAlign: 'center',
     fontSize: 24,
@@ -471,15 +590,75 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   profileBannerText: {
-    marginHorizontal: 7,
+    marginLeft: 7,
     color: '#5C7A8A',
     fontWeight: '900',
     fontSize: 13,
   },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 5 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 5,
+  },
   sectionTitle: { fontSize: 18, fontWeight: '900', color: '#334455' },
-  seeAllText: { fontSize: 13, fontWeight: '900', color: '#FF8FAB' },
-  disabledText: { color: '#c7cfd6' },
+  sectionHint: { fontSize: 12, fontWeight: '800', color: '#7A8C99' },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 46,
+    borderRadius: 19,
+    paddingHorizontal: 13,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 9,
+    color: '#334455',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  clearSearchButton: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultCountText: {
+    marginBottom: 12,
+    paddingHorizontal: 5,
+    color: '#7A8C99',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  loadMoreButton: {
+    minHeight: 44,
+    borderRadius: 18,
+    marginTop: 2,
+    marginBottom: 18,
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: {
+    marginLeft: 6,
+    color: '#FF8FAB',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   emptyText: {
     textAlign: 'center',
     color: '#6F7D8A',
@@ -491,36 +670,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFE5EC',
     fontWeight: '700',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 35,
-    backgroundColor: 'rgba(254, 249, 243, 0.95)',
-  },
-  addButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#FF8FAB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 14,
-    elevation: 5,
-  },
-  addButtonGradient: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '900',
-    marginLeft: 8,
   },
 });
