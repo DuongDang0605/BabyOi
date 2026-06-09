@@ -87,6 +87,8 @@ export type VaccineTypeResponse = {
   name: string;
   description: string | null;
   requiredAge: string | null;
+  manufacturer?: string | null;
+  origin?: string | null;
 };
 
 export type VaccineRecordRequest = {
@@ -94,6 +96,10 @@ export type VaccineRecordRequest = {
   vaccineTypeId: number;
   injectionDate: string;
   location?: string;
+  locationId?: number;
+  packageId?: number;
+  packageStructureId?: number;
+  actualInjectionDate?: string;
   note?: string;
   price?: number;
   status: number;
@@ -107,6 +113,67 @@ export type VaccineRecordResponse = {
   vaccineTypeDescription: string | null;
   injectionDate: string;
   location: string | null;
+  locationId?: number | null;
+  packageId?: number | null;
+  packageName?: string | null;
+  packageStructureId?: number | null;
+  actualInjectionDate?: string | null;
+  price: number | null;
+  note: string | null;
+  status: number | null;
+};
+
+export type LocationVaccinePriceResponse = {
+  id: number;
+  locationId: number;
+  locationName: string | null;
+  vaccineId: number;
+  vaccineName: string | null;
+  manufacturer: string | null;
+  origin: string | null;
+  retailPrice: number;
+  stockStatus: boolean | null;
+  status: number | null;
+};
+
+type VaccineCatalogResponse = {
+  id: number;
+  name: string;
+  manufacturer: string | null;
+  origin: string | null;
+  description: string | null;
+  status: number | null;
+};
+
+type VaccineRecordApiRequest = {
+  profileId: number;
+  locationId?: number;
+  vaccineId: number;
+  packageId?: number;
+  packageStructureId?: number;
+  injectionDate: string;
+  actualInjectionDate?: string;
+  price?: number;
+  note?: string;
+  status: number;
+};
+
+type VaccineRecordApiResponse = {
+  id: number;
+  profileId: number;
+  locationId: number | null;
+  locationName: string | null;
+  vaccineId: number | null;
+  vaccineName: string | null;
+  vaccineDescription: string | null;
+  packageId: number | null;
+  packageName: string | null;
+  packageStructureId: number | null;
+  durationMonths: number | null;
+  recommendedAgeMonths: number | null;
+  dosageOrder: number | null;
+  injectionDate: string;
+  actualInjectionDate: string | null;
   price: number | null;
   note: string | null;
   status: number | null;
@@ -917,26 +984,80 @@ export function deleteProfile(profileId: number | string) {
    VACCINE API
 ========================= */
 
+function mapVaccineCatalogToType(item: VaccineCatalogResponse): VaccineTypeResponse {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    requiredAge: null,
+    manufacturer: item.manufacturer,
+    origin: item.origin,
+  };
+}
+
+function mapVaccineRecordResponse(item: VaccineRecordApiResponse): VaccineRecordResponse {
+  return {
+    id: item.id,
+    profileId: item.profileId,
+    vaccineTypeId: item.vaccineId ?? 0,
+    vaccineTypeName: item.vaccineName ?? 'Vắc-xin chưa cập nhật',
+    vaccineTypeDescription: item.vaccineDescription,
+    injectionDate: item.injectionDate,
+    location: item.locationName,
+    locationId: item.locationId,
+    packageId: item.packageId,
+    packageName: item.packageName,
+    packageStructureId: item.packageStructureId,
+    actualInjectionDate: item.actualInjectionDate,
+    price: item.price,
+    note: item.note,
+    status: item.status,
+  };
+}
+
+function mapVaccineRecordRequest(payload: VaccineRecordRequest): VaccineRecordApiRequest {
+  return {
+    profileId: payload.profileId,
+    locationId: payload.locationId,
+    vaccineId: payload.vaccineTypeId,
+    packageId: payload.packageId,
+    packageStructureId: payload.packageStructureId,
+    injectionDate: payload.injectionDate,
+    actualInjectionDate: payload.actualInjectionDate,
+    price: payload.price,
+    note: payload.location
+      ? [payload.note, `Địa điểm nhập tay: ${payload.location}`].filter(Boolean).join(' - ')
+      : payload.note,
+    status: payload.status,
+  };
+}
+
 export function getVaccineTypes(keyword?: string) {
   const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : '';
 
-  return request<VaccineTypeResponse[]>(`/api/vaccine-types${query}`, {
+  return request<VaccineCatalogResponse[]>(`/api/vaccine-catalog/vaccines${query}`, {
+    method: 'GET',
+  }).then((items) => items.map(mapVaccineCatalogToType));
+}
+
+export function getLocationVaccines(locationId: number | string) {
+  return request<LocationVaccinePriceResponse[]>(`/api/vaccine-catalog/locations/${locationId}/vaccines`, {
     method: 'GET',
   });
 }
 
 export function createVaccineRecord(payload: VaccineRecordRequest) {
-  return request<any>('/api/vaccine-records', {
+  return request<VaccineRecordApiResponse>('/api/vaccine-records', {
     method: 'POST',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify(mapVaccineRecordRequest(payload)),
+  }).then(mapVaccineRecordResponse);
 }
 
 export function updateVaccineRecord(recordId: number | string, payload: VaccineRecordRequest) {
-  return request<VaccineRecordResponse>(`/api/vaccine-records/${recordId}`, {
+  return request<VaccineRecordApiResponse>(`/api/vaccine-records/${recordId}`, {
     method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify(mapVaccineRecordRequest(payload)),
+  }).then(mapVaccineRecordResponse);
 }
 
 export function deleteVaccineRecord(recordId: number | string) {
@@ -946,25 +1067,28 @@ export function deleteVaccineRecord(recordId: number | string) {
 }
 
 export function getVaccineRecordsByProfile(profileId: number | string, params?: { status: number; limit?: number }) {
-  return request<VaccineRecordResponse[]>(`/api/vaccine-records/profile/${profileId}${buildQueryString({
+  return request<VaccineRecordApiResponse[]>(`/api/vaccine-records/profile/${profileId}${buildQueryString({
     status: params?.status,
     limit: params?.limit,
   })}`, {
     method: 'GET',
-  });
+  }).then((items) => items.map(mapVaccineRecordResponse));
 }
 
 export function getVaccineRecordsPageByProfile(
   profileId: number | string,
   params: { status: number; page?: number; size?: number }
 ) {
-  return request<PageResponse<VaccineRecordResponse>>(`/api/vaccine-records/profile/${profileId}/page${buildQueryString({
+  return request<PageResponse<VaccineRecordApiResponse>>(`/api/vaccine-records/profile/${profileId}/page${buildQueryString({
     status: params.status,
     page: params.page,
     size: params.size,
   })}`, {
     method: 'GET',
-  });
+  }).then((page) => ({
+    ...page,
+    content: page.content.map(mapVaccineRecordResponse),
+  }));
 }
 
 export function getVaccineStatistics(profileId: number | string) {
