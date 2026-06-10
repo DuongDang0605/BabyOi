@@ -238,6 +238,9 @@ export default function AddVaccineScreen() {
     }
 
     const parsedDate = parseDisplayDate(formattedValue);
+    if (parsedDate && startOfLocalDay(parsedDate).getTime() > startOfLocalDay(new Date()).getTime()) {
+      setStatus(TABLE_STATUS.PENDING);
+    }
     setDateError(parsedDate ? '' : 'Ngày không hợp lệ. Nhập theo định dạng dd-mm-yyyy.');
   };
 
@@ -250,6 +253,9 @@ export default function AddVaccineScreen() {
 
     setInjectionDate(formatDisplayDate(selectedDate));
     setDateError('');
+    if (startOfLocalDay(selectedDate).getTime() > startOfLocalDay(new Date()).getTime()) {
+      setStatus(TABLE_STATUS.PENDING);
+    }
   };
 
   useEffect(() => {
@@ -396,7 +402,9 @@ export default function AddVaccineScreen() {
     }
 
     const normalizedPrice = price.trim() === '' ? undefined : Number(price.replace(/[^0-9]/g, ''));
-    const nextIsCompleted = nextStatus === TABLE_STATUS.SUCCESS;
+    const isFutureInjectionDate = startOfLocalDay(parsedDate).getTime() > startOfLocalDay(new Date()).getTime();
+    const resolvedStatus = isFutureInjectionDate ? TABLE_STATUS.PENDING : nextStatus;
+    const nextIsCompleted = resolvedStatus === TABLE_STATUS.SUCCESS;
 
     const request = {
       profileId: Number(effectiveProfileId),
@@ -407,7 +415,7 @@ export default function AddVaccineScreen() {
       injectionDate: formatApiDate(parsedDate),
       actualInjectionDate: nextIsCompleted ? formatApiDate(parsedDate) : undefined,
       note: note.trim() || undefined,
-      status: nextIsCompleted ? TABLE_STATUS.SUCCESS : TABLE_STATUS.PENDING,
+      status: resolvedStatus,
       ...(shouldShowServiceFields
         ? {
             location: location.trim() || undefined,
