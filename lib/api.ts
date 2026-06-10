@@ -572,6 +572,8 @@ export class ApiError extends Error {
    BASE URL CONFIG
 ========================= */
 
+const DEFAULT_PUBLIC_API_BASE_URL = 'http://187.77.130.63:8085';
+
 function getHostFromUri(uri?: string | null) {
   if (typeof uri !== 'string' || !uri.trim()) {
     return null;
@@ -588,21 +590,24 @@ function getHostFromUri(uri?: string | null) {
 
 function resolveBaseUrl() {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
 
   if (typeof envBaseUrl === 'string' && envBaseUrl.trim()) {
     return envBaseUrl.trim().replace(/\/$/, '');
+  }
+
+  if (typeof configuredBaseUrl === 'string' && configuredBaseUrl.trim()) {
+    return configuredBaseUrl.trim().replace(/\/$/, '');
+  }
+
+  if (!__DEV__) {
+    return DEFAULT_PUBLIC_API_BASE_URL;
   }
 
   const inferredHost = getHostFromUri(Constants.expoConfig?.hostUri);
 
   if (inferredHost) {
     return `http://${inferredHost}:8085`;
-  }
-
-  const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
-
-  if (typeof configuredBaseUrl === 'string' && configuredBaseUrl.trim()) {
-    return configuredBaseUrl.trim().replace(/\/$/, '');
   }
 
   if (Platform.OS === 'android') {
