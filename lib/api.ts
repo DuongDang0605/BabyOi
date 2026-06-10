@@ -573,6 +573,16 @@ export class ApiError extends Error {
 ========================= */
 
 const DEFAULT_PUBLIC_API_BASE_URL = 'http://187.77.130.63:8085';
+const LOCAL_API_PORT = 8085;
+const API_FALLBACK_TIMEOUT_MS = 2500;
+
+function normalizeBaseUrl(url: string) {
+  return url.trim().replace(/\/$/, '');
+}
+
+function uniqueUrls(urls: string[]) {
+  return Array.from(new Set(urls.map(normalizeBaseUrl).filter(Boolean)));
+}
 
 function getHostFromUri(uri?: string | null) {
   if (typeof uri !== 'string' || !uri.trim()) {
@@ -588,36 +598,56 @@ function getHostFromUri(uri?: string | null) {
   }
 }
 
-function resolveBaseUrl() {
+function getConfiguredBaseUrl() {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
 
   if (typeof envBaseUrl === 'string' && envBaseUrl.trim()) {
-    return envBaseUrl.trim().replace(/\/$/, '');
+    return normalizeBaseUrl(envBaseUrl);
   }
 
   if (typeof configuredBaseUrl === 'string' && configuredBaseUrl.trim()) {
-    return configuredBaseUrl.trim().replace(/\/$/, '');
+    return normalizeBaseUrl(configuredBaseUrl);
+  }
+
+  return '';
+}
+
+function getLocalBaseUrlCandidates() {
+  const inferredHost = getHostFromUri(Constants.expoConfig?.hostUri);
+  const candidates: string[] = [];
+
+  if (Platform.OS === 'android') {
+    candidates.push(`http://10.0.2.2:${LOCAL_API_PORT}`);
+  }
+
+  if (inferredHost) {
+    candidates.push(`http://${inferredHost}:${LOCAL_API_PORT}`);
+  }
+
+  if (Platform.OS !== 'android') {
+    candidates.push(`http://localhost:${LOCAL_API_PORT}`);
+  }
+
+  return uniqueUrls(candidates);
+}
+
+function getApiBaseUrlCandidates() {
+  const configuredBaseUrl = getConfiguredBaseUrl();
+
+  if (configuredBaseUrl) {
+    return [configuredBaseUrl];
   }
 
   if (!__DEV__) {
-    return DEFAULT_PUBLIC_API_BASE_URL;
+    return [DEFAULT_PUBLIC_API_BASE_URL];
   }
 
-  const inferredHost = getHostFromUri(Constants.expoConfig?.hostUri);
-
-  if (inferredHost) {
-    return `http://${inferredHost}:8085`;
-  }
-
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8085';
-  }
-
-  return 'http://localhost:8085';
+  return uniqueUrls([...getLocalBaseUrlCandidates(), DEFAULT_PUBLIC_API_BASE_URL]);
 }
 
-export const API_BASE_URL = resolveBaseUrl();
+export const API_BASE_URLS = getApiBaseUrlCandidates();
+export const API_BASE_URL = API_BASE_URLS[0];
 
 /* =========================
    ASSET URL
@@ -826,19 +856,65 @@ function buildHeaders(init?: ApiRequestInit, options?: { jsonContentType?: boole
   return headers;
 }
 
+function createRequestSignal(sourceSignal?: AbortSignal | null, timeoutMs?: number) {
+  const controller = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const abort = () => controller.abort();
+
+  if (sourceSignal?.aborted) {
+    controller.abort();
+  } else {
+    sourceSignal?.addEventListener('abort', abort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      sourceSignal?.removeEventListener('abort', abort);
+    },
+  };
+}
+
+async function fetchWithApiFallback(
+  path: string,
+  fetchInit: RequestInit,
+  init?: ApiRequestInit,
+  options?: { jsonContentType?: boolean }
+) {
+  let lastError: unknown;
+
+  for (const [index, baseUrl] of API_BASE_URLS.entries()) {
+    const timeoutMs = index < API_BASE_URLS.length - 1 ? API_FALLBACK_TIMEOUT_MS : undefined;
+    const { signal, cleanup } = createRequestSignal(fetchInit.signal, timeoutMs);
+
+    try {
+      return await fetch(`${baseUrl}${path}`, {
+        ...fetchInit,
+        signal,
+        headers: buildHeaders(init, options),
+      });
+    } catch (error) {
+      lastError = error;
+    } finally {
+      cleanup();
+    }
+  }
+
+  throw lastError;
+}
+
 async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
   const { skipAuth, silent, ...fetchInit } = init ?? {};
-  const url = `${API_BASE_URL}${path}`;
 
   let response: Response;
 
   try {
-    response = await fetch(url, {
-      ...fetchInit,
-      headers: buildHeaders(init),
-    });
+    response = await fetchWithApiFallback(path, fetchInit, init);
   } catch (error) {
     if (!silent) {
       openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
@@ -861,17 +937,20 @@ async function requestMultipart<T>(path: string, formData: FormData, init?: ApiR
   await hydrateAuthSession();
 
   const { skipAuth, silent, ...fetchInit } = init ?? {};
-  const url = `${API_BASE_URL}${path}`;
 
   let response: Response;
 
   try {
-    response = await fetch(url, {
-      ...fetchInit,
-      method: fetchInit.method ?? 'POST',
-      body: formData,
-      headers: buildHeaders(init, { jsonContentType: false }),
-    });
+    response = await fetchWithApiFallback(
+      path,
+      {
+        ...fetchInit,
+        method: fetchInit.method ?? 'POST',
+        body: formData,
+      },
+      init,
+      { jsonContentType: false }
+    );
   } catch (error) {
     if (!silent) {
       openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
