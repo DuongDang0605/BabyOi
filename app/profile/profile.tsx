@@ -33,6 +33,7 @@ import {
 } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
+import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
@@ -184,6 +185,7 @@ export default function ProfileScreen() {
   const profileHeaderTitle = profile?.profileType === 'MOTHER' ? 'Hồ Sơ Của Mẹ' : 'Hồ Sơ Của Bé';
 
   const handleLogout = async () => {
+    await deactivateCurrentDeviceToken();
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

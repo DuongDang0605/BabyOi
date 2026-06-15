@@ -32,19 +32,32 @@ import {
 } from '../../lib/api';
 import { clearAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
-import { registerPushNotifications } from '../../lib/push-notifications';
+import { deactivateCurrentDeviceToken, registerPushNotifications } from '../../lib/push-notifications';
 
 const { width } = Dimensions.get('window');
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
-  const usDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
-  if (usDate) {
-    return new Date(Number(usDate[3]), Number(usDate[1]) - 1, Number(usDate[2]));
+  const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (displayDate) {
+    const day = Number(displayDate[1]);
+    const month = Number(displayDate[2]);
+    const year = Number(displayDate[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
+      return parsed;
+    }
+    return new Date(Number.NaN);
   }
   const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (isoDate) {
-    return new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+    const year = Number(isoDate[1]);
+    const month = Number(isoDate[2]);
+    const day = Number(isoDate[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
+      return parsed;
+    }
   }
   return new Date(Number.NaN);
 }
@@ -163,7 +176,6 @@ let homeWidgetRequest: Promise<HomeWidgetCache> | null = null;
 let homeWidgetRequestProfileId: number | null = null;
 let unreadNotificationCache: { count: number; updatedAt: number } | null = null;
 let unreadNotificationRequest: Promise<number> | null = null;
-let pushRegistrationAttempted = false;
 
 async function fetchHomeWidgets(profile: ProfileResponse) {
   const [vaccineProgress, teachingLessons] = await Promise.all([
@@ -216,11 +228,6 @@ async function fetchUnreadNotificationCount() {
 }
 
 function registerPushNotificationsOnce() {
-  if (pushRegistrationAttempted) {
-    return;
-  }
-
-  pushRegistrationAttempted = true;
   registerPushNotifications().catch((error) => {
     console.warn('Không thể đăng ký push notification:', error);
   });
@@ -296,7 +303,7 @@ export default function AppHomeScreen() {
     };
 
     async function loadHomeData() {
-      const cachedUnread = getFreshUnreadNotificationCount();
+        const cachedUnread = getFreshUnreadNotificationCount();
       if (cachedUnread !== null) {
         setUnreadNotificationCount(cachedUnread);
       }
@@ -317,9 +324,7 @@ export default function AppHomeScreen() {
           setVaccineReminderError(false);
           setTeachingTip(DEFAULT_TEACHING_TIP);
           interactionTask = InteractionManager.runAfterInteractions(() => {
-            if (cachedUnread === null) {
-              void refreshUnread();
-            }
+            void refreshUnread();
             registerPushNotificationsOnce();
           });
           return;
@@ -337,15 +342,12 @@ export default function AppHomeScreen() {
         }
 
         const shouldRefreshWidgets = !isHomeWidgetCacheFresh(profile.id);
-        const shouldRefreshUnread = cachedUnread === null;
 
         interactionTask = InteractionManager.runAfterInteractions(() => {
           if (shouldRefreshWidgets) {
             void refreshWidgets(profile);
           }
-          if (shouldRefreshUnread) {
-            void refreshUnread();
-          }
+          void refreshUnread();
           registerPushNotificationsOnce();
         });
       } catch (error) {
@@ -354,9 +356,7 @@ export default function AppHomeScreen() {
           setProfileReady(true);
           setVaccineReminderError(true);
           interactionTask = InteractionManager.runAfterInteractions(() => {
-            if (cachedUnread === null) {
-              void refreshUnread();
-            }
+            void refreshUnread();
             registerPushNotificationsOnce();
           });
         }
@@ -382,6 +382,7 @@ export default function AppHomeScreen() {
   }, []);
 
   const handleLogout = useCallback(async () => {
+    await deactivateCurrentDeviceToken();
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');
@@ -564,8 +565,7 @@ function getProfileSubtitle(profile: ProfileResponse) {
   }
 
   const now = new Date();
-  const monthAdjustment = now.getDate() < dob.getDate() ? 1 : 0;
-  const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth() - monthAdjustment);
+  const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth());
   if (profile.profileType === 'CHILD') {
     if (months === 0) {
       const days = Math.max(0, Math.floor((startOfDay(now).getTime() - startOfDay(dob).getTime()) / 86400000));
