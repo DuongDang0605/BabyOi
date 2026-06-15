@@ -1,131 +1,583 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ScheduleItem } from '../../components/phattrien/ScheduleItem';
+import {
+  analyzeBabyRoutine,
+  applyBabyRoutineNextDayAdjustment,
+  BabyRoutineAiAnalysisResponse,
+  BabyRoutineDayResponse,
+  BabyRoutineEntryResponse,
+  getBabyRoutineDay,
+  updateBabyRoutineEntryCompletion,
+  updateBabyRoutineTimeline,
+} from '../../lib/api';
+import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-const { width } = Dimensions.get('window');
-
-const TIME_GAPS: any = {
-  1: 30,  // Từ Dậy -> Bú sữa: 30p
-  2: 90,  // Từ Bú sữa -> Ngủ giấc 1: 90p
-  3: 150, // Từ Ngủ giấc 1 -> Ăn dặm: 150p
-  4: 120, // Từ Ăn dặm -> Ngủ giấc 2: 120p
-  5: 150, // Từ Ngủ giấc 2 -> Bú chiều: 150p
-  6: 180, // Từ Bú chiều -> Ngủ đêm: 180p
+type RoutineItem = BabyRoutineEntryResponse & {
+  icon: string;
+  color: string;
+  note: string;
+  isDone: boolean;
 };
 
-export default function FullSmartBabySchedule() {
-  const [selectedDate, setSelectedDate] = useState(new Date().getDate());
-  const [schedule, setSchedule] = useState<any[]>([]);
+function toDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
-  const daysInWeek = [
-    { label: 'Th 2', date: 23 }, { label: 'Th 3', date: 24 }, { label: 'Th 4', date: 25 },
-    { label: 'Th 5', date: 26 }, { label: 'Th 6', date: 27 }, { label: 'Th 7', date: 28 }, { label: 'CN', date: 29 }
-  ];
+function parseDateParam(value?: string | string[] | null) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (!rawValue) {
+    return new Date();
+  }
+  const [year, month, day] = rawValue.split('-').map(Number);
+  if (!year || !month || !day) {
+    return new Date();
+  }
+  return new Date(year, month - 1, day);
+}
+
+function toTimeParam(date: Date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function getMonday(date: Date) {
+  const nextDate = new Date(date);
+  const day = nextDate.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  nextDate.setDate(nextDate.getDate() + diff);
+  return nextDate;
+}
+
+function buildWeekDays(date: Date) {
+  const monday = getMonday(date);
+  return Array.from({ length: 7 }, (_, index) => {
+    const nextDate = new Date(monday);
+    nextDate.setDate(monday.getDate() + index);
+    return {
+      label: index === 6 ? 'CN' : `Th ${index + 2}`,
+      date: nextDate,
+      dateParam: toDateParam(nextDate),
+    };
+  });
+}
+
+function mapRoutineItem(item: BabyRoutineEntryResponse): RoutineItem {
+  return {
+    ...item,
+    icon: item.icon || 'calendar',
+    color: item.color || '#FF8FAB',
+    note: item.note || 'BabyOi sẽ cập nhật theo dữ liệu thực tế của bé.',
+    isDone: item.completed,
+  };
+}
+
+function formatAnalysisMessage(analysis: BabyRoutineAiAnalysisResponse) {
+  const lines = [analysis.summary];
+
+  if (analysis.highlights?.length) {
+    lines.push('', 'Điểm đang ổn:', ...analysis.highlights.map((item) => `- ${item}`));
+  }
+  if (analysis.warnings?.length) {
+    lines.push('', 'Cần lưu ý:', ...analysis.warnings.map((item) => `- ${item}`));
+  }
+  if (analysis.suggestions?.length) {
+    lines.push('', 'Gợi ý tiếp theo:', ...analysis.suggestions.map((item) => `- ${item}`));
+  }
+  if (analysis.disclaimer) {
+    lines.push('', analysis.disclaimer);
+  }
+
+  return lines.join('\n');
+}
+
+function formatDateTimeLabel(value?: string | null) {
+  if (!value) {
+    return '--:--';
+  }
+  const [datePart, timePart] = value.split(' ');
+  if (!datePart || !timePart) {
+    return value;
+  }
+  const [, month, day] = datePart.split('-');
+  return `${timePart} (${day}/${month})`;
+}
+
+function formatDateLabel(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+  const [year, month, day] = value.split('-');
+  if (!year || !month || !day) {
+    return value;
+  }
+  return `${day}/${month}/${year}`;
+}
+
+function formatDuration(minutes?: number | null) {
+  if (minutes == null) {
+    return '';
+  }
+  const absMinutes = Math.abs(minutes);
+  const hours = Math.floor(absMinutes / 60);
+  const mins = absMinutes % 60;
+  const value = `${hours > 0 ? `${hours} giờ` : ''}${hours > 0 && mins > 0 ? ' ' : ''}${mins > 0 ? `${mins} phút` : ''}` || '0 phút';
+  return minutes >= 0 ? `Còn khoảng ${value}` : `Đã qua mốc dự đoán ${value}`;
+}
+
+function isValidTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
+}
+
+export default function FullSmartBabySchedule() {
+  const params = useLocalSearchParams<{ date?: string }>();
+  const routeDate = useMemo(() => parseDateParam(params.date), [params.date]);
+  const [selectedDate, setSelectedDate] = useState(routeDate);
+  const [routineDay, setRoutineDay] = useState<BabyRoutineDayResponse | null>(null);
+  const [schedule, setSchedule] = useState<RoutineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingEntryId, setSavingEntryId] = useState<number | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [adjustingTomorrow, setAdjustingTomorrow] = useState(false);
+  const [updatingTimelineEntryId, setUpdatingTimelineEntryId] = useState<number | null>(null);
+  const [editingItem, setEditingItem] = useState<RoutineItem | null>(null);
+  const [editTime, setEditTime] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const baseData = [
-      { id: 1, type: 'WAKE', time: '07:00', activity: 'Bé thức dậy', icon: 'sunny', color: '#FFB6C1', note: 'Vệ sinh buổi sáng' },
-      { id: 2, type: 'MILK', time: '07:30', activity: 'Cữ sữa sáng', icon: 'water', color: '#A7E4F5', note: '210ml sữa' },
-      { id: 3, type: 'NAP', time: '09:00', activity: 'Giấc ngủ 1', icon: 'bed', color: '#74C0FC', note: 'AI dự báo' },
-      { id: 4, type: 'EAT', time: '11:30', activity: 'Ăn dặm chính', icon: 'restaurant', color: '#FF8FAB', note: 'Cháo rây/Bột' },
-      { id: 5, type: 'NAP', time: '14:00', activity: 'Giấc ngủ 2', icon: 'bed', color: '#74C0FC', note: 'AI dự báo' },
-      { id: 6, type: 'MILK', time: '16:30', activity: 'Cữ sữa chiều', icon: 'water', color: '#A7E4F5', note: '180ml sữa' },
-      { id: 7, type: 'SLEEP', time: '19:30', activity: 'Ngủ đêm', icon: 'moon', color: '#5C7A8A', note: 'Chúc bé ngủ ngon' },
-    ];
-    setSchedule(baseData.map(item => ({ ...item, isDone: false })));
-  }, [selectedDate]);
+    setSelectedDate(routeDate);
+  }, [routeDate]);
 
-  const addMinutes = (timeStr: string, mins: number) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(h, m + mins);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  const selectedDateParam = toDateParam(selectedDate);
+  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDateParam]);
+  const routineCompleted = !!routineDay?.entries?.length && routineDay.entries.every((entry) => entry.completed);
+  const completedItems = useMemo(() => schedule.filter((item) => item.completed), [schedule]);
+
+  const loadRoutine = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+      setError('');
+    }
+
+    try {
+      const profile = getSelectedProfile() || await hydrateSelectedProfile();
+      if (!profile) {
+        setRoutineDay(null);
+        setSchedule([]);
+        setError('Vui lòng chọn hồ sơ bé trước khi xem lịch sinh hoạt.');
+        return;
+      }
+
+      const data = await getBabyRoutineDay(profile.id, selectedDateParam);
+      setRoutineDay(data);
+      setSchedule((data.entries || []).map(mapRoutineItem));
+    } catch (err) {
+      if (showLoading) {
+        setRoutineDay(null);
+        setSchedule([]);
+        setError(err instanceof Error ? err.message : 'Không thể tải lịch sinh hoạt của bé.');
+      } else {
+        Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể làm mới lịch sinh hoạt.');
+      }
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }, [selectedDateParam]);
+
+  useEffect(() => {
+    loadRoutine();
+  }, [loadRoutine]);
+
+  const handleToggleComplete = async (item: RoutineItem) => {
+    if (savingEntryId) {
+      return;
+    }
+    if (item.completed) {
+      return;
+    }
+
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile) {
+      Alert.alert('BabyOi', 'Vui lòng chọn hồ sơ bé trước khi cập nhật lịch sinh hoạt.');
+      return;
+    }
+
+    const todayParam = toDateParam(new Date());
+    if (selectedDateParam > todayParam) {
+      try {
+        const todayRoutine = await getBabyRoutineDay(profile.id, todayParam);
+        const todayCompleted = !!todayRoutine.entries?.length && todayRoutine.entries.every((entry) => entry.completed);
+        if (!todayCompleted) {
+          Alert.alert('Đậu sức khỏe', 'Cần hoàn thành toàn bộ lịch hôm nay trước khi tích lịch ngày tiếp theo.');
+          return;
+        }
+      } catch (err) {
+        Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể kiểm tra lịch hôm nay.');
+        return;
+      }
+    }
+
+    setSavingEntryId(item.id);
+    try {
+      const updated = await updateBabyRoutineEntryCompletion(item.id, {
+        completed: true,
+        actualTime: toTimeParam(new Date()),
+      });
+
+      setSchedule((current) => current.map((entry) => (
+        entry.id === updated.id ? mapRoutineItem(updated) : entry
+      )));
+      setRoutineDay((current) => current
+        ? {
+            ...current,
+            entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
+          }
+        : current);
+
+      await loadRoutine(false);
+    } catch (err) {
+      Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể cập nhật lịch sinh hoạt.');
+    } finally {
+      setSavingEntryId(null);
+    }
   };
 
-  const handleToggleComplete = (index: number) => {
-    const newSchedule = [...schedule];
-    const isNowDone = !newSchedule[index].isDone;
+  const openEditTime = (item: RoutineItem) => {
+    setEditingItem(item);
+    setEditTime(item.actualTime || item.time);
+  };
 
-    if (isNowDone) {
-      const now = new Date();
-      const actualTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
-      newSchedule[index].isDone = true;
-      newSchedule[index].time = actualTime;
-      newSchedule[index].note = `Hoàn thành lúc ${actualTime}`;
-
-      for (let i = index + 1; i < newSchedule.length; i++) {
-        const gap = TIME_GAPS[i] || 120;
-        newSchedule[i].time = addMinutes(newSchedule[i - 1].time, gap);
-        newSchedule[i].note = "AI đã điều chỉnh theo thực tế";
-      }
-    } else {
-      newSchedule[index].isDone = false;
+  const closeEditTime = () => {
+    if (editSaving) {
+      return;
     }
-    setSchedule(newSchedule);
+    setEditingItem(null);
+    setEditTime('');
+  };
+
+  const handleSaveEditTime = async () => {
+    if (!editingItem) {
+      return;
+    }
+    if (!isValidTime(editTime)) {
+      Alert.alert('BabyOi', 'Giờ hoàn thành cần đúng định dạng HH:mm, ví dụ 07:30.');
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const updated = await updateBabyRoutineEntryCompletion(editingItem.id, {
+        completed: true,
+        actualTime: editTime.trim(),
+      });
+      setSchedule((current) => current.map((entry) => (
+        entry.id === updated.id ? mapRoutineItem(updated) : entry
+      )));
+      setRoutineDay((current) => current
+        ? {
+            ...current,
+            entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
+          }
+        : current);
+      setEditingItem(null);
+      setEditTime('');
+      await loadRoutine(false);
+    } catch (err) {
+      Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể sửa giờ hoàn thành.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleUpdateTimeline = async (item: RoutineItem) => {
+    if (!item.completed || updatingTimelineEntryId) {
+      return;
+    }
+
+    setUpdatingTimelineEntryId(item.id);
+    try {
+      const updatedDay = await updateBabyRoutineTimeline(item.id);
+      setRoutineDay(updatedDay);
+      setSchedule((updatedDay.entries || []).map(mapRoutineItem));
+    } catch (err) {
+      Alert.alert('Đậu sức khỏe', err instanceof Error ? err.message : 'Không thể update lại timeline lúc này.');
+    } finally {
+      setUpdatingTimelineEntryId(null);
+    }
+  };
+
+  const handleAiForecast = async () => {
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile) {
+      Alert.alert('BabyOi', 'Vui lòng chọn hồ sơ bé trước khi yêu cầu Đậu sức khỏe phân tích.');
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const analysis = await analyzeBabyRoutine(profile.id, selectedDateParam);
+      Alert.alert(analysis.title || 'Đậu sức khỏe nhận xét lịch sinh hoạt', formatAnalysisMessage(analysis));
+    } catch (err) {
+      Alert.alert('Đậu sức khỏe', err instanceof Error ? err.message : 'Đậu sức khỏe chưa thể phân tích lịch lúc này.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleApplyTomorrowAdjustment = async () => {
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile) {
+      Alert.alert('BabyOi', 'Vui lòng chọn hồ sơ bé trước khi cập nhật lịch ngày mai.');
+      return;
+    }
+    if (!routineCompleted) {
+      Alert.alert('Đậu sức khỏe', 'Cần hoàn thành toàn bộ lịch hôm nay trước khi cập nhật lịch ngày mai.');
+      return;
+    }
+
+    setAdjustingTomorrow(true);
+    try {
+      const tomorrowRoutine = await applyBabyRoutineNextDayAdjustment(profile.id, selectedDateParam);
+      Alert.alert(
+        'Đậu sức khỏe',
+        `Đã cập nhật lịch ngày mai (${formatDateLabel(tomorrowRoutine.routineDate)}) theo giờ sinh hoạt thực tế của bé.`,
+        [
+          { text: 'Ở lại', style: 'cancel' },
+          {
+            text: 'Xem ngày mai',
+            onPress: () => router.push({ pathname: '/phattrien/daily-schedule', params: { date: tomorrowRoutine.routineDate } }),
+          },
+        ]
+      );
+    } catch (err) {
+      Alert.alert('Đậu sức khỏe', err instanceof Error ? err.message : 'Không thể cập nhật lịch ngày mai lúc này.');
+    } finally {
+      setAdjustingTomorrow(false);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- HEADER --- */}
       <View style={styles.calendarHeader}>
         <View style={styles.topHeader}>
-           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#5C7A8A" />
-           </TouchableOpacity>
-           <Text style={styles.monthText}>Tháng 3, 2026</Text>
-           <View style={{ width: 40 }} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#5C7A8A" />
+          </TouchableOpacity>
+          <Text style={styles.monthText}>Tháng {selectedDate.getMonth() + 1}, {selectedDate.getFullYear()}</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => router.push('/phattrien/routine-history')} style={styles.backButton}>
+              <Ionicons name="calendar-outline" size={22} color="#5C7A8A" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => loadRoutine()} style={styles.backButton}>
+              <Ionicons name="refresh" size={22} color="#5C7A8A" />
+            </TouchableOpacity>
+          </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
-          {daysInWeek.map((d, i) => (
-            <TouchableOpacity 
-              key={i} 
-              onPress={() => setSelectedDate(d.date)}
-              style={[styles.dateItem, selectedDate === d.date && styles.dateItemSelected]}
-            >
-              <Text style={[styles.dateLabel, selectedDate === d.date && styles.textWhite]}>{d.label}</Text>
-              <Text style={[styles.dateNumber, selectedDate === d.date && styles.textWhite]}>{d.date}</Text>
-            </TouchableOpacity>
-          ))}
+          {weekDays.map((day) => {
+            const selected = day.dateParam === selectedDateParam;
+            return (
+              <TouchableOpacity
+                key={day.dateParam}
+                onPress={() => setSelectedDate(day.date)}
+                style={[styles.dateItem, selected && styles.dateItemSelected]}
+              >
+                <Text style={[styles.dateLabel, selected && styles.textWhite]}>{day.label}</Text>
+                <Text style={[styles.dateNumber, selected && styles.textWhite]}>{day.date.getDate()}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
         <View style={styles.aiInsights}>
           <View style={styles.aiRow}>
-            <View style={{flex: 1}}>
-              <Text style={styles.aiTitle}>Smart Update ✨</Text>
-              <Text style={styles.aiSub}>Chạm vào mục để hoàn thành. AI sẽ tự động lùi lịch nếu bé thức/ngủ muộn hơn dự kiến.</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.aiTitle}>Đậu sức khỏe</Text>
+              <Text style={styles.aiSub}>
+                {routineDay
+                  ? `${routineDay.profileName} ${routineDay.profileAgeMonths} tháng (${routineDay.ageGroup}). Mục tiêu ngủ ${routineDay.sleepTargetMinHours}-${routineDay.sleepTargetMaxHours} giờ/ngày.`
+                  : 'BabyOi sẽ tạo lịch thật theo hồ sơ và độ tuổi của bé.'}
+              </Text>
+              {!!routineDay?.aiInsight?.summary && (
+                <Text style={styles.aiBody}>{routineDay.aiInsight.summary}</Text>
+              )}
             </View>
           </View>
         </View>
 
-        <View style={styles.timelineContainer}>
-          {schedule.map((item, index) => (
-            <ScheduleItem
+        {!!routineDay?.sleepPrediction && (
+          <View style={styles.predictionBox}>
+            <View style={styles.predictionHeader}>
+              <View style={styles.predictionIcon}>
+                <Ionicons name="moon" size={20} color="#5C7A8A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.predictionTitle}>Dự đoán giấc ngủ đêm</Text>
+                <Text style={styles.predictionSub}>
+                  Bé ngủ lúc {formatDateTimeLabel(routineDay.sleepPrediction.sleepStartDateTime)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.predictionGrid}>
+              <View style={styles.predictionMetric}>
+                <Text style={styles.predictionLabel}>Sớm nhất</Text>
+                <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.earliestWakeDateTime)}</Text>
+              </View>
+              <View style={styles.predictionMetric}>
+                <Text style={styles.predictionLabel}>Có khả năng</Text>
+                <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.likelyWakeDateTime)}</Text>
+              </View>
+              <View style={styles.predictionMetric}>
+                <Text style={styles.predictionLabel}>Muộn nhất</Text>
+                <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.latestWakeDateTime)}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.predictionCountdown}>
+              {formatDuration(routineDay.sleepPrediction.minutesUntilLikelyWake)}
+            </Text>
+            <Text style={styles.predictionExplain}>{routineDay.sleepPrediction.explanation}</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.applyTomorrowButton,
+                (!routineCompleted || adjustingTomorrow) && styles.applyTomorrowButtonDisabled,
+              ]}
+              onPress={handleApplyTomorrowAdjustment}
+              disabled={!routineCompleted || adjustingTomorrow}
+            >
+              {adjustingTomorrow ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name="calendar" size={18} color="#FFF" />
+                  <Text style={styles.applyTomorrowButtonText}>
+                    {routineCompleted ? 'Cập nhật lịch ngày mai' : 'Hoàn thành hôm nay để cập nhật ngày mai'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {!!routineDay.sleepPrediction.nightEvents?.length && (
+              <View style={styles.nightPlanBox}>
+                <Text style={styles.nightPlanTitle}>Lịch dự kiến nếu bé dậy giữa đêm</Text>
+                {routineDay.sleepPrediction.nightEvents.map((event, index) => (
+                  <View key={`${event.type}-${index}`} style={styles.nightEventRow}>
+                    <View style={styles.nightEventDot} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.nightEventTitle}>{event.label}</Text>
+                      <Text style={styles.nightEventTime}>
+                        Thường gặp: {formatDateTimeLabel(event.likelyDateTime)}
+                      </Text>
+                      <Text style={styles.nightEventRange}>
+                        Khoảng {formatDateTimeLabel(event.earliestDateTime)} - {formatDateTimeLabel(event.latestDateTime)}
+                      </Text>
+                      <Text style={styles.nightEventNote}>{event.note}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator color="#FF8FAB" />
+            <Text style={styles.stateText}>Đang tải lịch sinh hoạt thật của bé...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => loadRoutine()}>
+              <Text style={styles.retryButtonText}>Thử lại</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.timelineContainer}>
+            {schedule.map((item, index) => (
+              <ScheduleItem
                 key={item.id}
                 item={item}
                 isLast={index === schedule.length - 1}
-                onToggle={() => handleToggleComplete(index)}
-            />
-          ))}
-        </View>
+                onToggle={() => handleToggleComplete(item)}
+                onUpdateTimeline={() => handleUpdateTimeline(item)}
+                updateLoading={updatingTimelineEntryId === item.id}
+              />
+            ))}
+
+            {!!completedItems.length && (
+              <View style={styles.completedEditBox}>
+                <Text style={styles.completedEditTitle}>Chỉnh sửa mục đã hoàn thành</Text>
+                <Text style={styles.completedEditSub}>Dùng khi bé hoàn thành lệch giờ và bạn muốn ghi lại thời gian đúng.</Text>
+                {completedItems.map((item) => (
+                  <TouchableOpacity key={item.id} style={styles.completedEditButton} onPress={() => openEditTime(item)}>
+                    <View style={[styles.completedEditIcon, { backgroundColor: item.color + '18' }]}>
+                      <Ionicons name={item.icon as any} size={18} color={item.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.completedEditName}>{item.activity}</Text>
+                      <Text style={styles.completedEditTime}>Giờ hoàn thành: {item.actualTime || item.time}</Text>
+                    </View>
+                    <Ionicons name="create-outline" size={20} color="#5C7A8A" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.fab} 
-        onPress={() => Alert.alert("AI Forecast", "Hôm nay bé sinh hoạt rất tốt. Ngày mai bé nên tiếp tục dậy lúc 07:00 để duy trì nhịp sinh học.")}
+        style={[styles.fab, aiLoading && styles.fabDisabled]}
+        onPress={handleAiForecast}
+        disabled={aiLoading}
       >
-        <Ionicons name="sparkles" size={24} color="#FFF" />
+        {aiLoading ? <ActivityIndicator color="#FFF" /> : <Ionicons name="sparkles" size={24} color="#FFF" />}
       </TouchableOpacity>
+
+      <Modal visible={!!editingItem} transparent animationType="fade" onRequestClose={closeEditTime}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModal}>
+            <Text style={styles.editModalTitle}>Sửa giờ hoàn thành</Text>
+            <Text style={styles.editModalSub}>{editingItem?.activity}</Text>
+
+            <TextInput
+              value={editTime}
+              onChangeText={setEditTime}
+              placeholder="HH:mm"
+              keyboardType="numbers-and-punctuation"
+              maxLength={5}
+              style={styles.timeInput}
+            />
+            <Text style={styles.editHint}>Nhập theo định dạng 24 giờ, ví dụ 19:30.</Text>
+
+            <View style={styles.editActions}>
+              <TouchableOpacity style={styles.cancelEditButton} onPress={closeEditTime} disabled={editSaving}>
+                <Text style={styles.cancelEditText}>Huỷ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveEditButton} onPress={handleSaveEditTime} disabled={editSaving}>
+                {editSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveEditText}>Lưu giờ</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -136,8 +588,9 @@ const styles = StyleSheet.create({
   textWhite: { color: '#FFF' },
   calendarHeader: { backgroundColor: '#FFF', paddingTop: 50, paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 8 },
   topHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 15 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F8F9FA', justifyContent: 'center', alignItems: 'center' },
-  monthText: { fontSize: 18, fontWeight: '900', color: '#5C7A8A' },
+  monthText: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '900', color: '#5C7A8A' },
   dateList: { paddingLeft: 20 },
   dateItem: { width: 58, height: 75, backgroundColor: '#F8F9FA', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 15, borderWidth: 1, borderColor: '#F1F3F5' },
   dateItemSelected: { backgroundColor: '#FF8FAB', borderColor: '#FF8FAB', elevation: 4 },
@@ -146,7 +599,54 @@ const styles = StyleSheet.create({
   aiInsights: { backgroundColor: '#FFF0F3', padding: 18, borderRadius: 25, marginTop: 15, marginHorizontal: 5 },
   aiRow: { flexDirection: 'row', alignItems: 'center' },
   aiTitle: { fontSize: 16, fontWeight: '900', color: '#FF8FAB' },
-  aiSub: { fontSize: 12, color: '#FF8FAB', marginTop: 4, lineHeight: 17, opacity: 0.8 },
+  aiSub: { fontSize: 12, color: '#FF8FAB', marginTop: 4, lineHeight: 17, opacity: 0.9 },
+  aiBody: { fontSize: 13, color: '#5C7A8A', marginTop: 10, lineHeight: 19, fontWeight: '700' },
+  predictionBox: { backgroundColor: '#EEF7FF', padding: 16, borderRadius: 18, marginTop: 15, marginHorizontal: 5 },
+  predictionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  predictionIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#D9EEFF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  predictionTitle: { fontSize: 15, fontWeight: '900', color: '#5C7A8A' },
+  predictionSub: { fontSize: 12, color: '#6B8796', marginTop: 3, fontWeight: '700' },
+  predictionGrid: { flexDirection: 'row', gap: 8 },
+  predictionMetric: { flex: 1, backgroundColor: '#FFF', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 13 },
+  predictionLabel: { fontSize: 10, color: '#8FA4AF', fontWeight: '800', marginBottom: 5 },
+  predictionValue: { fontSize: 12, color: '#5C7A8A', fontWeight: '900' },
+  predictionCountdown: { fontSize: 13, color: '#FF8FAB', fontWeight: '900', marginTop: 12 },
+  predictionExplain: { fontSize: 12, color: '#6B8796', lineHeight: 18, marginTop: 6 },
+  applyTomorrowButton: { marginTop: 14, backgroundColor: '#FF8FAB', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  applyTomorrowButtonDisabled: { opacity: 0.55 },
+  applyTomorrowButtonText: { color: '#FFF', fontWeight: '900', fontSize: 13 },
+  nightPlanBox: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#D9EEFF' },
+  nightPlanTitle: { fontSize: 13, color: '#5C7A8A', fontWeight: '900', marginBottom: 10 },
+  nightEventRow: { flexDirection: 'row', marginBottom: 12 },
+  nightEventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#74C0FC', marginTop: 6, marginRight: 10 },
+  nightEventTitle: { fontSize: 13, color: '#5C7A8A', fontWeight: '900' },
+  nightEventTime: { fontSize: 12, color: '#FF8FAB', fontWeight: '900', marginTop: 3 },
+  nightEventRange: { fontSize: 11, color: '#6B8796', fontWeight: '700', marginTop: 2 },
+  nightEventNote: { fontSize: 11, color: '#7C8E96', lineHeight: 16, marginTop: 3 },
   timelineContainer: { marginTop: 30, paddingHorizontal: 5 },
+  completedEditBox: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginTop: 8 },
+  completedEditTitle: { color: '#5C7A8A', fontSize: 15, fontWeight: '900' },
+  completedEditSub: { color: '#8FA4AF', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 4, marginBottom: 10 },
+  completedEditButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: 1, borderTopColor: '#F1F3F5' },
+  completedEditIcon: { width: 36, height: 36, borderRadius: 13, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  completedEditName: { color: '#333', fontSize: 13, fontWeight: '900' },
+  completedEditTime: { color: '#8FA4AF', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  stateBox: { alignItems: 'center', paddingVertical: 45, paddingHorizontal: 20 },
+  stateText: { marginTop: 12, color: '#5C7A8A', fontWeight: '700', textAlign: 'center' },
+  errorText: { color: '#D9485F', fontWeight: '700', textAlign: 'center', lineHeight: 20 },
+  retryButton: { marginTop: 14, backgroundColor: '#FF8FAB', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18 },
+  retryButtonText: { color: '#FFF', fontWeight: '900' },
   fab: { position: 'absolute', bottom: 30, right: 30, width: 65, height: 65, backgroundColor: '#FF8FAB', borderRadius: 32, justifyContent: 'center', alignItems: 'center', elevation: 8 },
+  fabDisabled: { opacity: 0.75 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
+  editModal: { backgroundColor: '#FFF', borderRadius: 22, padding: 20 },
+  editModalTitle: { color: '#5C7A8A', fontSize: 18, fontWeight: '900' },
+  editModalSub: { color: '#8FA4AF', fontSize: 13, fontWeight: '700', marginTop: 4 },
+  timeInput: { marginTop: 16, borderWidth: 1, borderColor: '#FFE5EC', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, color: '#5C7A8A', fontSize: 22, fontWeight: '900', textAlign: 'center', backgroundColor: '#FEF9F3' },
+  editHint: { marginTop: 8, color: '#8FA4AF', fontSize: 12, fontWeight: '700' },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  cancelEditButton: { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: '#F1F3F5', alignItems: 'center' },
+  cancelEditText: { color: '#5C7A8A', fontWeight: '900' },
+  saveEditButton: { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: '#FF8FAB', alignItems: 'center' },
+  saveEditText: { color: '#FFF', fontWeight: '900' },
 });

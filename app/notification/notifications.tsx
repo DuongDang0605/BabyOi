@@ -70,6 +70,16 @@ function resolveRoute(notification: AppNotificationResponse) {
     return '/lichtiem/listlichtiem';
   }
 
+  if (
+    target.includes('health')
+    || target.includes('illness')
+    || target.includes('suckhoe')
+    || target.includes('suc_khoe')
+    || target.includes('sức khỏe')
+  ) {
+    return '/phattrien/health-history';
+  }
+
   return null;
 }
 
@@ -78,6 +88,14 @@ function getNotificationIcon(type?: string | null): IoniconName {
 
   if (normalizedType.includes('vaccine') || normalizedType.includes('tiem')) {
     return 'shield-checkmark-outline';
+  }
+  if (
+    normalizedType.includes('health')
+    || normalizedType.includes('illness')
+    || normalizedType.includes('suckhoe')
+    || normalizedType.includes('suc_khoe')
+  ) {
+    return 'pulse-outline';
   }
   if (normalizedType.includes('appointment') || normalizedType.includes('booking')) {
     return 'calendar-outline';

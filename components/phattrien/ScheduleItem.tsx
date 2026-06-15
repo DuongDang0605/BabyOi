@@ -6,6 +6,7 @@ interface ScheduleItemProps {
   item: {
     id: number;
     time: string;
+    actualTime?: string | null;
     activity: string;
     icon: any;
     color: string;
@@ -14,49 +15,65 @@ interface ScheduleItemProps {
   };
   isLast: boolean;
   onToggle: () => void;
+  onUpdateTimeline?: () => void;
+  updateLoading?: boolean;
 }
 
-export const ScheduleItem = ({ item, isLast, onToggle }: ScheduleItemProps) => {
+export const ScheduleItem = ({ item, isLast, onToggle, onUpdateTimeline, updateLoading }: ScheduleItemProps) => {
+  const displayTime = item.isDone && item.actualTime ? item.actualTime : item.time;
+
   return (
-    <View style={styles.timelineItem}>
-      {/* Giờ */}
-      <View style={styles.timeBox}>
-        <Text style={[styles.timeText, item.isDone && styles.textMuted]}>{item.time}</Text>
+    <View style={styles.timelineBlock}>
+      <View style={styles.timelineItem}>
+        <View style={styles.timeBox}>
+          <Text style={[styles.timeText, item.isDone && styles.textMuted]}>{displayTime}</Text>
+        </View>
+
+        <View style={styles.lineWrapper}>
+          <View style={[styles.dot, { backgroundColor: item.isDone ? '#4CAF50' : item.color }]} />
+          {!isLast && <View style={styles.verticalLine} />}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.activityCard, item.isDone && styles.cardDone]}
+          onPress={item.isDone ? undefined : onToggle}
+          activeOpacity={0.7}
+          disabled={item.isDone}
+        >
+          <View style={[styles.iconBox, { backgroundColor: item.isDone ? '#E8F5E9' : item.color + '15' }]}>
+            <Ionicons name={item.icon} size={22} color={item.isDone ? '#4CAF50' : item.color} />
+          </View>
+
+          <View style={styles.activityInfo}>
+            <Text style={[styles.activityName, item.isDone && styles.textDone]}>{item.activity}</Text>
+            <Text style={styles.activityNote} numberOfLines={1}>{item.note}</Text>
+          </View>
+
+          <View style={[styles.checkCircle, item.isDone && styles.checkCircleActive]}>
+            {item.isDone && <Ionicons name="checkmark" size={14} color="#FFF" />}
+          </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Đường line */}
-      <View style={styles.lineWrapper}>
-        <View style={[styles.dot, { backgroundColor: item.isDone ? '#4CAF50' : item.color }]} />
-        {!isLast && <View style={styles.verticalLine} />}
-      </View>
-
-      {/* Card hoạt động */}
-      <TouchableOpacity
-        style={[styles.activityCard, item.isDone && styles.cardDone]}
-        onPress={onToggle}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.iconBox, { backgroundColor: item.isDone ? '#E8F5E9' : item.color + '15' }]}>
-          <Ionicons name={item.icon} size={22} color={item.isDone ? '#4CAF50' : item.color} />
-        </View>
-
-        <View style={styles.activityInfo}>
-          <Text style={[styles.activityName, item.isDone && styles.textDone]}>{item.activity}</Text>
-          <Text style={styles.activityNote} numberOfLines={1}>{item.note}</Text>
-        </View>
-
-        {/* NÚT HOÀN THÀNH */}
-        <View style={[styles.checkCircle, item.isDone && styles.checkCircleActive]}>
-          {item.isDone && <Ionicons name="checkmark" size={14} color="#FFF" />}
-        </View>
-      </TouchableOpacity>
+      {item.isDone && onUpdateTimeline && (
+        <TouchableOpacity
+          style={[styles.updateButton, updateLoading && styles.updateButtonDisabled]}
+          onPress={onUpdateTimeline}
+          disabled={updateLoading}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="sync" size={15} color="#5C7A8A" />
+          <Text style={styles.updateButtonText}>{updateLoading ? 'Updating...' : 'Update'}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   textMuted: { color: '#ADB5BD' },
-  timelineItem: { flexDirection: 'row', marginBottom: 22 },
+  timelineBlock: { marginBottom: 22 },
+  timelineItem: { flexDirection: 'row' },
   timeBox: { width: 55, paddingTop: 18 },
   timeText: { fontSize: 14, fontWeight: '900', color: '#5C7A8A' },
   lineWrapper: { width: 35, alignItems: 'center' },
@@ -71,4 +88,7 @@ const styles = StyleSheet.create({
   activityNote: { fontSize: 12, color: '#999', marginTop: 4 },
   checkCircle: { width: 26, height: 26, borderRadius: 13, borderColor: '#FFB6C1', borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   checkCircleActive: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
+  updateButton: { alignSelf: 'flex-start', marginLeft: 90, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#D9EEFF', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
+  updateButtonDisabled: { opacity: 0.55 },
+  updateButtonText: { color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
 });

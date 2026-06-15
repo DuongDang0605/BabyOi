@@ -573,6 +573,84 @@ export type NotificationSettingsResponse = {
 
 export type NotificationSettingsPayload = Partial<NotificationSettingsResponse>;
 
+export type BabyRoutineEntryResponse = {
+  id: number;
+  profileId: number;
+  routineDate: string;
+  type: string;
+  time: string;
+  actualTime: string | null;
+  activity: string;
+  note: string | null;
+  icon: string | null;
+  color: string | null;
+  completed: boolean;
+  source: string | null;
+};
+
+export type BabyRoutineAiAnalysisResponse = {
+  title: string;
+  summary: string;
+  recommendedTomorrowWakeTime: string | null;
+  highlights: string[] | null;
+  warnings: string[] | null;
+  suggestions: string[] | null;
+  disclaimer: string | null;
+};
+
+export type BabyRoutineNightEventPredictionResponse = {
+  type: string;
+  label: string;
+  earliestDateTime: string;
+  likelyDateTime: string;
+  latestDateTime: string;
+  note: string;
+};
+
+export type BabyRoutineSleepPredictionResponse = {
+  sleepType: string;
+  sleepStartDateTime: string;
+  earliestWakeDateTime: string;
+  likelyWakeDateTime: string;
+  latestWakeDateTime: string;
+  expectedSleepMinutesMin: number;
+  expectedSleepMinutesLikely: number;
+  expectedSleepMinutesMax: number;
+  minutesUntilLikelyWake: number | null;
+  nightEvents: BabyRoutineNightEventPredictionResponse[] | null;
+  explanation: string;
+};
+
+export type BabyRoutineDayResponse = {
+  profileId: number;
+  profileName: string;
+  profileAgeMonths: number;
+  routineDate: string;
+  ageGroup: string;
+  sleepTargetMinHours: number;
+  sleepTargetMaxHours: number;
+  feedingGuide: string;
+  activityGuide: string;
+  sleepPrediction: BabyRoutineSleepPredictionResponse | null;
+  entries: BabyRoutineEntryResponse[];
+  aiInsight: BabyRoutineAiAnalysisResponse | null;
+};
+
+export type BabyRoutineHistoryResponse = {
+  profileId: number;
+  profileName: string;
+  fromDate: string;
+  toDate: string;
+  totalDays: number;
+  days: BabyRoutineDayResponse[];
+};
+
+export type BabyRoutineEntryUpdatePayload = {
+  completed: boolean;
+  actualTime?: string | null;
+  note?: string | null;
+};
+
 /* =========================
    ERROR
 ========================= */
@@ -1449,6 +1527,48 @@ export function updateIllnessEvent(eventId: number | string, payload: IllnessEve
 export function deleteIllnessEvent(eventId: number | string) {
   return request<void>(`/api/illness-events/${eventId}`, {
     method: 'DELETE',
+  });
+}
+
+/* =========================
+   BABY ROUTINE API
+========================= */
+
+export function getBabyRoutineDay(profileId: number | string, date?: string) {
+  return request<BabyRoutineDayResponse>(`/api/routines/profile/${profileId}${buildQueryString({ date })}`, {
+    method: 'GET',
+  });
+}
+
+export function getBabyRoutineHistory(profileId: number | string, params: { fromDate: string; toDate: string }) {
+  return request<BabyRoutineHistoryResponse>(`/api/routines/profile/${profileId}/history${buildQueryString(params)}`, {
+    method: 'GET',
+  });
+}
+
+export function applyBabyRoutineNextDayAdjustment(profileId: number | string, date?: string) {
+  return request<BabyRoutineDayResponse>(`/api/routines/profile/${profileId}/next-day-adjustment${buildQueryString({ date })}`, {
+    method: 'POST',
+  });
+}
+
+export function updateBabyRoutineEntryCompletion(entryId: number | string, payload: BabyRoutineEntryUpdatePayload) {
+  return request<BabyRoutineEntryResponse>(`/api/routines/entries/${entryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateBabyRoutineTimeline(entryId: number | string) {
+  return request<BabyRoutineDayResponse>(`/api/routines/entries/${entryId}/timeline-update`, {
+    method: 'POST',
+  });
+}
+
+export function analyzeBabyRoutine(profileId: number | string, date?: string) {
+  return request<BabyRoutineAiAnalysisResponse>(`/api/routines/profile/${profileId}/ai-analysis${buildQueryString({ date })}`, {
+    method: 'POST',
+    fallbackTimeoutMs: 30000,
   });
 }
 
