@@ -7,15 +7,10 @@
     "icon": "./assets/images/logo1.png",
     "scheme": "babyoi",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.duongdang2526.BabyOi",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
-          "NSAllowsLocalNetworking": true
-        }
-      }
+      "bundleIdentifier": "com.duongdang2526.BabyOi"
     },
     "android": {
       "adaptiveIcon": {
@@ -51,8 +46,7 @@
           "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ."
         }
       ],
-      "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
