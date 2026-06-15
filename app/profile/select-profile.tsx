@@ -21,6 +21,7 @@ import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createPr
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { todayIsoDate } from '../../lib/health-format';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
+import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
@@ -350,6 +351,7 @@ export default function SelectProfileScreen() {
   const profileImageSize = Math.max(76, profileBoxSize - 20);
 
   const handleLogout = async () => {
+    await deactivateCurrentDeviceToken();
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

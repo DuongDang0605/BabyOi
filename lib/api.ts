@@ -559,6 +559,7 @@ export type AppNotificationResponse = {
   status: number | null;
   read: boolean;
   readAt: string | null;
+  archivedAt: string | null;
   createdAt: string | null;
 };
 
@@ -1772,10 +1773,11 @@ export function deleteRestrictedFood(profileId: number | string, foodId: number 
    NOTIFICATION API
 ========================= */
 
-export function getNotifications(params?: { page?: number; size?: number }) {
+export function getNotifications(params?: { page?: number; size?: number; archived?: boolean }) {
   return request<PageResponse<AppNotificationResponse>>(`/api/notifications${buildQueryString({
     page: params?.page,
     size: params?.size,
+    archived: params?.archived === undefined ? undefined : String(params.archived),
   })}`, {
     silent: true,
     method: 'GET',
@@ -1791,6 +1793,13 @@ export function getUnreadNotificationCount() {
 
 export function markNotificationRead(notificationId: number | string) {
   return request<AppNotificationResponse>(`/api/notifications/${notificationId}/read`, {
+    silent: true,
+    method: 'PATCH',
+  });
+}
+
+export function archiveNotification(notificationId: number | string) {
+  return request<void>(`/api/notifications/${notificationId}/archive`, {
     silent: true,
     method: 'PATCH',
   });
