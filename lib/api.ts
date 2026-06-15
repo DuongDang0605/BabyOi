@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
@@ -496,6 +497,43 @@ export type FoodResponse = {
   ingredients: FoodIngredientResponse[] | null;
 };
 
+export type DetectedIngredientResponse = {
+  name: string;
+  confidence: number | null;
+};
+
+export type MatchedFoodIngredientResponse = {
+  detectedName: string | null;
+  confidence: number | null;
+  ingredientId: number | null;
+  ingredientName: string | null;
+  imageUrl: string | null;
+  nutrition: IngredientNutritionResponse | null;
+};
+
+export type IngredientFoodSuggestionItemResponse = {
+  food: FoodResponse;
+  matchScore: number | null;
+  matchedIngredients: string[] | null;
+  missingIngredients: string[] | null;
+  suitabilityNote: string | null;
+  nutritionNote: string | null;
+};
+
+export type IngredientFoodSuggestionResponse = {
+  profileId: number | null;
+  profileName: string | null;
+  profileAgeMonths: number | null;
+  imageAnalyzed: boolean | null;
+  detectedIngredients: DetectedIngredientResponse[] | null;
+  matchedDbIngredients: MatchedFoodIngredientResponse[] | null;
+  inputIngredients: string[] | null;
+  normalizedIngredients: string[] | null;
+  suggestions: IngredientFoodSuggestionItemResponse[] | null;
+  warnings: string[] | null;
+  disclaimer: string | null;
+};
+
 export type FavoriteFoodResponse = {
   id: number;
   userId: number | null;
@@ -550,6 +588,7 @@ type ErrorPayload = {
 type ApiRequestInit = RequestInit & {
   skipAuth?: boolean;
   silent?: boolean;
+  fallbackTimeoutMs?: number | null;
 };
 
 type ProfileAvatarUploadResponse = {
@@ -887,7 +926,11 @@ async function fetchWithApiFallback(
   let lastError: unknown;
 
   for (const [index, baseUrl] of API_BASE_URLS.entries()) {
-    const timeoutMs = index < API_BASE_URLS.length - 1 ? API_FALLBACK_TIMEOUT_MS : undefined;
+    const timeoutMs = index < API_BASE_URLS.length - 1
+      ? init?.fallbackTimeoutMs === null
+        ? undefined
+        : init?.fallbackTimeoutMs ?? API_FALLBACK_TIMEOUT_MS
+      : undefined;
     const { signal, cleanup } = createRequestSignal(fetchInit.signal, timeoutMs);
 
     try {
@@ -909,7 +952,7 @@ async function fetchWithApiFallback(
 async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const { skipAuth, silent, ...fetchInit } = init ?? {};
+  const { skipAuth, silent, fallbackTimeoutMs, ...fetchInit } = init ?? {};
 
   let response: Response;
 
@@ -936,7 +979,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
 async function requestMultipart<T>(path: string, formData: FormData, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const { skipAuth, silent, ...fetchInit } = init ?? {};
+  const { skipAuth, silent, fallbackTimeoutMs, ...fetchInit } = init ?? {};
 
   let response: Response;
 
@@ -1112,6 +1155,13 @@ function getDiaryUploadFileName(uri: string) {
   return `diary-image-${Date.now()}.${safeExtension}`;
 }
 
+function getIngredientUploadFileName(uri: string) {
+  const cleanUri = uri.split('?')[0] || uri;
+  const extension = cleanUri.split('.').pop()?.toLowerCase();
+  const safeExtension = extension && extension.length <= 5 ? extension : 'jpg';
+  return `ingredient-photo-${Date.now()}.${safeExtension}`;
+}
+
 function getUploadMimeType(uri: string) {
   const extension = (uri.split('?')[0] || uri).split('.').pop()?.toLowerCase();
   if (extension === 'png') {
@@ -1121,6 +1171,26 @@ function getUploadMimeType(uri: string) {
     return 'image/webp';
   }
   return 'image/jpeg';
+}
+
+async function readImageBase64(uri: string) {
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        resolve(result.includes(',') ? result.split(',')[1] : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  return FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
 }
 
 export async function uploadProfileAvatar(uri: string) {
@@ -1494,6 +1564,31 @@ export function getFoodDetail(foodId: number | string) {
 export function getFoodIngredients(foodId: number | string) {
   return request<FoodIngredientResponse[]>(`/api/foods/${foodId}/ingredients`, {
     method: 'GET',
+  });
+}
+
+export async function suggestFoodsFromIngredients(params: {
+  profileId?: number | string | null;
+  ingredientNames?: string[];
+  imageUri?: string | null;
+  limit?: number;
+}) {
+  const ingredientNames = params.ingredientNames
+    ?.map((name) => name.trim())
+    .filter(Boolean);
+  const imageBase64 = params.imageUri ? await readImageBase64(params.imageUri) : null;
+
+  return request<IngredientFoodSuggestionResponse>('/api/foods/suggestions/from-ingredients-json', {
+    method: 'POST',
+    fallbackTimeoutMs: 90000,
+    body: JSON.stringify({
+      profileId: params.profileId != null ? Number(params.profileId) : null,
+      ingredientNames,
+      imageBase64,
+      imageMimeType: params.imageUri ? getUploadMimeType(params.imageUri) : null,
+      imageFilename: params.imageUri ? getIngredientUploadFileName(params.imageUri) : null,
+      limit: params.limit ?? 6,
+    }),
   });
 }
 

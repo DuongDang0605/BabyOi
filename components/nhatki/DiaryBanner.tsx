@@ -49,17 +49,7 @@ export const DiaryBanner = ({ babyName, babyAge, avatarUrl, memoryCount }: Diary
             </View>
             <View>
               <Text style={styles.statValue}>{memoryCount}</Text>
-              <Text style={styles.statLabel}>Kỷ niệm</Text>
-            </View>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <View style={[styles.statIcon, styles.timelineIcon]}>
-              <Ionicons name="sparkles-outline" size={20} color="#5EC9E8" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>1</Text>
-              <Text style={styles.statLabel}>Dòng thời gian</Text>
+              <Text style={styles.statLabel}>Khoảnh khắc</Text>
             </View>
           </View>
         </View>
@@ -205,7 +195,6 @@ const styles = StyleSheet.create({
     marginRight: 9,
   },
   memoryIcon: { backgroundColor: '#FFE5EC' },
-  timelineIcon: { backgroundColor: '#EAFBFF' },
   statValue: {
     color: '#202D3A',
     fontSize: 18,
@@ -216,12 +205,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#EEF0F4',
-    marginHorizontal: 12,
   },
   decoration: {
     position: 'absolute',

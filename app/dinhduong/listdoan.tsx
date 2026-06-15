@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  LayoutChangeEvent,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,10 +19,10 @@ import {
   View,
 } from 'react-native';
 
-import { AiPlannerCard } from '../../components/dinhduong/AiPlannerCard';
 import { DishCard, type Dish } from '../../components/dinhduong/DishCard';
 import {
   FoodResponse,
+  IngredientFoodSuggestionResponse,
   ProfileResponse,
   addFavoriteFood,
   addRestrictedFood,
@@ -29,6 +32,7 @@ import {
   getFoodsPage,
   getRestrictedFoodIds,
   resolveOptimizedAssetUrl,
+  suggestFoodsFromIngredients,
 } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -170,7 +174,11 @@ export default function ListDoAnScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [ingredientPhotoUri, setIngredientPhotoUri] = useState<string | null>(null);
+  const [suggestionResult, setSuggestionResult] = useState<IngredientFoodSuggestionResponse | null>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
   const flatListRef = useRef<FlatList<Dish>>(null);
+  const listStartOffsetRef = useRef(0);
 
   const targetCode = activeTab === 'mom' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
   const filterOptions = FILTERS[activeTab];
@@ -209,7 +217,10 @@ export default function ListDoAnScreen() {
 
   useEffect(() => {
     requestAnimationFrame(() => {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      flatListRef.current?.scrollToOffset({
+        offset: Math.max(listStartOffsetRef.current - 8, 0),
+        animated: true,
+      });
     });
   }, [page]);
 
@@ -451,9 +462,94 @@ export default function ListDoAnScreen() {
     router.push({ pathname: '/dinhduong/recipe-detail', params: { id: item.id, image: item.image } });
   };
 
+  const handleSuggestionFoodPress = (food: FoodResponse) => {
+    router.push({
+      pathname: '/dinhduong/recipe-detail',
+      params: {
+        id: String(food.id),
+        image: resolveOptimizedAssetUrl(food.imageUrl, 'card'),
+      },
+    });
+  };
+
+  const applyIngredientPhoto = (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    setIngredientPhotoUri(result.assets[0].uri);
+    setSuggestionResult(null);
+  };
+
+  const pickIngredientPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('BabyOi', 'Bạn cần cho phép truy cập thư viện ảnh để chọn ảnh nguyên liệu.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.55,
+      aspect: [4, 3],
+    });
+
+    applyIngredientPhoto(result);
+  };
+
+  const captureIngredientPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('BabyOi', 'Bạn cần cho phép truy cập camera để chụp ảnh nguyên liệu.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.55,
+      aspect: [4, 3],
+    });
+
+    applyIngredientPhoto(result);
+  };
+
+  const analyzeIngredientPhoto = async () => {
+    if (!ingredientPhotoUri) {
+      Alert.alert('BabyOi', 'Mẹ chụp hoặc chọn ảnh nguyên liệu trước nhé.');
+      return;
+    }
+
+    setSuggestionLoading(true);
+    setActionMessage(null);
+
+    try {
+      const profileId = await getCurrentProfileId();
+      const result = await suggestFoodsFromIngredients({
+        profileId,
+        imageUri: ingredientPhotoUri,
+        limit: 6,
+      });
+
+      setSuggestionResult(result);
+      if (!result.suggestions?.length) {
+        setActionMessage('Chưa tìm thấy món phù hợp từ ảnh nguyên liệu này.');
+      }
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : 'Không thể gợi ý món từ ảnh nguyên liệu.');
+    } finally {
+      setSuggestionLoading(false);
+    }
+  };
+
   const reloadCurrentPage = () => {
     setPage((current) => current);
     setDebouncedSearch(searchQuery.trim());
+  };
+
+  const rememberListStartOffset = (event: LayoutChangeEvent) => {
+    listStartOffsetRef.current = event.nativeEvent.layout.y;
   };
 
   const renderListState = () => {
@@ -534,31 +630,166 @@ export default function ListDoAnScreen() {
                   <Text style={styles.heroTitle}>{totalElements || filteredDishes.length} món đang gợi ý</Text>
                   <Text style={styles.heroSubtitle}>Lọc nhanh theo độ tuổi, mục tiêu và món yêu thích.</Text>
                 </View>
-                <View style={styles.heroChip}>
-                  <Ionicons name="sparkles" size={14} color="#FF8FAB" />
-                  <Text style={styles.heroChipText}>AI gợi ý</Text>
-                </View>
               </LinearGradient>
-              <View style={styles.searchContainer}>
-                <Ionicons name="search" size={20} color="#FF8FAB" />
-                <TextInput
-                  placeholder="Tìm món theo tên..."
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  style={styles.searchInput}
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  returnKeyType="search"
-                />
-                {!!searchQuery && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={18} color="#FFB6C1" />
-                  </TouchableOpacity>
+            </View>
+
+            <View style={styles.aiSuggestionCard}>
+              <View style={styles.aiSuggestionHeader}>
+                <View style={styles.aiSuggestionTitleBox}>
+                  <Text style={styles.aiSuggestionKicker}>ĐẬU DINH DƯỠNG</Text>
+                  <Text style={styles.aiSuggestionTitle}>Đậu dinh dưỡng gợi ý món ăn</Text>
+                  <Text style={styles.aiSuggestionSubtitle}>Lên thực đơn hoặc chụp nguyên liệu để tìm món hợp với hồ sơ hiện tại.</Text>
+                </View>
+                <View style={styles.aiSuggestionIcon}>
+                  <Image source={require('../../assets/images/AI_food_transparent.png')} style={styles.aiSuggestionImage} />
+                </View>
+              </View>
+
+              <View style={styles.aiQuickActions}>
+                <TouchableOpacity style={styles.aiPlannerAction} onPress={() => router.push('/dinhduong/ai-planner')} activeOpacity={0.9}>
+                  <View style={styles.aiActionIconPink}>
+                    <Ionicons name="calendar-outline" size={19} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.aiActionCopy}>
+                    <Text style={styles.aiActionTitle}>Lên thực đơn</Text>
+                    <Text style={styles.aiActionSubtitle} numberOfLines={1}>Kế hoạch 7 ngày</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={17} color="#FF8FAB" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.aiCameraAction} onPress={ingredientPhotoUri ? analyzeIngredientPhoto : captureIngredientPhoto} disabled={suggestionLoading} activeOpacity={0.9}>
+                  <View style={styles.aiActionIconBlue}>
+                    <Ionicons name="camera-outline" size={19} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.aiActionCopy}>
+                    <Text style={styles.aiActionTitle}>Chụp tìm món</Text>
+                    <Text style={styles.aiActionSubtitle} numberOfLines={1}>{ingredientPhotoUri ? 'Phân tích ảnh đã chọn' : 'Từ nguyên liệu sẵn có'}</Text>
+                  </View>
+                  {suggestionLoading ? (
+                    <ActivityIndicator color="#45AFC8" size="small" />
+                  ) : (
+                    <Ionicons name="sparkles" size={17} color="#45AFC8" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.ingredientAiPanel}>
+              <View style={styles.ingredientAiHeader}>
+                <View style={styles.ingredientAiIcon}>
+                  <Ionicons name="camera" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.ingredientAiTitleBox}>
+                  <Text style={styles.ingredientAiTitle}>Chụp tìm với Đậu dinh dưỡng</Text>
+                  <Text style={styles.ingredientAiSubtitle}>Chọn ảnh nguyên liệu, Đậu dinh dưỡng sẽ nhận diện và gợi ý món phù hợp.</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.ingredientPhotoBox} activeOpacity={0.9} onPress={ingredientPhotoUri ? analyzeIngredientPhoto : captureIngredientPhoto}>
+                {ingredientPhotoUri ? (
+                  <>
+                    <Image source={{ uri: ingredientPhotoUri }} style={styles.ingredientPhoto} contentFit="cover" />
+                    <LinearGradient colors={['transparent', 'rgba(92,122,138,0.54)']} style={styles.ingredientPhotoShade} />
+                    <View style={styles.ingredientPhotoBadge}>
+                      <Ionicons name="sparkles" size={14} color="#FF8FAB" />
+                      <Text style={styles.ingredientPhotoBadgeText}>Sẵn sàng phân tích</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.ingredientPhotoEmpty}>
+                    <Ionicons name="camera-outline" size={34} color="#FF8FAB" />
+                    <Text style={styles.ingredientPhotoEmptyTitle}>Chụp ảnh nguyên liệu có sẵn</Text>
+                    <Text style={styles.ingredientPhotoEmptyText}>Ví dụ: bí đỏ, trứng, cá hồi, rau củ...</Text>
+                  </View>
                 )}
+              </TouchableOpacity>
+
+              <View style={styles.ingredientActions}>
+                <TouchableOpacity style={styles.ingredientSecondaryBtn} onPress={pickIngredientPhoto} disabled={suggestionLoading}>
+                  <Ionicons name="images-outline" size={18} color="#FF8FAB" />
+                  <Text style={styles.ingredientSecondaryText}>Chọn ảnh</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.ingredientPrimaryBtn, (!ingredientPhotoUri || suggestionLoading) && styles.ingredientPrimaryBtnDisabled]} onPress={analyzeIngredientPhoto} disabled={!ingredientPhotoUri || suggestionLoading}>
+                  {suggestionLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.ingredientPrimaryText}>{suggestionLoading ? 'Đang gợi ý' : 'Gợi ý món'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {!!suggestionResult?.detectedIngredients?.length && (
+                <View style={styles.detectedBox}>
+                  <Text style={styles.detectedTitle}>Đậu dinh dưỡng thấy trong ảnh</Text>
+                  <View style={styles.detectedChips}>
+                    {suggestionResult.detectedIngredients.slice(0, 8).map((ingredient, index) => (
+                      <View key={`${ingredient.name}-${index}`} style={styles.detectedChip}>
+                        <Text style={styles.detectedChipText}>{ingredient.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {!!suggestionResult?.warnings?.length && (
+                <View style={styles.suggestionWarningBox}>
+                  <Ionicons name="information-circle-outline" size={17} color="#D9912B" />
+                  <Text style={styles.suggestionWarningText}>{suggestionResult.warnings[0]}</Text>
+                </View>
+              )}
+
+              {!!suggestionResult?.suggestions?.length && (
+                <View style={styles.suggestionList}>
+                  <Text style={styles.suggestionListTitle}>Món phù hợp từ nguyên liệu</Text>
+                  {suggestionResult.suggestions.map((item, index) => {
+                    const food = item.food;
+                    const imageUri = resolveOptimizedAssetUrl(food.imageUrl, 'ingredient');
+                    const matchedText = item.matchedIngredients?.length ? item.matchedIngredients.join(', ') : 'Nguyên liệu phù hợp';
+                    const score = item.matchScore != null ? Math.round(item.matchScore * 100) : null;
+
+                    return (
+                      <TouchableOpacity key={`${food.id}-${index}`} style={styles.suggestionItem} onPress={() => handleSuggestionFoodPress(food)} activeOpacity={0.88}>
+                        {imageUri ? (
+                          <Image source={{ uri: imageUri }} style={styles.suggestionImage} contentFit="cover" cachePolicy="memory-disk" />
+                        ) : (
+                          <View style={[styles.suggestionImage, styles.suggestionImagePlaceholder]}>
+                            <Ionicons name="restaurant-outline" size={22} color="#FF8FAB" />
+                          </View>
+                        )}
+                        <View style={styles.suggestionContent}>
+                          <View style={styles.suggestionNameRow}>
+                            <Text style={styles.suggestionName} numberOfLines={1}>{food.name}</Text>
+                            {score != null && <Text style={styles.suggestionScore}>{score}%</Text>}
+                          </View>
+                          <Text style={styles.suggestionMatched} numberOfLines={1}>{matchedText}</Text>
+                          {!!item.suitabilityNote && <Text style={styles.suggestionNote} numberOfLines={2}>{item.suitabilityNote}</Text>}
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#A8BDC8" />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
               </View>
             </View>
 
-            <AiPlannerCard onPress={() => router.push('/dinhduong/ai-planner')} />
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#FF8FAB" />
+              <TextInput
+                placeholder="Tìm món theo tên..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color="#FFB6C1" />
+                </TouchableOpacity>
+              )}
+            </View>
 
             <View style={styles.navSection}>
               <TouchableOpacity style={styles.navBtn} onPress={() => router.push({pathname: '/dinhduong/WeeklyView', params: {target: audienceLabel}})}>
@@ -597,7 +828,7 @@ export default function ListDoAnScreen() {
               </TouchableOpacity>
             )}
 
-            <View style={styles.sectionTitleRow}>
+            <View style={styles.sectionTitleRow} onLayout={rememberListStartOffset}>
               <View style={styles.sectionTitleLeft}>
                 <View style={styles.sectionTitleIcon}>
                   <Ionicons name="restaurant-outline" size={16} color="#FF8FAB" />
@@ -632,7 +863,7 @@ export default function ListDoAnScreen() {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FEF9F3' },
-  headerPinkBg: { backgroundColor: '#FEF9F3', paddingBottom: 12 },
+  headerPinkBg: { backgroundColor: '#FEF9F3', paddingBottom: 4 },
   customHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 50, marginBottom: 20, paddingHorizontal: 20, justifyContent: 'space-between' },
   backButton: { width: 45 },
   headerActionSpace: { width: 45 },
@@ -645,10 +876,62 @@ const styles = StyleSheet.create({
   heroKicker: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', opacity: 0.92 },
   heroTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', marginTop: 2 },
   heroSubtitle: { color: '#FFF8FA', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 3 },
-  heroChip: { position: 'absolute', right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  heroChipText: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', marginLeft: 5 },
-  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#FFE5EC' },
+  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center', paddingHorizontal: 15, height: 45, marginHorizontal: 20, marginTop: 12, marginBottom: 10, borderWidth: 1.5, borderColor: '#FFE5EC' },
   searchInput: { flex: 1, marginLeft: 10, fontWeight: '700', color: '#5C7A8A' },
+  aiSuggestionCard: { marginHorizontal: 20, marginTop: 4, marginBottom: 4, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 14, borderWidth: 1, borderColor: '#FFE5EC', elevation: 4, shadowColor: '#FFB6C1', shadowOpacity: 0.13, shadowRadius: 14 },
+  aiSuggestionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  aiSuggestionTitleBox: { flex: 1, minWidth: 0 },
+  aiSuggestionKicker: { color: '#FF8FAB', fontSize: 10, fontWeight: '900', letterSpacing: 0 },
+  aiSuggestionTitle: { color: '#5C7A8A', fontSize: 18, fontWeight: '900', marginTop: 2 },
+  aiSuggestionSubtitle: { color: '#7D95A1', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 3 },
+  aiSuggestionIcon: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  aiSuggestionImage: { width: 70, height: 70 },
+  aiQuickActions: { flexDirection: 'row', alignItems: 'stretch', marginBottom: 12 },
+  aiPlannerAction: { flex: 1, minHeight: 58, borderRadius: 18, backgroundColor: '#FFF0F5', borderWidth: 1, borderColor: '#FFE5EC', paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', marginRight: 8 },
+  aiCameraAction: { flex: 1, minHeight: 58, borderRadius: 18, backgroundColor: '#E9F8FD', borderWidth: 1, borderColor: '#D6F1F8', paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center' },
+  aiActionIconPink: { width: 34, height: 34, borderRadius: 13, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  aiActionIconBlue: { width: 34, height: 34, borderRadius: 13, backgroundColor: '#45AFC8', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  aiActionCopy: { flex: 1, minWidth: 0 },
+  aiActionTitle: { color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
+  aiActionSubtitle: { color: '#7D95A1', fontSize: 10, fontWeight: '800', marginTop: 2 },
+  ingredientAiPanel: { borderTopWidth: 1, borderTopColor: '#F5E8EE', paddingTop: 12 },
+  ingredientAiHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  ingredientAiIcon: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF8FAB', marginRight: 10 },
+  ingredientAiTitleBox: { flex: 1 },
+  ingredientAiTitle: { color: '#5C7A8A', fontSize: 16, fontWeight: '900' },
+  ingredientAiSubtitle: { color: '#7D95A1', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 2 },
+  ingredientPhotoBox: { height: 158, borderRadius: 18, overflow: 'hidden', backgroundColor: '#FFF7FA', borderWidth: 1, borderColor: '#FFE5EC' },
+  ingredientPhoto: { width: '100%', height: '100%' },
+  ingredientPhotoShade: { ...StyleSheet.absoluteFillObject },
+  ingredientPhotoBadge: { position: 'absolute', left: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  ingredientPhotoBadgeText: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', marginLeft: 5 },
+  ingredientPhotoEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  ingredientPhotoEmptyTitle: { marginTop: 8, color: '#5C7A8A', fontSize: 14, fontWeight: '900', textAlign: 'center' },
+  ingredientPhotoEmptyText: { marginTop: 4, color: '#7D95A1', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  ingredientActions: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  ingredientSecondaryBtn: { flex: 1, height: 42, borderRadius: 15, borderWidth: 1, borderColor: '#FFE5EC', backgroundColor: '#FFF7FA', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginRight: 8 },
+  ingredientSecondaryText: { color: '#FF8FAB', fontSize: 12, fontWeight: '900', marginLeft: 5 },
+  ingredientPrimaryBtn: { flex: 1.35, height: 42, borderRadius: 15, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', elevation: 2, shadowColor: '#FF8FAB', shadowOpacity: 0.2, shadowRadius: 8 },
+  ingredientPrimaryBtnDisabled: { backgroundColor: '#F3C8D3', elevation: 0 },
+  ingredientPrimaryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', marginLeft: 6 },
+  detectedBox: { marginTop: 14 },
+  detectedTitle: { color: '#5C7A8A', fontSize: 12, fontWeight: '900', marginBottom: 8 },
+  detectedChips: { flexDirection: 'row', flexWrap: 'wrap' },
+  detectedChip: { backgroundColor: '#E9F8FD', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 7, marginBottom: 7 },
+  detectedChipText: { color: '#45AFC8', fontSize: 11, fontWeight: '900' },
+  suggestionWarningBox: { marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8E8', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 9 },
+  suggestionWarningText: { flex: 1, color: '#9A6A1F', fontSize: 11, fontWeight: '800', lineHeight: 16, marginLeft: 6 },
+  suggestionList: { marginTop: 14 },
+  suggestionListTitle: { color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginBottom: 9 },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FBFEFF', borderRadius: 17, padding: 9, borderWidth: 1, borderColor: '#E9F8FD', marginBottom: 9 },
+  suggestionImage: { width: 58, height: 58, borderRadius: 14, backgroundColor: '#FFF0F5', marginRight: 10 },
+  suggestionImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  suggestionContent: { flex: 1, minWidth: 0 },
+  suggestionNameRow: { flexDirection: 'row', alignItems: 'center' },
+  suggestionName: { flex: 1, color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginRight: 8 },
+  suggestionScore: { color: '#FF8FAB', fontSize: 11, fontWeight: '900', backgroundColor: '#FFF0F5', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
+  suggestionMatched: { color: '#45AFC8', fontSize: 11, fontWeight: '900', marginTop: 3 },
+  suggestionNote: { color: '#7D95A1', fontSize: 11, fontWeight: '700', lineHeight: 15, marginTop: 3 },
   navSection: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16 },
   navBtn: { width: '31%', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 12, borderWidth: 1, borderColor: '#FFE5EC', elevation: 2, shadowColor: '#A7E4F5', shadowOpacity: 0.1, shadowRadius: 8 },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 7, elevation: 3 },

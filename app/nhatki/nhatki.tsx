@@ -1,8 +1,9 @@
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { DiaryBanner } from '../../components/nhatki/DiaryBanner';
 import { DiaryCard, type DiaryPost } from '../../components/nhatki/DiaryCard';
@@ -12,7 +13,7 @@ import { useNotification } from '../../lib/notification';
 import { ensureCurrentUserSelectedProfile } from '../../lib/profile-session';
 
 const DEFAULT_AVATAR_URL = 'https://cdn-icons-png.flaticon.com/512/1154/1154444.png';
-type DiaryFilter = 'all' | 'milestone' | 'timeline';
+type DateFilterTarget = 'start' | 'end';
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -45,6 +46,64 @@ function toDisplayDate(isoDate: string) {
     return isoDate;
   }
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function parseDisplayDate(dateValue: string) {
+  const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateValue.trim());
+  if (displayDate) {
+    return new Date(Number(displayDate[3]), Number(displayDate[2]) - 1, Number(displayDate[1]));
+  }
+  return parseIsoDate(dateValue);
+}
+
+function formatDisplayDate(date: Date) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function normalizeDateInput(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function validateDateRange(startDateText: string, endDateText: string) {
+  const startDate = startDateText ? parseDisplayDate(startDateText) : null;
+  const endDate = endDateText ? parseDisplayDate(endDateText) : null;
+
+  if (startDateText && (startDateText.length < 10 || !startDate || Number.isNaN(startDate.getTime()))) {
+    return 'Ngày bắt đầu không hợp lệ. Nhập theo DD/MM/YYYY.';
+  }
+  if (endDateText && (endDateText.length < 10 || !endDate || Number.isNaN(endDate.getTime()))) {
+    return 'Ngày kết thúc không hợp lệ. Nhập theo DD/MM/YYYY.';
+  }
+  if (startDate && endDate && startOfDay(startDate).getTime() > startOfDay(endDate).getTime()) {
+    return 'Ngày bắt đầu không được sau ngày kết thúc.';
+  }
+  return null;
+}
+
+function isPostInDateRange(post: DiaryPost, startDateText: string, endDateText: string) {
+  const postDate = parseDisplayDate(post.date);
+  if (Number.isNaN(postDate.getTime())) {
+    return true;
+  }
+
+  const startDate = startDateText && startDateText.length === 10 ? parseDisplayDate(startDateText) : null;
+  const endDate = endDateText && endDateText.length === 10 ? parseDisplayDate(endDateText) : null;
+  const target = startOfDay(postDate).getTime();
+
+  if (startDate && !Number.isNaN(startDate.getTime()) && target < startOfDay(startDate).getTime()) {
+    return false;
+  }
+  if (endDate && !Number.isNaN(endDate.getTime()) && target > startOfDay(endDate).getTime()) {
+    return false;
+  }
+  return true;
 }
 
 function formatAgeAt(profile: ProfileResponse | null, isoDate?: string | null) {
@@ -90,7 +149,10 @@ export default function BabyDiaryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [activeFilter, setActiveFilter] = useState<DiaryFilter>('all');
+  const [startDateText, setStartDateText] = useState('');
+  const [endDateText, setEndDateText] = useState('');
+  const [dateFilterError, setDateFilterError] = useState<string | null>(null);
+  const [visibleDatePicker, setVisibleDatePicker] = useState<DateFilterTarget | null>(null);
 
   const loadDiary = useCallback(async () => {
     const selectedProfile = await ensureCurrentUserSelectedProfile();
@@ -121,14 +183,49 @@ export default function BabyDiaryScreen() {
   }, [loadDiary]));
 
   const filteredPosts = useMemo(() => {
-    if (activeFilter === 'milestone') {
-      return posts.filter((post) => post.milestone);
+    return posts.filter((post) => isPostInDateRange(post, startDateText, endDateText));
+  }, [endDateText, posts, startDateText]);
+
+  const hasDateFilter = Boolean(startDateText || endDateText);
+
+  const updateDateFilter = (target: DateFilterTarget, value: string) => {
+    const formattedValue = normalizeDateInput(value);
+    const nextStartDate = target === 'start' ? formattedValue : startDateText;
+    const nextEndDate = target === 'end' ? formattedValue : endDateText;
+
+    if (target === 'start') {
+      setStartDateText(formattedValue);
+    } else {
+      setEndDateText(formattedValue);
     }
-    if (activeFilter === 'timeline') {
-      return posts.filter((post) => !post.milestone);
+    setDateFilterError(validateDateRange(nextStartDate, nextEndDate));
+  };
+
+  const handleDatePickerChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    const target = visibleDatePicker;
+    setVisibleDatePicker(null);
+
+    if (!target || !selectedDate) {
+      return;
     }
-    return posts;
-  }, [activeFilter, posts]);
+
+    const formattedValue = formatDisplayDate(selectedDate);
+    const nextStartDate = target === 'start' ? formattedValue : startDateText;
+    const nextEndDate = target === 'end' ? formattedValue : endDateText;
+
+    if (target === 'start') {
+      setStartDateText(formattedValue);
+    } else {
+      setEndDateText(formattedValue);
+    }
+    setDateFilterError(validateDateRange(nextStartDate, nextEndDate));
+  };
+
+  const clearDateFilter = () => {
+    setStartDateText('');
+    setEndDateText('');
+    setDateFilterError(null);
+  };
 
   const handleDelete = (post: DiaryPost) => {
     Alert.alert(
@@ -173,11 +270,9 @@ export default function BabyDiaryScreen() {
         </View>
       );
     }
-    const emptyText = activeFilter === 'milestone'
-      ? 'Chưa có kỷ niệm nào. Mẹ đánh dấu cột mốc khi lưu khoảnh khắc nhé.'
-      : activeFilter === 'timeline'
-        ? 'Chưa có bài thường nào trong dòng thời gian.'
-        : 'Chưa có khoảnh khắc nào. Mẹ lưu kỷ niệm đầu tiên cho bé nhé.';
+    const emptyText = posts.length > 0
+      ? 'Chưa có khoảnh khắc nào trong khoảng thời gian này.'
+      : 'Chưa có khoảnh khắc nào. Mẹ lưu kỷ niệm đầu tiên cho bé nhé.';
 
     return (
       <View style={styles.stateBox}>
@@ -190,6 +285,9 @@ export default function BabyDiaryScreen() {
   const avatarUrl = resolveAssetUrl(profile?.imageUrl) || DEFAULT_AVATAR_URL;
   const profileName = profile?.name ? `${profile.name}` : 'Bé yêu';
   const profileAge = formatAgeAt(profile, new Date().toISOString().slice(0, 10));
+  const currentPickerText = visibleDatePicker === 'start' ? startDateText : endDateText;
+  const parsedPickerDate = currentPickerText ? parseDisplayDate(currentPickerText) : null;
+  const pickerDateValue = parsedPickerDate && !Number.isNaN(parsedPickerDate.getTime()) ? parsedPickerDate : new Date();
 
   return (
     <View style={styles.container}>
@@ -238,22 +336,62 @@ export default function BabyDiaryScreen() {
               memoryCount={posts.length}
             />
 
-            <View style={styles.filterBar}>
-              <TouchableOpacity style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]} onPress={() => setActiveFilter('all')}>
-                <Ionicons name="calendar-outline" size={17} color={activeFilter === 'all' ? '#FF8FAB' : '#7B8794'} />
-                <Text style={activeFilter === 'all' ? styles.filterTextActive : styles.filterText}>Tất cả</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.filterTab, activeFilter === 'milestone' && styles.filterTabActive]} onPress={() => setActiveFilter('milestone')}>
-                <Ionicons name="star-outline" size={17} color={activeFilter === 'milestone' ? '#FF8FAB' : '#7B8794'} />
-                <Text style={activeFilter === 'milestone' ? styles.filterTextActive : styles.filterText}>Kỷ niệm</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.filterTab, activeFilter === 'timeline' && styles.filterTabActive]} onPress={() => setActiveFilter('timeline')}>
-                <Ionicons name="sparkles-outline" size={17} color={activeFilter === 'timeline' ? '#FF8FAB' : '#7B8794'} />
-                <Text style={activeFilter === 'timeline' ? styles.filterTextActive : styles.filterText}>Dòng thời gian</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.filterSettings}>
-                <Ionicons name="options-outline" size={19} color="#202D3A" />
-              </TouchableOpacity>
+            <View style={styles.timeFilterCard}>
+              <View style={styles.timeFilterHeader}>
+                <Ionicons name="calendar-outline" size={18} color="#FF8FAB" />
+                <Text style={styles.timeFilterTitle}>Lọc theo thời gian</Text>
+                {hasDateFilter ? (
+                  <TouchableOpacity style={styles.clearDateFilterButton} onPress={clearDateFilter}>
+                    <Text style={styles.clearDateFilterText}>Xóa lọc</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <View style={styles.dateFilterRow}>
+                <View style={styles.dateField}>
+                  <Text style={styles.dateFieldLabel}>Từ ngày</Text>
+                  <View style={styles.dateInputBox}>
+                    <TextInput
+                      value={startDateText}
+                      onChangeText={(value) => updateDateFilter('start', value)}
+                      placeholder="DD/MM/YYYY"
+                      placeholderTextColor="#B7C3CB"
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      style={styles.dateInput}
+                    />
+                    <TouchableOpacity style={styles.datePickerButton} onPress={() => setVisibleDatePicker('start')}>
+                      <Ionicons name="calendar-outline" size={18} color="#FF8FAB" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.dateField}>
+                  <Text style={styles.dateFieldLabel}>Đến ngày</Text>
+                  <View style={styles.dateInputBox}>
+                    <TextInput
+                      value={endDateText}
+                      onChangeText={(value) => updateDateFilter('end', value)}
+                      placeholder="DD/MM/YYYY"
+                      placeholderTextColor="#B7C3CB"
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      style={styles.dateInput}
+                    />
+                    <TouchableOpacity style={styles.datePickerButton} onPress={() => setVisibleDatePicker('end')}>
+                      <Ionicons name="calendar-outline" size={18} color="#FF8FAB" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              {dateFilterError ? <Text style={styles.dateFilterError}>{dateFilterError}</Text> : null}
+              {visibleDatePicker ? (
+                <DateTimePicker
+                  value={pickerDateValue}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDatePickerChange}
+                />
+              ) : null}
             </View>
           </View>
         )}
@@ -321,12 +459,10 @@ const styles = StyleSheet.create({
   headerSubtitle: { color: '#5C7A8A', fontSize: 12, fontWeight: '800', marginTop: 3 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 22, borderWidth: 1.5, borderColor: '#FFE5EC', paddingHorizontal: 14, marginBottom: 16, shadowColor: '#FF8FAB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 2 },
   searchInput: { flex: 1, paddingVertical: 12, paddingLeft: 8, color: '#334455', fontSize: 14, fontWeight: '700' },
-  filterBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 23,
-    padding: 7,
+  timeFilterCard: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 24,
+    padding: 12,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#FFE6EE',
@@ -336,42 +472,73 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 3,
   },
-  filterTab: {
+  timeFilterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    marginRight: 4,
+    marginBottom: 10,
   },
-  filterTabActive: {
-    backgroundColor: '#FFE5EC',
-  },
-  filterText: {
-    color: '#7B8794',
-    fontSize: 12,
+  timeFilterTitle: {
+    color: '#5C7A8A',
+    fontSize: 13,
     fontWeight: '900',
-    marginLeft: 6,
+    marginLeft: 7,
   },
-  filterTextActive: {
-    color: '#FF8FAB',
-    fontSize: 12,
-    fontWeight: '900',
-    marginLeft: 6,
-  },
-  filterSettings: {
+  clearDateFilterButton: {
     marginLeft: 'auto',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  clearDateFilterText: {
+    color: '#FF8FAB',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  dateFilterRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dateField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dateFieldLabel: {
+    color: '#7B8794',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 6,
+    marginLeft: 2,
+  },
+  dateInputBox: {
+    minHeight: 44,
+    borderRadius: 17,
+    backgroundColor: '#FFF8FA',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+  },
+  dateInput: {
+    flex: 1,
+    color: '#334455',
+    fontSize: 13,
+    fontWeight: '900',
+    paddingVertical: 10,
+  },
+  datePickerButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#C9D5DE',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 2,
+  },
+  dateFilterError: {
+    color: '#F05F78',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 8,
+    lineHeight: 16,
   },
   stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 45, paddingHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 26, borderWidth: 1, borderColor: '#FFE5EC' },
   stateText: { color: '#5C7A8A', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 10, lineHeight: 19 },
