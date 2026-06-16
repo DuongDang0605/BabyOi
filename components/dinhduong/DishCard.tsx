@@ -27,7 +27,7 @@ interface DishCardProps {
   onToggleFavorite?: (id: string) => void;
 }
 
-export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, onPress, onToggleRestriction, onToggleFavorite }: DishCardProps) => {
+function DishCardComponent({ item, isRestricted, isFavorite = false, onPress, onToggleRestriction, onToggleFavorite }: DishCardProps) {
   const accentColor = item.food?.functionCode === 2 ? '#89CFF0' : '#FF8FAB';
 
   return (
@@ -95,7 +95,9 @@ export const DishCard = React.memo(({ item, isRestricted, isFavorite = false, on
       </TouchableOpacity>
     </View>
   );
-});
+}
+
+export const DishCard = React.memo(DishCardComponent);
 
 const styles = StyleSheet.create({
   dishCard: { backgroundColor: '#FFF', width: cardWidth, borderRadius: 25, marginBottom: 20, elevation: 4, overflow: 'hidden', borderWidth: 1.5, borderColor: '#FFE5EC', shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 12 },

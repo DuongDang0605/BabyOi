@@ -1189,6 +1189,12 @@ export function getCurrentUser() {
   });
 }
 
+export function deleteCurrentAccount() {
+  return request<void>('/api/users/me', {
+    method: 'DELETE',
+  });
+}
+
 /* =========================
    PROFILE API
 ========================= */

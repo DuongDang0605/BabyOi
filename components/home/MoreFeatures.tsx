@@ -23,7 +23,7 @@ const MORE_ACCENTS = [
   ['#FFFFFF', '#FFF8E8'],
 ] as const;
 
-export const MoreFeatures = React.memo(({ title, features, onFeaturePress }: MoreFeaturesProps) => {
+function MoreFeaturesComponent({ title, features, onFeaturePress }: MoreFeaturesProps) {
   return (
     <View>
       <View style={styles.sectionHeader}>
@@ -56,7 +56,9 @@ export const MoreFeatures = React.memo(({ title, features, onFeaturePress }: Mor
       </ScrollView>
     </View>
   );
-});
+}
+
+export const MoreFeatures = React.memo(MoreFeaturesComponent);
 
 const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },

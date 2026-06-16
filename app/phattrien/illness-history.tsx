@@ -8,7 +8,7 @@ import { deleteIllnessEvent, getIllnessEvents } from '../../lib/api';
 import { getFilterParams, getIllnessStatusLabel, toDisplayDate, toDisplayMonth, type HealthFilterMode } from '../../lib/health-format';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
-const FILTERS: Array<{ label: string; value: HealthFilterMode }> = [
+const FILTERS: { label: string; value: HealthFilterMode }[] = [
   { label: 'Tất cả', value: 'all' },
   { label: 'Hôm nay', value: 'day' },
   { label: 'Tháng này', value: 'month' },

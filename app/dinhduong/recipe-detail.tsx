@@ -131,7 +131,7 @@ function firstParamValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function compactImageCandidates(candidates: Array<string | null | undefined>) {
+function compactImageCandidates(candidates: (string | null | undefined)[]) {
   const seen = new Set<string>();
 
   return candidates.filter((candidate): candidate is string => {

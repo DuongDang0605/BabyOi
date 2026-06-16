@@ -9,7 +9,7 @@ interface AlertCardProps {
   badgeText: string;
 }
 
-export const AlertCard = React.memo(({ title, subtitle, badgeText }: AlertCardProps) => {
+function AlertCardComponent({ title, subtitle, badgeText }: AlertCardProps) {
   return (
     <LinearGradient
       colors={['#FF8FAB', '#FFB6C1', '#FFE1EA']}
@@ -39,7 +39,9 @@ export const AlertCard = React.memo(({ title, subtitle, badgeText }: AlertCardPr
       </View>
     </LinearGradient>
   );
-});
+}
+
+export const AlertCard = React.memo(AlertCardComponent);
 
 const styles = StyleSheet.create({
   alertCard: {

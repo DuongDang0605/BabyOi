@@ -13,7 +13,7 @@ interface HomeHeaderProps {
   onNotificationPress?: () => void;
 }
 
-export const HomeHeader = React.memo(({ babyName, babyAge, avatarSource, onAvatarPress, unreadCount = 0, onNotificationPress }: HomeHeaderProps) => {
+function HomeHeaderComponent({ babyName, babyAge, avatarSource, onAvatarPress, unreadCount = 0, onNotificationPress }: HomeHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.copyBlock}>
@@ -46,7 +46,9 @@ export const HomeHeader = React.memo(({ babyName, babyAge, avatarSource, onAvata
       </View>
     </View>
   );
-});
+}
+
+export const HomeHeader = React.memo(HomeHeaderComponent);
 
 const styles = StyleSheet.create({
   header: {

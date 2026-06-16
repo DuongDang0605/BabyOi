@@ -1,14 +1,18 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
-import { getNotificationSettings, NotificationSettingsResponse, updateNotificationSettings } from '@/lib/api';
+import { deleteCurrentAccount, getNotificationSettings, NotificationSettingsResponse, updateNotificationSettings } from '@/lib/api';
+import { clearAuthSession } from '@/lib/auth-session';
 import { useNotification } from '@/lib/notification';
+import { clearSelectedProfile } from '@/lib/profile-session';
+import { deactivateCurrentDeviceToken } from '@/lib/push-notifications';
 
 export default function SettingScreen() {
   const { showNotification } = useNotification();
   const [settings, setSettings] = useState<NotificationSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     getNotificationSettings()
@@ -32,6 +36,45 @@ export default function SettingScreen() {
     }
   }
 
+  async function deleteAccount() {
+    try {
+      setDeletingAccount(true);
+      try {
+        await deactivateCurrentDeviceToken();
+      } catch {
+        // The account deletion endpoint will invalidate server-side device tokens.
+      }
+
+      await deleteCurrentAccount();
+      await clearSelectedProfile();
+      await clearAuthSession();
+      router.replace('/auth/login');
+    } catch {
+      showNotification({
+        type: 'error',
+        title: 'Chưa xóa được tài khoản',
+        message: 'Mẹ thử lại sau một chút nhé.',
+      });
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Xóa tài khoản BabyOi?',
+      'Tài khoản và dữ liệu cá nhân liên quan sẽ được xóa hoặc vô danh hóa khỏi BabyOi. Một số bản ghi kỹ thuật có thể được giữ lại nếu cần cho bảo mật hoặc nghĩa vụ pháp lý.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa tài khoản',
+          style: 'destructive',
+          onPress: deleteAccount,
+        },
+      ]
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Cài đặt', headerShadowVisible: false }} />
@@ -51,6 +94,34 @@ export default function SettingScreen() {
             <SettingRow label="Hệ thống" value={settings.systemEnabled} onValueChange={(value) => toggleSetting('systemEnabled', value)} />
           </>
         )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Quyền riêng tư</Text>
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => router.push('/legal/privacy-policy' as any)}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.linkRowText}>Chính sách quyền riêng tư</Text>
+          <Text style={styles.linkArrow}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Tài khoản</Text>
+        <TouchableOpacity
+          style={[styles.deleteButton, deletingAccount && styles.disabledButton]}
+          disabled={deletingAccount}
+          onPress={confirmDeleteAccount}
+          activeOpacity={0.84}
+        >
+          {deletingAccount ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.deleteButtonText}>Xóa tài khoản</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -83,6 +154,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: 1,
     borderColor: '#f0f4f8',
+    marginBottom: 16,
   },
   title: {
     fontSize: 24,
@@ -108,5 +180,37 @@ const styles = StyleSheet.create({
     color: '#5c7a8a',
     fontSize: 15,
     fontWeight: '800',
+  },
+  linkRow: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  linkRowText: {
+    color: '#5c7a8a',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  linkArrow: {
+    color: '#ff8fab',
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 28,
+  },
+  deleteButton: {
+    minHeight: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F44336',
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

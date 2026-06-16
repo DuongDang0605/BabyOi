@@ -155,7 +155,7 @@ export default function FullSmartBabySchedule() {
   }, [routeDate]);
 
   const selectedDateParam = toDateParam(selectedDate);
-  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDateParam]);
+  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDate]);
   const routineCompleted = !!routineDay?.entries?.length && routineDay.entries.every((entry) => entry.completed);
   const completedItems = useMemo(() => schedule.filter((item) => item.completed), [schedule]);
 

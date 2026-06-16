@@ -10,7 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.duongdang2526.BabyOi"
+      "bundleIdentifier": "com.duongdang2526.BabyOi",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ, ảnh nhật ký và ảnh nguyên liệu khi mẹ chủ động dùng các tính năng này.",
+        "NSPhotoLibraryUsageDescription": "BabyOi cần quyền truy cập thư viện ảnh để mẹ chọn ảnh hồ sơ, ảnh nhật ký và ảnh nguyên liệu khi mẹ chủ động dùng các tính năng này.",
+        "NSPhotoLibraryAddUsageDescription": "BabyOi có thể cần lưu ảnh do mẹ tạo hoặc chỉnh sửa vào thư viện ảnh khi mẹ chủ động yêu cầu."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -42,13 +47,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "BabyOi cần quyền truy cập thư viện ảnh để chọn ảnh hồ sơ.",
-          "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ."
+          "photosPermission": "BabyOi cần quyền truy cập thư viện ảnh để mẹ chọn ảnh hồ sơ, ảnh nhật ký và ảnh nguyên liệu khi mẹ chủ động dùng các tính năng này.",
+          "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ, ảnh nhật ký và ảnh nguyên liệu khi mẹ chủ động dùng các tính năng này."
         }
       ],
       "expo-secure-store",
       "expo-notifications",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

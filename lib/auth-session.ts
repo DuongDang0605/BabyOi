@@ -45,3 +45,8 @@ export async function clearAuthSession() {
 export function getAccessToken() {
   return authSession?.accessToken ?? null;
 }
+
+export function getAuthorizationHeader() {
+  const accessToken = getAccessToken();
+  return accessToken ? `Bearer ${accessToken}` : null;
+}

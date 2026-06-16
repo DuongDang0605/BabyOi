@@ -41,3 +41,13 @@ export async function clearSelectedProfile() {
   selectedProfile = null;
   await deleteSecureItem(SELECTED_PROFILE_STORAGE_KEY);
 }
+
+export async function ensureCurrentUserSelectedProfile() {
+  const profile = selectedProfile ?? await hydrateSelectedProfile();
+
+  if (!profile) {
+    throw new Error('Vui lòng chọn hồ sơ trước khi tiếp tục.');
+  }
+
+  return profile;
+}
