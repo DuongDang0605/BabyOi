@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Image, KeyboardAvoidingView, LayoutChangeEvent, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import {
   createHandbookComment,
@@ -38,14 +38,24 @@ function formatRelativeTime(value: string | null) {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-function CommentItem({ comment, reply = false }: { comment: HandbookCommentResponse; reply?: boolean }) {
+function CommentItem({
+  comment,
+  reply = false,
+  onReply,
+  highlighted = false,
+}: {
+  comment: HandbookCommentResponse;
+  reply?: boolean;
+  onReply?: (comment: HandbookCommentResponse) => void;
+  highlighted?: boolean;
+}) {
   const avatarUrl = resolveAssetUrl(comment.avatarUrl) || comment.avatarUrl || FALLBACK_AVATAR;
 
   return (
     <View style={reply ? styles.replyItem : styles.commentItem}>
       <Image source={{ uri: avatarUrl }} style={reply ? styles.replyAvatar : styles.avatar} />
       <View style={styles.commentContentWrapper}>
-        <View style={reply ? styles.replyBubble : styles.commentBubble}>
+        <View style={[reply ? styles.replyBubble : styles.commentBubble, highlighted && styles.highlightedBubble]}>
           <Text style={styles.commentUser}>
             {comment.userName || 'Mẹ BabyOi'} {comment.adminReply ? <Ionicons name="checkmark-circle" size={14} color="#a3d9b1" /> : null}
           </Text>
@@ -53,6 +63,11 @@ function CommentItem({ comment, reply = false }: { comment: HandbookCommentRespo
         </View>
         <View style={styles.commentActions}>
           <Text style={styles.commentTime}>{formatRelativeTime(comment.createdAt)}</Text>
+          {onReply ? (
+            <TouchableOpacity onPress={() => onReply(comment)} hitSlop={8}>
+              <Text style={styles.replyActionText}>Trả lời</Text>
+            </TouchableOpacity>
+          ) : null}
           <Text style={styles.actionText}>Yêu thích ({comment.likeCount ?? 0})</Text>
         </View>
       </View>
@@ -61,12 +76,18 @@ function CommentItem({ comment, reply = false }: { comment: HandbookCommentRespo
 }
 
 export default function CommentScreen() {
-  const { postId } = useLocalSearchParams<{ postId?: string }>();
+  const { postId, commentId } = useLocalSearchParams<{ postId?: string; commentId?: string }>();
   const [post, setPost] = useState<HandbookPostResponse | null>(null);
   const [comments, setComments] = useState<HandbookCommentResponse[]>([]);
   const [inputText, setInputText] = useState('');
+  const [replyTarget, setReplyTarget] = useState<HandbookCommentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
+  const commentLayoutsRef = useRef<Record<string, number>>({});
+  const hasScrolledToTargetRef = useRef(false);
+  const targetCommentId = Array.isArray(commentId) ? commentId[0] : commentId;
 
   const loadData = useCallback(async () => {
     if (!postId) {
@@ -94,6 +115,10 @@ export default function CommentScreen() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    hasScrolledToTargetRef.current = false;
+  }, [postId, targetCommentId]);
+
   const handleSend = async () => {
     if (!postId || !inputText.trim() || submitting) {
       return;
@@ -101,16 +126,41 @@ export default function CommentScreen() {
 
     try {
       setSubmitting(true);
-      await createHandbookComment(postId, { content: inputText.trim() });
+      await createHandbookComment(postId, {
+        content: inputText.trim(),
+        parentId: replyTarget?.parentId || replyTarget?.id || null,
+      });
       setInputText('');
+      setReplyTarget(null);
       await loadData();
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleReply = (comment: HandbookCommentResponse) => {
+    setReplyTarget(comment);
+    setInputText((current) => current || `@${comment.userName || 'BabyOi'} `);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
   const imageUrl = resolveAssetUrl(post?.imageUrl) || post?.imageUrl || FALLBACK_IMAGE;
   const totalComments = comments.reduce((total, item) => total + 1 + (item.replies?.length ?? 0), 0);
+
+  const recordCommentLayout = (id: number, event: LayoutChangeEvent) => {
+    const key = String(id);
+    commentLayoutsRef.current[key] = event.nativeEvent.layout.y;
+
+    if (targetCommentId === key && !hasScrolledToTargetRef.current) {
+      hasScrolledToTargetRef.current = true;
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, commentLayoutsRef.current[key] - 18),
+          animated: true,
+        });
+      }, 250);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -119,7 +169,7 @@ export default function CommentScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         <View style={styles.customHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#ff8fab" />
@@ -146,11 +196,15 @@ export default function CommentScreen() {
             <Text style={styles.commentCountText}>{totalComments} bình luận</Text>
 
             {comments.length > 0 ? comments.map((comment) => (
-              <View key={comment.id}>
-                <CommentItem comment={comment} />
+              <View key={comment.id} onLayout={(event) => recordCommentLayout(comment.id, event)}>
+                <CommentItem
+                  comment={comment}
+                  onReply={handleReply}
+                  highlighted={targetCommentId === String(comment.id)}
+                />
                 {!!comment.replies?.length && (
                   <View style={styles.repliesWrapper}>
-                    {comment.replies.map((reply) => <CommentItem key={reply.id} comment={reply} reply />)}
+                    {comment.replies.map((reply) => <CommentItem key={reply.id} comment={reply} reply onReply={() => handleReply(comment)} />)}
                   </View>
                 )}
               </View>
@@ -166,22 +220,35 @@ export default function CommentScreen() {
       </ScrollView>
 
       <View style={styles.inputArea}>
-        <Image source={{ uri: FALLBACK_AVATAR }} style={styles.myAvatar} />
-        <TextInput
-          style={styles.textInput}
-          placeholder="Viết bình luận của mẹ..."
-          placeholderTextColor="#999"
-          multiline
-          value={inputText}
-          onChangeText={setInputText}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, inputText.trim().length > 0 ? styles.sendButtonActive : styles.sendButtonInactive]}
-          disabled={!inputText.trim() || submitting}
-          onPress={handleSend}
-        >
-          {submitting ? <ActivityIndicator size="small" color="#ffffff" /> : <Ionicons name="send" size={18} color="#ffffff" />}
-        </TouchableOpacity>
+        {replyTarget ? (
+          <View style={styles.replyingBanner}>
+            <Text style={styles.replyingText} numberOfLines={1}>
+              Đang trả lời {replyTarget.userName || 'BabyOi'}
+            </Text>
+            <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color="#8899aa" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        <View style={styles.inputRow}>
+          <Image source={{ uri: FALLBACK_AVATAR }} style={styles.myAvatar} />
+          <TextInput
+            ref={inputRef}
+            style={styles.textInput}
+            placeholder={replyTarget ? 'Viết câu trả lời...' : 'Viết bình luận của mẹ...'}
+            placeholderTextColor="#999"
+            multiline
+            value={inputText}
+            onChangeText={setInputText}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, inputText.trim().length > 0 ? styles.sendButtonActive : styles.sendButtonInactive]}
+            disabled={!inputText.trim() || submitting}
+            onPress={handleSend}
+          >
+            {submitting ? <ActivityIndicator size="small" color="#ffffff" /> : <Ionicons name="send" size={18} color="#ffffff" />}
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -205,17 +272,22 @@ const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#f0f4f8' },
   commentContentWrapper: { flex: 1 },
   commentBubble: { backgroundColor: '#ffffff', padding: 15, borderRadius: 20, borderTopLeftRadius: 5, borderWidth: 1.5, borderColor: '#f0f4f8' },
+  highlightedBubble: { backgroundColor: '#fff7fa', borderColor: '#ff8fab' },
   commentUser: { fontSize: 14, fontWeight: '900', color: '#334455', marginBottom: 6 },
   commentText: { fontSize: 14, color: '#5c7a8a', lineHeight: 22 },
   commentActions: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginLeft: 5, gap: 15 },
   commentTime: { fontSize: 12, color: '#a0aab2' },
   actionText: { fontSize: 13, fontWeight: '700', color: '#8899aa' },
+  replyActionText: { fontSize: 13, fontWeight: '900', color: '#ff8fab' },
   repliesWrapper: { marginLeft: 56, borderLeftWidth: 2, borderColor: '#f0f4f8', paddingLeft: 12, marginBottom: 18 },
   replyItem: { flexDirection: 'row', marginBottom: 15 },
   replyAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f0f4f8' },
   replyBubble: { backgroundColor: '#fafbfc', padding: 12, borderRadius: 18, borderTopLeftRadius: 5, borderWidth: 1, borderColor: '#f0f4f8' },
   emptyText: { color: '#8899aa', fontWeight: '800', textAlign: 'center', marginTop: 24 },
-  inputArea: { flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 12, paddingBottom: Platform.OS === 'ios' ? 25 : 15, backgroundColor: '#ffffff', borderTopWidth: 1.5, borderColor: '#f0f4f8', alignItems: 'center' },
+  inputArea: { paddingHorizontal: 15, paddingVertical: 12, paddingBottom: Platform.OS === 'ios' ? 25 : 15, backgroundColor: '#ffffff', borderTopWidth: 1.5, borderColor: '#f0f4f8' },
+  inputRow: { flexDirection: 'row', alignItems: 'center' },
+  replyingBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, backgroundColor: '#fff7fa', borderWidth: 1, borderColor: '#f0d7df' },
+  replyingText: { flex: 1, marginRight: 10, color: '#5c7a8a', fontSize: 13, fontWeight: '800' },
   myAvatar: { width: 38, height: 38, borderRadius: 19, marginRight: 10, borderWidth: 1, borderColor: '#ffb6c1' },
   textInput: { flex: 1, backgroundColor: '#f5f7f9', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 10, paddingTop: 12, fontSize: 15, color: '#333333', maxHeight: 100, borderWidth: 1, borderColor: '#e2e8f0' },
   sendButton: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
