@@ -1258,6 +1258,23 @@ function getUploadMimeType(uri: string) {
   return 'image/jpeg';
 }
 
+async function appendImageToFormData(formData: FormData, fieldName: string, uri: string, fileName: string) {
+  const mimeType = getUploadMimeType(uri);
+
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append(fieldName, blob, fileName);
+    return;
+  }
+
+  formData.append(fieldName, {
+    uri,
+    name: fileName,
+    type: mimeType,
+  } as any);
+}
+
 async function readImageBase64(uri: string) {
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
@@ -1280,11 +1297,7 @@ async function readImageBase64(uri: string) {
 
 export async function uploadProfileAvatar(uri: string) {
   const formData = new FormData();
-  formData.append('file', {
-    uri,
-    name: getUploadFileName(uri),
-    type: getUploadMimeType(uri),
-  } as any);
+  await appendImageToFormData(formData, 'file', uri, getUploadFileName(uri));
 
   const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData);
   return response.imageUrl;
@@ -1292,11 +1305,7 @@ export async function uploadProfileAvatar(uri: string) {
 
 export async function uploadDiaryImage(uri: string) {
   const formData = new FormData();
-  formData.append('file', {
-    uri,
-    name: getDiaryUploadFileName(uri),
-    type: getUploadMimeType(uri),
-  } as any);
+  await appendImageToFormData(formData, 'file', uri, getDiaryUploadFileName(uri));
 
   const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/diary-entries/image', formData);
   return response.imageUrl;
