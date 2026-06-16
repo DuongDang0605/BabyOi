@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesByUserId } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
@@ -108,6 +108,28 @@ function validateProfileForm(payload: ProfilePayload) {
   return '';
 }
 
+function parsePositiveNumber(value: string) {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN;
+}
+
+function todayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isRemoteImageUrl(uri?: string | null) {
+  return !!uri && (uri.startsWith('http://') || uri.startsWith('https://'));
+}
+
 export default function SelectProfileScreen() {
   const [profiles, setProfiles] = useState<ProfileResponse[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
@@ -115,6 +137,8 @@ export default function SelectProfileScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [initialHeight, setInitialHeight] = useState('');
+  const [initialWeight, setInitialWeight] = useState('');
   const [form, setForm] = useState<ProfilePayload>({
     userId: 0,
     name: '',
@@ -172,6 +196,8 @@ export default function SelectProfileScreen() {
       profileCode: null,
       functionCode: null,
     });
+    setInitialHeight('');
+    setInitialWeight('');
     setError('');
     setModalVisible(true);
   };
@@ -191,6 +217,10 @@ export default function SelectProfileScreen() {
 
     const uri = result.assets[0]?.uri;
     if (uri) {
+      setForm((current) => ({ ...current, imageUrl: uri }));
+      setError('');
+      return;
+
       try {
         const persistentUri = await persistProfileImage(uri);
         setForm((current) => ({ ...current, imageUrl: persistentUri }));
@@ -238,14 +268,33 @@ export default function SelectProfileScreen() {
       setError(validationError);
       return;
     }
+    const heightValue = parsePositiveNumber(initialHeight);
+    const weightValue = parsePositiveNumber(initialWeight);
+
+    if (Number.isNaN(heightValue) || Number.isNaN(weightValue)) {
+      setError('Chiều cao và cân nặng cần là số lớn hơn 0.');
+      return;
+    }
 
     try {
       setSubmitting(true);
       setError('');
+      const uploadedImageUrl = form.imageUrl && !isRemoteImageUrl(form.imageUrl)
+        ? await uploadProfileAvatar(form.imageUrl)
+        : form.imageUrl;
       const created = await createProfile({
         ...form,
         name: form.name.trim(),
+        imageUrl: uploadedImageUrl,
       });
+      if (heightValue !== null || weightValue !== null) {
+        await createHealthRecord({
+          profileId: created.id,
+          height: heightValue,
+          weight: weightValue,
+          recordDate: todayIsoDate(),
+        });
+      }
 
       setModalVisible(false);
       setProfiles((current) => [...current, created].slice(0, 3));
@@ -399,6 +448,28 @@ export default function SelectProfileScreen() {
                 onChangeText={(dateOfBirth) => setForm((current) => ({ ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) }))}
               />
 
+              <Text style={styles.label}>Số đo ban đầu</Text>
+              <View style={styles.measurementRow}>
+                <View style={styles.measurementField}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Chiều cao (cm)"
+                    keyboardType="decimal-pad"
+                    value={initialHeight}
+                    onChangeText={setInitialHeight}
+                  />
+                </View>
+                <View style={styles.measurementField}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Cân nặng (kg)"
+                    keyboardType="decimal-pad"
+                    value={initialWeight}
+                    onChangeText={setInitialWeight}
+                  />
+                </View>
+              </View>
+
               <Text style={styles.label}>Giới tính</Text>
               <View style={styles.sexRow}>
                 {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
@@ -467,6 +538,8 @@ const styles = StyleSheet.create({
   photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 34, borderRadius: 14, backgroundColor: '#FFF6F8', borderWidth: 1.5, borderColor: '#FFD2DE' },
   photoButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '900' },
   input: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 2, borderColor: '#F0F4F8', color: '#334455', fontWeight: '700', marginBottom: 16 },
+  measurementRow: { flexDirection: 'row', gap: 10 },
+  measurementField: { flex: 1 },
   sexRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   sexButton: { flex: 1, paddingVertical: 11, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F0F4F8', alignItems: 'center' },
   sexButtonActive: { backgroundColor: '#FFE5EC', borderColor: '#FF8FAB' },
