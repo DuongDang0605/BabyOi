@@ -155,7 +155,7 @@ const MORE_FEATURES = [
   { id: '5', title: 'Cửa hàng', icon:  require('../../assets/images/home_optimized/shop.png'), route: '/coming-soon?feature=Cửa%20hàng' },
   { id: '6', title: 'Cẩm nang', icon: require('../../assets/images/home_optimized/camnangicon.png'), route: '/camnang/camnang' },
   { id: '7', title: 'Đặt lịch', icon: require('../../assets/images/home_optimized/booking.png'), route: '/coming-soon?feature=Đặt%20lịch' },
-  { id: '8', title: 'Giáo trình', icon: require('../../assets/images/home_optimized/edu.png'), route: '/AI/lesson-list' },
+  { id: '8', title: 'Giáo trình', icon: require('../../assets/images/home_optimized/edu.png'), route: '/coming-soon?feature=Gi%C3%A1o%20tr%C3%ACnh' },
 ];
 
 const DEFAULT_TEACHING_TIP = 'Mẹ ơi, vào Giáo trình để AI gợi ý hoạt động phù hợp với giai đoạn hiện tại của bé nhé!';

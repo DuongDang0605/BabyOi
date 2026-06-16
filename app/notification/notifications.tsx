@@ -128,6 +128,9 @@ function getNotificationIcon(type?: string | null): IoniconName {
   if (normalizedType.includes('chat')) {
     return 'chatbubble-ellipses-outline';
   }
+  if (normalizedType.includes('handbook') || normalizedType.includes('comment')) {
+    return 'chatbubble-outline';
+  }
   if (normalizedType.includes('promotion')) {
     return 'gift-outline';
   }
