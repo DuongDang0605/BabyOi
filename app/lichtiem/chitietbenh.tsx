@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { ConfirmSheet } from '../../components/common/ConfirmSheet';
@@ -114,14 +114,17 @@ function getSortedDoses(progress?: VaccineProgressResponse | null) {
 }
 
 export default function DiseaseVaccineDetailScreen() {
-  const params = useLocalSearchParams<{ profileId?: string; diseaseId?: string; diseaseCode?: string; diseaseName?: string; refreshAt?: string }>();
+  const params = useLocalSearchParams<{ profileId?: string; diseaseId?: string; diseaseCode?: string; diseaseName?: string; recordId?: string; refreshAt?: string }>();
   const profileId = getParamValue(params.profileId);
   const diseaseId = Number(getParamValue(params.diseaseId));
   const diseaseCode = getParamValue(params.diseaseCode);
   const routeDiseaseName = getParamValue(params.diseaseName);
+  const targetRecordId = Number(getParamValue(params.recordId));
   const refreshAt = getParamValue(params.refreshAt);
   const { showNotification } = useNotification();
   const confirmSheet = useConfirmSheet();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const didScrollToRecordRef = useRef(false);
 
   const [progress, setProgress] = useState<VaccineProgressResponse | null>(null);
   const [plan, setPlan] = useState<ChildDiseasePlanResponse | null>(null);
@@ -387,7 +390,7 @@ export default function DiseaseVaccineDetailScreen() {
       <View pointerEvents="none" style={styles.backgroundAccentTop} />
       <View pointerEvents="none" style={styles.backgroundAccentMint} />
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
+      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} style={styles.scrollArea}>
         <View style={styles.header}>
           <TouchableOpacity onPress={goBackToList} style={styles.backButton}>
             <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
@@ -448,7 +451,19 @@ export default function DiseaseVaccineDetailScreen() {
             const vaccineOptions = planDose?.vaccineOptions ?? (isCustomDose ? diseaseVaccineOptions : []);
 
             return (
-            <View key={`${dose.recordId ?? index}-${dose.doseOrder ?? index}`} style={styles.doseCard}>
+            <View
+              key={`${dose.recordId ?? index}-${dose.doseOrder ?? index}`}
+              style={[
+                styles.doseCard,
+                dose.recordId === targetRecordId && styles.targetDoseCard,
+              ]}
+              onLayout={(event) => {
+                if (dose.recordId !== targetRecordId || didScrollToRecordRef.current) return;
+                didScrollToRecordRef.current = true;
+                const targetY = Math.max(0, event.nativeEvent.layout.y - 110);
+                setTimeout(() => scrollViewRef.current?.scrollTo({ y: targetY, animated: true }), 150);
+              }}
+            >
               <View style={styles.doseTimeline}>
                 <View style={[styles.doseIcon, isDone ? styles.doneIcon : styles.pendingIcon]}>
                   <Ionicons
@@ -845,6 +860,15 @@ const styles = StyleSheet.create({
   doseCard: {
     flexDirection: 'row',
     marginBottom: 14,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    paddingVertical: 4,
+    paddingRight: 4,
+  },
+  targetDoseCard: {
+    borderColor: '#FF8FAB',
+    backgroundColor: 'rgba(255, 231, 238, 0.62)',
   },
   doseTimeline: {
     width: 40,

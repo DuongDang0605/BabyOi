@@ -20,6 +20,7 @@ import { ApiError, ProfilePayload, ProfileResponse, createProfile, getProfilesBy
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
+import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
@@ -274,6 +275,7 @@ export default function SelectProfileScreen() {
   const profileSlots = Array.from({ length: 3 }, (_, index) => profiles[index] ?? null);
 
   const handleLogout = async () => {
+    await deactivateCurrentDeviceToken();
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

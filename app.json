@@ -46,7 +46,9 @@
           "cameraPermission": "BabyOi cần quyền truy cập camera để chụp ảnh hồ sơ."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

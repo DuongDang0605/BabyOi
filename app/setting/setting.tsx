@@ -3,8 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { getNotificationSettings, NotificationSettingsResponse, updateNotificationSettings } from '@/lib/api';
+import { useNotification } from '@/lib/notification';
 
 export default function SettingScreen() {
+  const { showNotification } = useNotification();
   const [settings, setSettings] = useState<NotificationSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -15,9 +17,19 @@ export default function SettingScreen() {
   }, []);
 
   async function toggleSetting(key: keyof NotificationSettingsResponse, value: boolean) {
+    const previous = settings;
     setSettings((current) => current ? { ...current, [key]: value } : current);
-    const updated = await updateNotificationSettings({ [key]: value });
-    setSettings(updated);
+    try {
+      const updated = await updateNotificationSettings({ [key]: value });
+      setSettings(updated);
+    } catch {
+      setSettings(previous);
+      showNotification({
+        type: 'error',
+        title: 'Chưa lưu được cài đặt',
+        message: 'Mẹ thử lại sau một chút nhé.',
+      });
+    }
   }
 
   return (

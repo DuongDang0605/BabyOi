@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,7 @@ import {
 
 import {
   AppNotificationResponse,
+  archiveNotification,
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -53,6 +54,30 @@ function parseNotificationData(dataJson: string | null) {
 
 function resolveRoute(notification: AppNotificationResponse) {
   const data = parseNotificationData(notification.dataJson);
+  const recordId = data?.recordId ?? notification.sourceId;
+  const profileId = data?.profileId;
+  const diseaseId = data?.diseaseId;
+
+  if (recordId && profileId && diseaseId) {
+    return {
+      pathname: '/lichtiem/chitietbenh',
+      params: {
+        profileId: String(profileId),
+        diseaseId: String(diseaseId),
+        recordId: String(recordId),
+      },
+    };
+  }
+  if (recordId && profileId) {
+    return {
+      pathname: '/lichtiem/themmuitiem',
+      params: {
+        profileId: String(profileId),
+        mode: 'edit',
+        recordId: String(recordId),
+      },
+    };
+  }
   const directRoute = data?.route || data?.path || data?.pathname;
 
   if (typeof directRoute === 'string' && directRoute.startsWith('/')) {
@@ -103,6 +128,9 @@ function getNotificationIcon(type?: string | null): IoniconName {
   if (normalizedType.includes('chat')) {
     return 'chatbubble-ellipses-outline';
   }
+  if (normalizedType.includes('handbook') || normalizedType.includes('comment')) {
+    return 'chatbubble-outline';
+  }
   if (normalizedType.includes('promotion')) {
     return 'gift-outline';
   }
@@ -117,12 +145,19 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [archived, setArchived] = useState(false);
+  const pageRef = useRef(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const unreadCount = useMemo(() => items.filter((item) => !item.read).length, [items]);
 
-  const loadNotifications = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+  const loadNotifications = useCallback(async (mode: 'initial' | 'refresh' | 'more' = 'initial') => {
+    const requestedPage = mode === 'more' ? pageRef.current + 1 : 0;
     if (mode === 'refresh') {
       setRefreshing(true);
+    } else if (mode === 'more') {
+      setLoadingMore(true);
     } else {
       setLoading(true);
     }
@@ -130,19 +165,34 @@ export default function NotificationsScreen() {
     setErrorMessage('');
 
     try {
-      const response = await getNotifications({ page: 0, size: 50 });
-      setItems(response.content ?? []);
+      const response = await getNotifications({ page: requestedPage, size: 20, archived });
+      setItems((current) => mode === 'more' ? [...current, ...(response.content ?? [])] : (response.content ?? []));
+      pageRef.current = requestedPage;
+      setHasMore(!response.last);
     } catch {
       setErrorMessage('Chưa tải được thông báo. Bạn thử lại sau một chút nhé.');
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [archived]);
 
   useFocusEffect(useCallback(() => {
-    loadNotifications();
+    void loadNotifications();
   }, [loadNotifications]));
+
+  async function handleArchive(item: AppNotificationResponse) {
+    const previousItems = items;
+    setItems((current) => current.filter((entry) => entry.id !== item.id));
+    try {
+      await archiveNotification(item.id);
+      showNotification({ type: 'success', title: 'Đã chuyển vào thông báo cũ' });
+    } catch {
+      setItems(previousItems);
+      showNotification({ type: 'error', title: 'Chưa thể lưu trữ thông báo' });
+    }
+  }
 
   async function handlePress(item: AppNotificationResponse) {
     if (!item.read) {
@@ -253,6 +303,15 @@ export default function NotificationsScreen() {
 
       {renderHeader()}
 
+      <View style={styles.tabs}>
+        <TouchableOpacity style={[styles.tab, !archived && styles.activeTab]} onPress={() => setArchived(false)}>
+          <Text style={[styles.tabText, !archived && styles.activeTabText]}>Gần đây</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, archived && styles.activeTab]} onPress={() => setArchived(true)}>
+          <Text style={[styles.tabText, archived && styles.activeTabText]}>Thông báo cũ</Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#ff8fab" />
@@ -270,10 +329,15 @@ export default function NotificationsScreen() {
               <View style={styles.emptyIconBubble}>
                 <Ionicons name="notifications-outline" size={34} color="#9EB2BF" />
               </View>
-              <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
-              <Text style={styles.emptyText}>Khi có lịch tiêm, lịch hẹn hoặc nhắc nhở mới, mẹ sẽ thấy ở đây.</Text>
+              <Text style={styles.emptyTitle}>{archived ? 'Chưa có thông báo cũ' : 'Chưa có thông báo'}</Text>
+              <Text style={styles.emptyText}>{archived ? 'Thông báo đã đọc lâu ngày hoặc được mẹ lưu trữ sẽ nằm ở đây.' : 'Khi có lịch tiêm, lịch hẹn hoặc nhắc nhở mới, mẹ sẽ thấy ở đây.'}</Text>
             </View>
           }
+          onEndReached={() => {
+            if (hasMore && !loadingMore) void loadNotifications('more');
+          }}
+          onEndReachedThreshold={0.35}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footerLoader} color="#FF8FAB" /> : null}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.item, !item.read && styles.unreadItem]}
@@ -296,6 +360,18 @@ export default function NotificationsScreen() {
                 <View style={styles.timeRow}>
                   <Ionicons name="time-outline" size={13} color="#9EB2BF" />
                   <Text style={styles.timeText}>{formatDate(item.createdAt)}</Text>
+                  {!archived ? (
+                    <TouchableOpacity
+                      style={styles.archiveButton}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        void handleArchive(item);
+                      }}
+                    >
+                      <Ionicons name="archive-outline" size={15} color="#7C91A0" />
+                      <Text style={styles.archiveText}>Lưu trữ</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
             </TouchableOpacity>
@@ -337,6 +413,18 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 20,
   },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 4,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  tab: { flex: 1, minHeight: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  activeTab: { backgroundColor: '#FFE7EE' },
+  tabText: { color: '#7C91A0', fontSize: 13, fontWeight: '800' },
+  activeTabText: { color: '#F05F78' },
   backButton: {
     width: 44,
     height: 44,
@@ -480,5 +568,8 @@ const styles = StyleSheet.create({
   itemText: { color: '#5C7A8A', fontSize: 13, fontWeight: '600', lineHeight: 19, marginTop: 4 },
   timeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   timeText: { color: '#9EB2BF', fontSize: 12, fontWeight: '700', marginLeft: 4 },
+  archiveButton: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 12 },
+  archiveText: { color: '#7C91A0', fontSize: 11, fontWeight: '800' },
+  footerLoader: { marginVertical: 16 },
   unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#FF8FAB', marginTop: 5 },
 });
