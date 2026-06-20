@@ -15,6 +15,8 @@ const FILTERS: { label: string; value: HealthFilterMode }[] = [
   { label: 'Năm nay', value: 'year' },
 ];
 
+const SHOW_ILLNESS_QR_EXPORT = false;
+
 export default function IllnessHistoryScreen() {
   const [isQrModalVisible, setQrModalVisible] = useState(false);
   const [filterMode, setFilterMode] = useState<HealthFilterMode>('all');
@@ -189,11 +191,13 @@ export default function IllnessHistoryScreen() {
                 <Text style={styles.addNewButtonText}>Thêm hồ sơ bệnh</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.qrExportButton} onPress={() => setQrModalVisible(true)}>
-                <Ionicons name="qr-code-outline" size={22} color="#2196F3" />
-                <Text style={styles.qrExportText}>Tạo QR Bệnh án</Text>
-                <Ionicons name="sparkles" size={16} color="#2196F3" style={styles.sparkleIcon} />
-              </TouchableOpacity>
+              {SHOW_ILLNESS_QR_EXPORT && (
+                <TouchableOpacity style={styles.qrExportButton} onPress={() => setQrModalVisible(true)}>
+                  <Ionicons name="qr-code-outline" size={22} color="#2196F3" />
+                  <Text style={styles.qrExportText}>Tạo QR Bệnh án</Text>
+                  <Ionicons name="sparkles" size={16} color="#2196F3" style={styles.sparkleIcon} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.filterRow}>
@@ -212,60 +216,62 @@ export default function IllnessHistoryScreen() {
         )}
       />
 
-      <Modal visible={isQrModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Tuỳ chỉnh dữ liệu QR</Text>
-              <TouchableOpacity onPress={() => setQrModalVisible(false)}>
-                <Ionicons name="close-circle" size={28} color="#E0E0E0" />
+      {SHOW_ILLNESS_QR_EXPORT && (
+        <Modal visible={isQrModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitle}>Tuỳ chỉnh dữ liệu QR</Text>
+                <TouchableOpacity onPress={() => setQrModalVisible(false)}>
+                  <Ionicons name="close-circle" size={28} color="#E0E0E0" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalSubtitle}>Chọn thông tin muốn trích xuất cho bác sĩ xem</Text>
+
+              <Text style={styles.filterLabel}>1. Khoảng thời gian:</Text>
+              <View style={styles.modalFilterRow}>
+                {[
+                  ['1_week', '1 Tuần'],
+                  ['1_month', '1 Tháng'],
+                  ['all', 'Tất cả'],
+                ].map(([value, label]) => (
+                  <TouchableOpacity key={value} style={[styles.filterPill, filterTime === value && styles.filterPillActive]} onPress={() => setFilterTime(value)}>
+                    <Text style={[styles.filterPillText, filterTime === value && styles.filterPillTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.filterLabel}>2. Mức độ bệnh lý:</Text>
+              <View style={styles.modalFilterRow}>
+                {[
+                  ['attention', 'Chỉ cần chú ý'],
+                  ['all', 'Mọi mức độ'],
+                ].map(([value, label]) => (
+                  <TouchableOpacity key={value} style={[styles.filterPill, filterSeverity === value && styles.filterPillActiveWarning]} onPress={() => setFilterSeverity(value)}>
+                    <Text style={[styles.filterPillText, filterSeverity === value && styles.filterPillTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.filterLabel}>3. Thông tin bổ sung:</Text>
+              <TouchableOpacity style={[styles.toggleBox, includeDiet && styles.toggleBoxActive]} onPress={() => setIncludeDiet(!includeDiet)} activeOpacity={0.8}>
+                <View style={[styles.checkbox, includeDiet && styles.checkboxActive]}>
+                  {includeDiet && <Ionicons name="checkmark" size={16} color="#FFF" />}
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.toggleTitle}>Đính kèm chế độ dinh dưỡng</Text>
+                  <Text style={styles.toggleSub}>Trích xuất thực đơn 3 ngày gần nhất</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateQR}>
+                <Ionicons name="qr-code" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.generateBtnText}>Tạo mã QR ngay</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>Chọn thông tin muốn trích xuất cho bác sĩ xem</Text>
-
-            <Text style={styles.filterLabel}>1. Khoảng thời gian:</Text>
-            <View style={styles.modalFilterRow}>
-              {[
-                ['1_week', '1 Tuần'],
-                ['1_month', '1 Tháng'],
-                ['all', 'Tất cả'],
-              ].map(([value, label]) => (
-                <TouchableOpacity key={value} style={[styles.filterPill, filterTime === value && styles.filterPillActive]} onPress={() => setFilterTime(value)}>
-                  <Text style={[styles.filterPillText, filterTime === value && styles.filterPillTextActive]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.filterLabel}>2. Mức độ bệnh lý:</Text>
-            <View style={styles.modalFilterRow}>
-              {[
-                ['attention', 'Chỉ cần chú ý'],
-                ['all', 'Mọi mức độ'],
-              ].map(([value, label]) => (
-                <TouchableOpacity key={value} style={[styles.filterPill, filterSeverity === value && styles.filterPillActiveWarning]} onPress={() => setFilterSeverity(value)}>
-                  <Text style={[styles.filterPillText, filterSeverity === value && styles.filterPillTextActive]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.filterLabel}>3. Thông tin bổ sung:</Text>
-            <TouchableOpacity style={[styles.toggleBox, includeDiet && styles.toggleBoxActive]} onPress={() => setIncludeDiet(!includeDiet)} activeOpacity={0.8}>
-              <View style={[styles.checkbox, includeDiet && styles.checkboxActive]}>
-                {includeDiet && <Ionicons name="checkmark" size={16} color="#FFF" />}
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.toggleTitle}>Đính kèm chế độ dinh dưỡng</Text>
-                <Text style={styles.toggleSub}>Trích xuất thực đơn 3 ngày gần nhất</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateQR}>
-              <Ionicons name="qr-code" size={20} color="#FFF" style={{ marginRight: 8 }} />
-              <Text style={styles.generateBtnText}>Tạo mã QR ngay</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }

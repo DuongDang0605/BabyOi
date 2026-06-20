@@ -17,7 +17,6 @@ export const GrowthLineChart = ({ data, title }: GrowthLineChartProps) => {
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: '#98D8AA' }]} /><Text style={styles.legendText}>Cân nặng</Text></View>
         <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: '#FFD166' }]} /><Text style={styles.legendText}>Chiều cao</Text></View>
-        <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: '#C1F0D0' }]} /><Text style={styles.legendText}>BMI</Text></View>
       </View>
       <LineChart
         data={data}

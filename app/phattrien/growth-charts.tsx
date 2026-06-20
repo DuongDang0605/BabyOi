@@ -12,14 +12,23 @@ import { formatNullableNumber, toDisplayMonth } from '../../lib/health-format';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
 function buildChartData(records: HealthRecordResponse[]) {
-  const ordered = [...records].sort((a, b) => a.recordDate.localeCompare(b.recordDate)).slice(-7);
+  const latestByDate = new Map<string, HealthRecordResponse>();
+  [...records]
+    .sort((a, b) => b.id - a.id)
+    .forEach((record) => {
+      if (!latestByDate.has(record.recordDate)) {
+        latestByDate.set(record.recordDate, record);
+      }
+    });
+  const ordered = [...latestByDate.values()]
+    .sort((a, b) => a.recordDate.localeCompare(b.recordDate))
+    .slice(-7);
 
   return {
     labels: ordered.map((item) => toDisplayMonth(item.recordDate).slice(0, 2)),
     datasets: [
       { data: ordered.map((item) => item.weight || 0), color: () => '#98D8AA', strokeWidth: 3 },
       { data: ordered.map((item) => item.height || 0), color: () => '#FFD166', strokeWidth: 3 },
-      { data: ordered.map((item) => item.bmi || 0), color: () => '#C1F0D0', strokeWidth: 3 },
     ],
   };
 }
@@ -105,7 +114,8 @@ export default function GrowthChartsScreen() {
             <GrowthSummary
               weight={formatNullableNumber(latest?.weight)}
               height={formatNullableNumber(latest?.height)}
-              bmi={formatNullableNumber(latest?.bmi)}
+              tdee={formatNullableNumber(latest?.tdee, 0)}
+              energyLabel={showDailySchedule ? 'EER tổng' : 'TDEE'}
             />
 
             {hasChartData ? (
@@ -121,7 +131,9 @@ export default function GrowthChartsScreen() {
               <Ionicons name="sparkles" size={24} color="#FF8FAB" />
               <Text style={styles.aiText}>
                 {latest
-                  ? `Chỉ số mới nhất được ghi nhận ngày ${latest.recordDate}. Mẹ có thể cập nhật thêm để biểu đồ theo dõi sát hơn.`
+                  ? showDailySchedule
+                    ? `EER là tổng năng lượng từ sữa, thức ăn và tăng trưởng; không phải lượng ăn dặm. Cập nhật ngày ${latest.recordDate}.`
+                    : `Chỉ số mới nhất được ghi nhận ngày ${latest.recordDate}. Mẹ có thể cập nhật thêm để biểu đồ theo dõi sát hơn.`
                   : 'Hãy nhập chỉ số sức khỏe đầu tiên để hệ thống bắt đầu theo dõi.'}
               </Text>
             </View>

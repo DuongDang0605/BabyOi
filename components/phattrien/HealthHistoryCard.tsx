@@ -15,9 +15,6 @@ function resolveStatus(item: HealthRecordResponse) {
   if (illnessCount >= 2) {
     return 'Cần chú ý';
   }
-  if (item.bmi != null && (item.bmi < 14 || item.bmi > 19)) {
-    return 'Theo dõi thêm';
-  }
   return 'Bình thường';
 }
 
@@ -54,10 +51,10 @@ export const HealthHistoryCard = ({ item, onPress }: HealthHistoryCardProps) => 
           <Text style={styles.statValue}>{formatNullableNumber(item.height)}<Text style={styles.unit}>cm</Text></Text>
         </View>
 
-        <View style={[styles.statItem, styles.bmiTile]}>
-          <Ionicons name="pulse-outline" size={18} color="#98D8AA" style={styles.statIcon} />
-          <Text style={styles.statLabel}>BMI</Text>
-          <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(item.bmi)}</Text>
+        <View style={[styles.statItem, styles.tdeeTile]}>
+          <Ionicons name="flame-outline" size={18} color="#98D8AA" style={styles.statIcon} />
+          <Text style={styles.statLabel}>TDEE</Text>
+          <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(item.tdee, 0)}<Text style={styles.unit}>kcal</Text></Text>
         </View>
       </View>
 
@@ -111,7 +108,7 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 4 },
   weightTile: { backgroundColor: '#F1FBF4' },
   heightTile: { backgroundColor: '#EFFBFE' },
-  bmiTile: { backgroundColor: '#F1FBF4' },
+  tdeeTile: { backgroundColor: '#F1FBF4' },
   statIcon: { marginBottom: 4 },
   statLabel: { fontSize: 12, color: '#AAA', fontWeight: '600', marginBottom: 5 },
   statValue: { fontSize: 18, fontWeight: '900', color: '#333' },

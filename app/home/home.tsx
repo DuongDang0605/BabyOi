@@ -372,6 +372,14 @@ export default function AppHomeScreen() {
   }, []));
 
   const handleFeaturePress = useCallback((route: string) => {
+    if (route === '/dinhduong/listdoan') {
+      router.push({
+        pathname: '/dinhduong/listdoan',
+        params: { openedFrom: 'home', entryKey: String(Date.now()) },
+      });
+      return;
+    }
+
     if (route !== '#') {
       router.push(route as any);
     }

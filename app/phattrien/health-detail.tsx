@@ -105,12 +105,18 @@ export default function HealthDetailScreen() {
                 <Text style={styles.statLabel}>Chiều cao</Text>
                 <Text style={styles.statValue}>{formatNullableNumber(healthRecord?.height)}<Text style={styles.unit}>cm</Text></Text>
               </View>
-              <View style={[styles.statCard, styles.bmiStat]}>
-                <Ionicons name="pulse-outline" size={20} color="#98D8AA" style={styles.statIcon} />
-                <Text style={styles.statLabel}>BMI</Text>
-                <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(healthRecord?.bmi)}</Text>
+              <View style={[styles.statCard, styles.tdeeStat]}>
+                <Ionicons name="flame-outline" size={20} color="#98D8AA" style={styles.statIcon} />
+                <Text style={styles.statLabel}>TDEE</Text>
+                <Text style={[styles.statValue, { color: '#A7E4F5' }]}>{formatNullableNumber(healthRecord?.tdee, 0)}<Text style={styles.unit}>kcal</Text></Text>
               </View>
             </View>
+            {!!healthRecord?.tdeeNote && (
+              <View style={styles.tdeeNoteBox}>
+                <Ionicons name="information-circle-outline" size={16} color="#3DB9D3" />
+                <Text style={styles.tdeeNoteText}>{healthRecord.tdeeNote}</Text>
+              </View>
+            )}
 
             <View style={[styles.sectionHeader, { marginTop: 30 }]}>
               <Ionicons name="medkit-outline" size={20} color="#FF8FAB" />
@@ -178,11 +184,13 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, alignItems: 'center', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 4 },
   weightStat: { backgroundColor: '#F1FBF4' },
   heightStat: { backgroundColor: '#EFFBFE' },
-  bmiStat: { backgroundColor: '#F1FBF4' },
+  tdeeStat: { backgroundColor: '#F1FBF4' },
   statIcon: { marginBottom: 4 },
   statLabel: { fontSize: 12, color: '#AAA', fontWeight: '600', marginBottom: 5 },
   statValue: { fontSize: 20, fontWeight: '900', color: '#333' },
   unit: { fontSize: 12, color: '#999' },
+  tdeeNoteBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EFFBFE', borderRadius: 16, padding: 10, marginTop: 10, borderWidth: 1, borderColor: '#DDF5FB' },
+  tdeeNoteText: { flex: 1, color: '#5C7A8A', fontSize: 12, fontWeight: '700', lineHeight: 16 },
   illnessCard: { backgroundColor: '#FFF', borderRadius: 22, padding: 15, marginBottom: 15, borderLeftWidth: 5, borderLeftColor: '#FFD166', elevation: 3, shadowColor: '#FFD166', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, borderWidth: 1, borderColor: '#FFF3D5' },
   illnessHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   illnessName: { fontSize: 16, fontWeight: '800', color: '#FF8FAB', flex: 1 },

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -18,17 +19,16 @@ import {
 
 import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
-import { persistProfileImage } from '../../lib/profile-image-storage';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
 
 function parseProfileDate(dateOfBirth: string) {
   const value = dateOfBirth.trim();
-  const usDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
-  if (usDate) {
-    const month = Number(usDate[1]);
-    const day = Number(usDate[2]);
-    const year = Number(usDate[3]);
+  const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (displayDate) {
+    const day = Number(displayDate[1]);
+    const month = Number(displayDate[2]);
+    const year = Number(displayDate[3]);
     const parsed = new Date(year, month - 1, day);
     if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
       return parsed;
@@ -87,7 +87,7 @@ function validateProfileForm(payload: ProfilePayload) {
     return 'Tên hồ sơ cần từ 2 đến 50 ký tự.';
   }
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(payload.dateOfBirth.trim())) {
-    return 'Ngày sinh cần nhập theo định dạng MM/DD/YYYY.';
+    return 'Ngày sinh cần nhập theo định dạng DD/MM/YYYY.';
   }
   if (!payload.dateOfBirth || Number.isNaN(dob.getTime()) || dob > now) {
     return 'Ngày sinh không hợp lệ.';
@@ -219,15 +219,6 @@ export default function SelectProfileScreen() {
     if (uri) {
       setForm((current) => ({ ...current, imageUrl: uri }));
       setError('');
-      return;
-
-      try {
-        const persistentUri = await persistProfileImage(uri);
-        setForm((current) => ({ ...current, imageUrl: persistentUri }));
-        setError('');
-      } catch {
-        setError('Không thể lưu ảnh hồ sơ. Bạn thử chọn lại ảnh nhé.');
-      }
     }
   };
 
@@ -333,19 +324,20 @@ export default function SelectProfileScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.backdrop} />
-      <View style={styles.softCircleTop} />
-      <View style={styles.softCircleBottom} />
+      <LinearGradient colors={['#FEF9F3', '#FFF4F8', '#EFFBFF']} style={styles.backdrop} />
+      <View style={[styles.accentBar, styles.accentBarPink]} />
+      <View style={[styles.accentBar, styles.accentBarBlue]} />
+      <View style={[styles.accentBar, styles.accentBarYellow]} />
       <View style={styles.headerRow}>
-        <Text style={styles.brand}>BabyOi</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="close" size={28} color="#5C7A8A" />
-        </TouchableOpacity>
+        <View style={styles.brandPill}>
+          <Text style={styles.brand}>BabyOi</Text>
+          <Ionicons name="sparkles" size={18} color="#FFD166" />
+        </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Hãy chọn hồ sơ</Text>
-        <Text style={styles.profileLimit}>Tối đa 3 hồ sơ</Text>
+        <Text style={styles.title}>Chọn hồ sơ chăm sóc</Text>
+        <Text style={styles.profileLimit}>Tối đa 3 hồ sơ cho mẹ và bé</Text>
 
         {loading ? (
           <ActivityIndicator color="#FF8FAB" />
@@ -355,9 +347,9 @@ export default function SelectProfileScreen() {
               if (!profile) {
                 return (
                   <TouchableOpacity key={`empty-${index}`} style={styles.profileSlot} onPress={openCreateModal}>
-                    <View style={styles.addBox}>
+                    <LinearGradient colors={['#FFFFFF', '#FFF1F6', '#EFFBFF']} style={styles.addBox}>
                       <Ionicons name="add" size={46} color="#FF8FAB" />
-                    </View>
+                    </LinearGradient>
                     <Text style={styles.profileName}>Thêm hồ sơ</Text>
                   </TouchableOpacity>
                 );
@@ -366,7 +358,10 @@ export default function SelectProfileScreen() {
               const selected = selectedProfileId === profile.id;
               return (
                 <TouchableOpacity key={profile.id} style={styles.profileSlot} onPress={() => handleSelectProfile(profile)}>
-                  <View style={[styles.profileImageWrap, selected && styles.profileImageWrapSelected]}>
+                  <LinearGradient
+                    colors={selected ? ['#FFFFFF', '#FFF1F6', '#FFE9A8'] : ['#FFFFFF', '#F5FEFF']}
+                    style={[styles.profileImageWrap, selected && styles.profileImageWrapSelected]}
+                  >
                     {profile.imageUrl ? (
                       <Image source={{ uri: profile.imageUrl }} style={styles.profileImage} />
                     ) : (
@@ -377,9 +372,9 @@ export default function SelectProfileScreen() {
                         <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                       </View>
                     )}
-                  </View>
+                  </LinearGradient>
                   <Text style={[styles.profileName, selected && styles.profileNameSelected]} numberOfLines={1}>{profile.name}</Text>
-                  <Text style={styles.profileAge}>{selected ? 'Bấm lần nữa để vào' : calculateAgeLabel(profile.dateOfBirth, profile.profileType)}</Text>
+                  <Text style={styles.profileAge}>{selected ? 'Bấm lại để vào hồ sơ' : calculateAgeLabel(profile.dateOfBirth, profile.profileType)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -387,6 +382,11 @@ export default function SelectProfileScreen() {
         )}
 
         {!!error && !modalVisible && <Text style={styles.errorText}>{error}</Text>}
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={18} color="#D64545" />
+          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -441,7 +441,7 @@ export default function SelectProfileScreen() {
               <Text style={styles.label}>Ngày sinh</Text>
               <TextInput
                 style={styles.input}
-                placeholder="MM/DD/YYYY"
+                placeholder="DD/MM/YYYY"
                 keyboardType="number-pad"
                 maxLength={10}
                 value={form.dateOfBirth}
@@ -501,26 +501,31 @@ export default function SelectProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FEF9F3' },
-  softCircleTop: { position: 'absolute', top: -80, right: -70, width: 210, height: 210, borderRadius: 105, backgroundColor: '#FFE5EC' },
-  softCircleBottom: { position: 'absolute', bottom: -95, left: -80, width: 230, height: 230, borderRadius: 115, backgroundColor: '#E9F8FD' },
-  headerRow: { marginTop: 45, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { color: '#FF8FAB', fontSize: 32, fontWeight: '900', letterSpacing: 1 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  title: { color: '#5C7A8A', fontSize: 31, fontWeight: '900', marginBottom: 8 },
-  profileLimit: { color: '#7D95A1', fontSize: 13, fontWeight: '800', marginBottom: 26, textAlign: 'center' },
-  profileRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 18 },
-  profileSlot: { width: 126, alignItems: 'center' },
-  profileImageWrap: { width: 112, height: 112, borderRadius: 30, backgroundColor: '#FFFFFF', borderWidth: 3, borderColor: '#FFE5EC', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.18, shadowRadius: 10 },
-  profileImageWrapSelected: { borderColor: '#FF8FAB', transform: [{ scale: 1.04 }] },
-  profileImage: { width: 92, height: 92, borderRadius: 25 },
-  questionMark: { color: '#FF8FAB', fontSize: 58, fontWeight: '900', textAlign: 'center' },
-  selectedBadge: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF8FAB', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
-  addBox: { width: 112, height: 112, borderRadius: 30, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#FFB6C1', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8 },
-  profileName: { color: '#5C7A8A', fontSize: 15, fontWeight: '900', marginTop: 10, maxWidth: 126 },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+  accentBar: { position: 'absolute', borderRadius: 999 },
+  accentBarPink: { top: 92, right: 26, width: 96, height: 11, backgroundColor: '#FFB6C1', transform: [{ rotate: '8deg' }] },
+  accentBarBlue: { top: 150, left: 22, width: 120, height: 11, backgroundColor: '#A7E4F5', transform: [{ rotate: '-9deg' }] },
+  accentBarYellow: { bottom: 92, right: 42, width: 74, height: 9, backgroundColor: '#FFD166', transform: [{ rotate: '-7deg' }] },
+  headerRow: { marginTop: 45, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center' },
+  brandPill: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#FFE5EC', borderRadius: 22, borderWidth: 1.5, flexDirection: 'row', gap: 6, paddingHorizontal: 13, paddingVertical: 7, shadowColor: '#FFB6C1', shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 },
+  brand: { color: '#FF8FAB', fontSize: 32, fontWeight: '900' },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 },
+  title: { color: '#FF6F9B', fontSize: 28, fontWeight: '900', marginBottom: 8, textAlign: 'center' },
+  profileLimit: { backgroundColor: '#FFFFFF', borderColor: '#DDF5FB', borderRadius: 999, borderWidth: 1, color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginBottom: 26, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 7, textAlign: 'center' },
+  profileRow: { width: '100%', maxWidth: 390, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  profileSlot: { width: '31%', alignItems: 'center' },
+  profileImageWrap: { width: 96, height: 96, borderRadius: 26, borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#FF8FAB', shadowOpacity: 0.2, shadowRadius: 12 },
+  profileImageWrapSelected: { borderColor: '#FFD166', transform: [{ scale: 1.04 }] },
+  profileImage: { width: 78, height: 78, borderRadius: 22 },
+  questionMark: { color: '#FF8FAB', fontSize: 48, fontWeight: '900', textAlign: 'center' },
+  selectedBadge: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF6F9B', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
+  addBox: { width: 96, height: 96, borderRadius: 26, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#FFB6C1', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FF8FAB', shadowOpacity: 0.16, shadowRadius: 10 },
+  profileName: { color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginTop: 10, maxWidth: '100%', textAlign: 'center' },
   profileNameSelected: { color: '#FF8FAB' },
-  profileAge: { color: '#7D95A1', fontSize: 12, fontWeight: '800', marginTop: 3, textAlign: 'center' },
+  profileAge: { color: '#7D95A1', fontSize: 11, fontWeight: '800', marginTop: 4, minHeight: 30, textAlign: 'center' },
   errorText: { marginTop: 26, color: '#FF6B8F', fontWeight: '800', textAlign: 'center' },
+  logoutButton: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#FFD2DE', borderRadius: 18, borderWidth: 1.5, flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 28, minHeight: 42, paddingHorizontal: 18, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8, elevation: 3 },
+  logoutButtonText: { color: '#D64545', fontSize: 14, fontWeight: '900' },
   modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(92,122,138,0.35)', padding: 20 },
   modalCard: { maxHeight: '88%', backgroundColor: '#FEF9F3', borderRadius: 28, padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },

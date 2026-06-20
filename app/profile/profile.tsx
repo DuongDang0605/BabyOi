@@ -196,7 +196,6 @@ export default function ProfileScreen() {
     { id: '1', title: 'Sổ tiêm chủng', icon: 'shield-checkmark-outline', color: '#4CAF50', route: '/lichtiem/listlichtiem' },
     { id: '2', title: 'Lịch sử sức khỏe', icon: 'pulse-outline', color: '#2196F3', route: '/phattrien/health-history' },
     { id: '3', title: 'Nhật ký khoảnh khắc', icon: 'book-outline', color: '#FF9800', route: '/nhatki/nhatki' },
-    { id: '4', title: 'Cài đặt tài khoản', icon: 'settings-outline', color: '#7a8c99', route: '/setting/setting' },
   ];
 
   const displayName = profile?.name || 'Chưa chọn hồ sơ';
@@ -415,9 +414,9 @@ export default function ProfileScreen() {
             color="#4CAF50"
           />
           <StatCard
-            label="BMI"
-            value={formatStatNumber(latestHealth?.bmi)}
-            icon="bar-chart-outline"
+            label="TDEE"
+            value={formatStatNumber(latestHealth?.tdee, ' kcal', 0)}
+            icon="flame-outline"
             color="#A7E4F5"
           />
         </View>
