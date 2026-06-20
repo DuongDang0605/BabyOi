@@ -16,7 +16,13 @@ import {
   View,
 } from 'react-native';
 
-import { generateNutritionPlan, getNutritionPlanHistory, type ProfileResponse } from '../../lib/api';
+import {
+  generateNutritionPlan,
+  getHealthRecords,
+  getNutritionPlanHistory,
+  type HealthRecordResponse,
+  type ProfileResponse,
+} from '../../lib/api';
 import {
   getNutritionPlanMetaStorageKey,
   getNutritionPlanStorageKey,
@@ -143,6 +149,23 @@ function getChildMealsPerDay(ageMonths: number) {
   return 3;
 }
 
+function hasEnergyEstimate(health?: HealthRecordResponse | null) {
+  return health?.tdee != null && health.tdee > 0;
+}
+
+function getLatestHealthRecord(records: HealthRecordResponse[]) {
+  return [...records].sort((a, b) => {
+    const dateDiff = new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime();
+    return dateDiff || b.id - a.id;
+  })[0] ?? null;
+}
+
+function getHealthRequirementMessage(profile?: ProfileResponse | null) {
+  return profile?.profileType?.toUpperCase() === 'MOTHER'
+    ? 'Mẹ cần cập nhật chiều cao, cân nặng và mức vận động để BabyOi tính TDEE trước khi tạo lịch ăn.'
+    : 'Hồ sơ bé cần có cân nặng mới nhất để BabyOi tính nhu cầu năng lượng trước khi tạo lịch ăn.';
+}
+
 export default function AIPlannerScreen() {
   const today = useMemo(() => new Date(), []);
   const [selectedProfile, setSelectedProfile] = useState<ProfileResponse | null>(null);
@@ -155,6 +178,8 @@ export default function AIPlannerScreen() {
   }));
   const [targetWeightKg, setTargetWeightKg] = useState('');
   const [userNotes, setUserNotes] = useState('');
+  const [latestHealth, setLatestHealth] = useState<HealthRecordResponse | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const parsedStartDate = useMemo(() => parseDisplayDate(startDate), [startDate]);
@@ -175,6 +200,7 @@ export default function AIPlannerScreen() {
   const allowedMealTypes = MEAL_TYPES_BY_COUNT[effectiveMealsPerDay] || MEAL_TYPES_BY_COUNT[3];
   const isWeightLossGoal = !isChildProfile && currentGoal.label === WEIGHT_LOSS_GOAL;
   const profileLabel = getProfileLabel(selectedProfile?.profileType);
+  const hasRequiredHealthData = hasEnergyEstimate(latestHealth);
 
   useEffect(() => {
     let mounted = true;
@@ -203,6 +229,51 @@ export default function AIPlannerScreen() {
     }
   }, [availableGoals, currentGoal]);
 
+  useEffect(() => {
+    if (!selectedProfile?.id) {
+      setLatestHealth(null);
+      return;
+    }
+
+    let mounted = true;
+    setHealthLoading(true);
+    getHealthRecords(selectedProfile.id)
+      .then((records) => {
+        if (mounted) {
+          setLatestHealth(getLatestHealthRecord(records));
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setLatestHealth(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setHealthLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedProfile?.id]);
+
+  const openHealthUpdate = () => {
+    router.push('/phattrien/update-index');
+  };
+
+  const showHealthRequiredAlert = (profile: ProfileResponse) => {
+    Alert.alert(
+      'Cần cập nhật chỉ số',
+      getHealthRequirementMessage(profile),
+      [
+        { text: 'Để sau', style: 'cancel' },
+        { text: 'Cập nhật ngay', onPress: openHealthUpdate },
+      ],
+    );
+  };
+
   const createPlan = async () => {
     if (loading) {
       return;
@@ -226,6 +297,20 @@ export default function AIPlannerScreen() {
         'Chưa thể tạo lịch ăn',
         'Bé dưới 6 tháng nên bú mẹ hoàn toàn. Lịch ăn bổ sung sẽ mở khi bé đủ 6 tháng.',
       );
+      return;
+    }
+    let healthForPlan = latestHealth;
+    if (!hasEnergyEstimate(healthForPlan)) {
+      try {
+        const records = await getHealthRecords(profile.id);
+        healthForPlan = getLatestHealthRecord(records);
+        setLatestHealth(healthForPlan);
+      } catch {
+        healthForPlan = null;
+      }
+    }
+    if (!hasEnergyEstimate(healthForPlan)) {
+      showHealthRequiredAlert(profile);
       return;
     }
     try {
@@ -284,7 +369,11 @@ export default function AIPlannerScreen() {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không tạo được lịch ăn, mẹ thử lại nhé.';
-      Alert.alert('Bé Đậu dinh dưỡng', message);
+      if (/cập nhật|TDEE|EER|cân nặng|chiều cao|vận động/i.test(message)) {
+        showHealthRequiredAlert(profile);
+      } else {
+        Alert.alert('Bé Đậu dinh dưỡng', message);
+      }
     } finally {
       setLoading(false);
     }
@@ -316,6 +405,21 @@ export default function AIPlannerScreen() {
               <Text style={styles.heroSubtitle}>Bé Đậu dùng sức khỏe, TDEE, món yêu thích, món hạn chế và thư viện món ăn để cân khẩu phần phù hợp.</Text>
             </View>
           </View>
+
+          {selectedProfile && !healthLoading && !hasRequiredHealthData && (
+            <View style={styles.healthNotice}>
+              <View style={styles.healthNoticeIcon}>
+                <Ionicons name="pulse-outline" size={19} color="#D9912B" />
+              </View>
+              <View style={styles.healthNoticeBody}>
+                <Text style={styles.healthNoticeTitle}>Thiếu chỉ số sức khỏe</Text>
+                <Text style={styles.healthNoticeText}>{getHealthRequirementMessage(selectedProfile)}</Text>
+              </View>
+              <TouchableOpacity style={styles.healthNoticeButton} onPress={openHealthUpdate}>
+                <Text style={styles.healthNoticeButtonText}>Cập nhật</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.label}>Ngày bắt đầu</Text>
@@ -420,9 +524,9 @@ export default function AIPlannerScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, (loading || isChildUnderSixMonths) && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={createPlan}
-            disabled={loading || isChildUnderSixMonths}
+            disabled={loading}
             activeOpacity={0.9}
           >
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="restaurant-outline" size={20} color="#FFFFFF" />}
@@ -448,6 +552,13 @@ const styles = StyleSheet.create({
   heroKicker: { fontSize: 11, fontWeight: '900', color: '#FF8FAB', marginBottom: 4 },
   heroTitle: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: '#5C7A8A' },
   heroSubtitle: { fontSize: 13, lineHeight: 19, color: '#78909C', fontWeight: '600', marginTop: 6 },
+  healthNotice: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8E8', borderWidth: 1, borderColor: '#FFE3A8', borderRadius: 8, padding: 12, marginBottom: 18 },
+  healthNoticeIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFF0C2', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  healthNoticeBody: { flex: 1 },
+  healthNoticeTitle: { color: '#9A6A19', fontWeight: '900', fontSize: 13 },
+  healthNoticeText: { color: '#9A6A19', fontWeight: '700', fontSize: 12, lineHeight: 17, marginTop: 2 },
+  healthNoticeButton: { height: 34, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  healthNoticeButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
   section: { marginBottom: 18 },
   label: { fontSize: 14, fontWeight: '900', color: '#5C7A8A', marginBottom: 10 },
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0E3E6', borderRadius: 8, paddingHorizontal: 14, height: 52 },

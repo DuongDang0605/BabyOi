@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -88,6 +89,38 @@ function isActive(plan: NutritionPlanResponse) {
 
 const NUTRITION_PLAN_NOTICE = 'Lịch ăn mang tính chất tham khảo về cả món ăn lẫn thành phần, mẹ có thể tinh chỉnh cho phù hợp với bản thân hoặc cho bé.';
 
+function confirmPlanAction({
+  title,
+  message,
+  confirmText,
+  destructive,
+  onConfirm,
+}: {
+  title: string;
+  message: string;
+  confirmText: string;
+  destructive?: boolean;
+  onConfirm: () => Promise<void>;
+}) {
+  if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
+    if (globalThis.confirm(`${title}\n\n${message}`)) {
+      void onConfirm();
+    }
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Hủy', style: 'cancel' },
+    {
+      text: confirmText,
+      style: destructive ? 'destructive' : 'default',
+      onPress: () => {
+        void onConfirm();
+      },
+    },
+  ]);
+}
+
 function getAgeMonths(dateOfBirth?: string | null) {
   if (!dateOfBirth) return null;
   const birthDate = new Date(`${dateOfBirth}T00:00:00`);
@@ -167,55 +200,49 @@ export default function WeeklyViewScreen() {
 
   const completePlan = (plan: NutritionPlanResponse) => {
     if (!plan.planId) return;
-    Alert.alert(
-      'Hoàn thành lịch ăn',
-      'Lịch này sẽ được chuyển vào lịch sử. Sau đó bạn có thể tạo lịch mới cho hồ sơ này.',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Hoàn thành',
-          onPress: async () => {
-            setActionPlanId(plan.planId);
-            try {
-              const completed = await completeNutritionPlan(plan.planId!);
-              await persistUpdatedPlan(completed);
-              setSelectedPlanId(null);
-            } catch (error) {
-              Alert.alert('Bé Đậu dinh dưỡng', error instanceof Error ? error.message : 'Không hoàn thành được lịch ăn.');
-            } finally {
-              setActionPlanId(null);
-            }
-          },
-        },
-      ],
-    );
+    confirmPlanAction({
+      title: 'Hoàn thành lịch ăn',
+      message: 'Lịch này sẽ được chuyển vào lịch sử. Sau đó bạn có thể tạo lịch mới cho hồ sơ này.',
+      confirmText: 'Hoàn thành',
+      onConfirm: async () => {
+        setActionPlanId(plan.planId);
+        try {
+          const completed = await completeNutritionPlan(plan.planId!);
+          await persistUpdatedPlan(completed);
+          setSelectedPlanId(null);
+        } catch (error) {
+          Alert.alert('Bé Đậu dinh dưỡng', error instanceof Error ? error.message : 'Không hoàn thành được lịch ăn.');
+        } finally {
+          setActionPlanId(null);
+        }
+      },
+    });
   };
 
   const removePlan = (plan: NutritionPlanResponse) => {
     if (!plan.planId) return;
-    Alert.alert('Xóa lịch ăn', 'Lịch ăn này sẽ bị xóa khỏi danh sách.', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Xóa',
-        style: 'destructive',
-        onPress: async () => {
-          setActionPlanId(plan.planId);
-          try {
-            await deleteNutritionPlan(plan.planId!);
-            await clearNutritionPlanIngredientAmounts(plan);
-            setPlans((items) => items.filter((item) => item.planId !== plan.planId));
-            setSelectedPlanId(null);
-            if (profile?.id) {
-              await AsyncStorage.removeItem(getNutritionPlanStorageKey(profile.id));
-            }
-          } catch (error) {
-            Alert.alert('Bé Đậu dinh dưỡng', error instanceof Error ? error.message : 'Không xóa được lịch ăn.');
-          } finally {
-            setActionPlanId(null);
+    confirmPlanAction({
+      title: 'Xóa lịch ăn',
+      message: 'Lịch ăn này sẽ bị xóa khỏi danh sách.',
+      confirmText: 'Xóa',
+      destructive: true,
+      onConfirm: async () => {
+        setActionPlanId(plan.planId);
+        try {
+          await deleteNutritionPlan(plan.planId!);
+          await clearNutritionPlanIngredientAmounts(plan);
+          setPlans((items) => items.filter((item) => item.planId !== plan.planId));
+          setSelectedPlanId(null);
+          if (profile?.id) {
+            await AsyncStorage.removeItem(getNutritionPlanStorageKey(profile.id));
           }
-        },
+        } catch (error) {
+          Alert.alert('Bé Đậu dinh dưỡng', error instanceof Error ? error.message : 'Không xóa được lịch ăn.');
+        } finally {
+          setActionPlanId(null);
+        }
       },
-    ]);
+    });
   };
 
   const loadReplacementFoods = async (search = replacementSearch) => {
