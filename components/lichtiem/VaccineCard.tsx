@@ -18,6 +18,7 @@ interface Vaccine {
   doseHistory?: string[];
   warnings?: string[];
   isStopped?: boolean;
+  canConfirmDose?: boolean;
 }
 
 interface VaccineCardProps {
@@ -25,6 +26,7 @@ interface VaccineCardProps {
   onConfirmPress?: (vaccine: Vaccine) => void;
   onCancelPress?: (vaccine: Vaccine) => void;
   onDetailPress?: (vaccine: Vaccine) => void;
+  onSchedulePress?: (vaccine: Vaccine) => void;
   onStopPress?: (vaccine: Vaccine) => void;
   onResumePress?: (vaccine: Vaccine) => void;
 }
@@ -62,6 +64,7 @@ export const VaccineCard = ({
   onConfirmPress,
   onCancelPress,
   onDetailPress,
+  onSchedulePress,
   onStopPress,
   onResumePress,
 }: VaccineCardProps) => {
@@ -182,14 +185,25 @@ export const VaccineCard = ({
 
       {isDisease ? (
         <View style={styles.actionRow}>
-          {!isStopped ? (
+          {!isStopped && vaccine.canConfirmDose ? (
             <TouchableOpacity
               style={[styles.actionButton, styles.confirmButton]}
               onPress={() => onConfirmPress?.(vaccine)}
               activeOpacity={0.86}
             >
-              <Ionicons name="calendar-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Thay đổi lịch tiêm</Text>
+              <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Xác nhận mũi tiêm</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {!isStopped ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.scheduleButton]}
+              onPress={() => onSchedulePress?.(vaccine)}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="calendar-outline" size={17} color="#5C7A8A" />
+              <Text style={styles.scheduleButtonText}>Thay đổi lịch tiêm</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -505,6 +519,17 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#F05F78',
+    fontWeight: '900',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  scheduleButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDF5FB',
+  },
+  scheduleButtonText: {
+    color: '#5C7A8A',
     fontWeight: '900',
     fontSize: 14,
     marginLeft: 6,

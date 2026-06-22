@@ -79,22 +79,50 @@ function formatDisplayDate(date: Date) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-function getNearestVaccine(progressItems: VaccineProgressResponse[]) {
+const PENDING_STATUS = -1;
+const DAY_MS = 86400000;
+
+function getDayOffset(date: Date) {
   const today = startOfDay(new Date()).getTime();
+  return Math.round((startOfDay(date).getTime() - today) / DAY_MS);
+}
+
+function getNearestUpcomingDoseDate(progress: VaccineProgressResponse) {
+  const pendingDates = (progress.doses ?? [])
+    .filter((dose) => dose.status === PENDING_STATUS)
+    .map((dose) => dose.injectionDate)
+    .filter(Boolean)
+    .map((dateValue) => parseApiDate(dateValue as string))
+    .filter((date) => !Number.isNaN(date.getTime()) && getDayOffset(date) >= 0)
+    .sort((left, right) => startOfDay(left).getTime() - startOfDay(right).getTime());
+
+  if (pendingDates.length > 0) {
+    return pendingDates[0];
+  }
+
+  if (!progress.nextInjectionDate) {
+    return null;
+  }
+
+  const nextDate = parseApiDate(progress.nextInjectionDate);
+  return !Number.isNaN(nextDate.getTime()) && getDayOffset(nextDate) >= 0 ? nextDate : null;
+}
+
+function getNearestVaccine(progressItems: VaccineProgressResponse[]) {
   let nearest: NearestVaccine = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
 
   for (const progress of progressItems) {
-    if (progress.stopped || !progress.nextInjectionDate) {
+    if (progress.stopped) {
       continue;
     }
 
-    const date = parseApiDate(progress.nextInjectionDate);
-    if (Number.isNaN(date.getTime())) {
+    const date = getNearestUpcomingDoseDate(progress);
+    if (!date) {
       continue;
     }
 
-    const distance = Math.abs(startOfDay(date).getTime() - today);
+    const distance = getDayOffset(date);
     if (distance < nearestDistance) {
       nearestDistance = distance;
       nearest = { progress, date };
@@ -105,9 +133,7 @@ function getNearestVaccine(progressItems: VaccineProgressResponse[]) {
 }
 
 function getVaccineBadgeText(date: Date) {
-  const today = startOfDay(new Date()).getTime();
-  const target = startOfDay(date).getTime();
-  const days = Math.round((target - today) / 86400000);
+  const days = getDayOffset(date);
 
   if (days === 0) {
     return 'Hôm nay!';

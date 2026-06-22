@@ -22,6 +22,7 @@ import {
 import { useNotification } from '../../lib/notification';
 
 const PENDING_STATUS = -1;
+const INACTIVE_STATUS = 0;
 const SUCCESS_STATUS = 3;
 const CANCELED_STATUS = -2;
 
@@ -75,6 +76,9 @@ function getStatusLabel(status?: number | null) {
   if (status === PENDING_STATUS) {
     return 'Sắp tới';
   }
+  if (status === INACTIVE_STATUS) {
+    return 'Chưa cập nhật';
+  }
   return 'Khác';
 }
 
@@ -84,6 +88,9 @@ function getStatusIcon(status?: number | null) {
   }
   if (status === PENDING_STATUS) {
     return 'calendar-outline';
+  }
+  if (status === INACTIVE_STATUS) {
+    return 'help-circle-outline';
   }
   return 'ellipse-outline';
 }
@@ -262,6 +269,7 @@ export default function DiseaseVaccineDetailScreen() {
       pathname: '/lichtiem/themmuitiem',
       params: {
         profileId,
+        returnTo: 'detail',
         mode: item.dose.recordId ? 'edit' : undefined,
         recordId: item.dose.recordId ?? '',
         vaccineTypeId: item.dose.vaccineId ?? '',
@@ -295,6 +303,7 @@ export default function DiseaseVaccineDetailScreen() {
       pathname: '/lichtiem/themmuitiem',
       params: {
         profileId: String(profileId),
+        returnTo: 'detail',
         diseaseId: String(targetDiseaseId),
         diseaseName: title,
         doseOrder: String(nextCustomDoseOrder),

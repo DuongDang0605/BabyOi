@@ -23,6 +23,9 @@ const PENDING_STATUS = -1;
 const SUCCESS_STATUS = 3;
 const INITIAL_VISIBLE_DISEASES = 6;
 const LOAD_MORE_DISEASES = 6;
+const DAY_MS = 86400000;
+
+type VaccineProgressDose = NonNullable<VaccineProgressResponse['doses']>[number];
 
 function getDateTime(value?: string | null) {
   if (!value) {
@@ -31,6 +34,24 @@ function getDateTime(value?: string | null) {
 
   const timestamp = new Date(value).getTime();
   return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+function getLocalDayTime(value?: string | null) {
+  const time = getDateTime(value);
+  if (!Number.isFinite(time)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const date = new Date(time);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function getTodayTime() {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+}
+
+function getDoseDayOffset(dose: VaccineProgressDose) {
+  return Math.round((getLocalDayTime(dose.injectionDate) - getTodayTime()) / DAY_MS);
 }
 
 function formatShortDate(value?: string | null) {
@@ -68,10 +89,70 @@ function getNextPendingDose(progress: VaccineProgressResponse) {
   return getSortedDoses(progress).find((dose) => dose.status === PENDING_STATUS) ?? null;
 }
 
+function getPriorityPendingDose(progress: VaccineProgressResponse) {
+  const pendingDoses = getSortedDoses(progress)
+    .filter((dose) => dose.status === PENDING_STATUS && Number.isFinite(getLocalDayTime(dose.injectionDate)));
+
+  const dueSoon = pendingDoses
+    .filter((dose) => {
+      const offset = getDoseDayOffset(dose);
+      return offset >= 0 && offset <= 7;
+    })
+    .sort((left, right) => getDoseDayOffset(left) - getDoseDayOffset(right));
+  if (dueSoon.length > 0) {
+    return dueSoon[0];
+  }
+
+  const overdue = pendingDoses
+    .filter((dose) => getDoseDayOffset(dose) < 0)
+    .sort((left, right) => getDoseDayOffset(left) - getDoseDayOffset(right));
+  if (overdue.length > 0) {
+    return overdue[0];
+  }
+
+  const future = pendingDoses
+    .filter((dose) => getDoseDayOffset(dose) >= 8)
+    .sort((left, right) => getDoseDayOffset(left) - getDoseDayOffset(right));
+  return future[0] ?? getNextPendingDose(progress);
+}
+
+function getProgressSortBucket(progress: VaccineProgressResponse) {
+  if (progress.stopped) {
+    return { group: 3, order: Number.POSITIVE_INFINITY };
+  }
+
+  const dose = getPriorityPendingDose(progress);
+  if (!dose) {
+    return { group: 2, order: Number.POSITIVE_INFINITY };
+  }
+
+  const offset = getDoseDayOffset(dose);
+  if (offset >= 0 && offset <= 7) {
+    return { group: 0, order: offset };
+  }
+  if (offset < 0) {
+    return { group: 1, order: offset };
+  }
+  return { group: 2, order: offset };
+}
+
+function compareDiseaseProgress(left: VaccineProgressResponse, right: VaccineProgressResponse) {
+  const leftBucket = getProgressSortBucket(left);
+  const rightBucket = getProgressSortBucket(right);
+
+  if (leftBucket.group !== rightBucket.group) {
+    return leftBucket.group - rightBucket.group;
+  }
+  if (leftBucket.order !== rightBucket.order) {
+    return leftBucket.order - rightBucket.order;
+  }
+  return (left.diseaseName ?? '').localeCompare(right.diseaseName ?? '', 'vi', { sensitivity: 'base' });
+}
+
 function buildProgressText(progress: VaccineProgressResponse) {
   const completed = progress.completedDoses ?? 0;
   const total = progress.totalDoses ?? progress.doses?.length ?? completed;
-  const base = `Đã tiêm ${completed}/${total} mũi`;
+  const base = `Đã qua/đã tiêm ${completed}/${total} mũi`;
 
   if (progress.nextDoseOrder) {
     return `${base} • Mũi tiếp theo: ${progress.nextDoseOrder}`;
@@ -96,7 +177,7 @@ function getProgressKey(item: VaccineProgressResponse) {
 }
 
 function getNextDate(progress: VaccineProgressResponse) {
-  return progress.nextInjectionDate || getNextPendingDose(progress)?.injectionDate || null;
+  return getPriorityPendingDose(progress)?.injectionDate || progress.nextInjectionDate || null;
 }
 
 function canChangeVaccine(progress: VaccineProgressResponse) {
@@ -158,7 +239,9 @@ export default function VaccineScheduleScreen() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_DISEASES);
   const [loading, setLoading] = useState(true);
 
-  const filteredDiseaseProgress = diseaseProgress.filter((item) => matchesDiseaseSearch(item, searchQuery));
+  const filteredDiseaseProgress = diseaseProgress
+    .filter((item) => matchesDiseaseSearch(item, searchQuery))
+    .sort(compareDiseaseProgress);
   const visibleDiseaseProgress = filteredDiseaseProgress.slice(0, visibleCount);
   const canLoadMore = visibleCount < filteredDiseaseProgress.length;
 
@@ -234,11 +317,6 @@ export default function VaccineScheduleScreen() {
   }, []));
 
   const returnToHome = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
     router.replace('/home/home');
   };
 
@@ -247,12 +325,13 @@ export default function VaccineScheduleScreen() {
       return;
     }
 
-    const nextDose = getNextPendingDose(item);
+    const nextDose = getPriorityPendingDose(item);
     if (!nextDose?.recordId) {
       router.push({
         pathname: '/lichtiem/themmuitiem',
         params: {
           profileId: selectedProfile.id,
+          returnTo: 'list',
           diseaseId: item.diseaseId ?? '',
           diseaseName: item.diseaseName ?? '',
           doseOrder: nextDose?.doseOrder ?? item.nextDoseOrder ?? '',
@@ -266,9 +345,10 @@ export default function VaccineScheduleScreen() {
       pathname: '/lichtiem/themmuitiem',
       params: {
         profileId: selectedProfile.id,
+        returnTo: 'list',
         mode: 'edit',
         recordId: nextDose.recordId,
-        vaccineTypeId: nextDose.vaccineId,
+        vaccineTypeId: nextDose.vaccineId ?? '',
         vaccineName: nextDose.vaccineName || item.diseaseName || 'Vắc-xin',
         diseaseId: item.diseaseId ?? '',
         diseaseName: item.diseaseName ?? '',
@@ -287,6 +367,42 @@ export default function VaccineScheduleScreen() {
         diseaseId: item.diseaseId ?? '',
         diseaseCode: item.diseaseCode ?? '',
         diseaseName: item.diseaseName ?? '',
+      },
+    });
+  };
+
+  const openConfirmDose = (item: VaccineProgressResponse) => {
+    if (!selectedProfile) {
+      return;
+    }
+
+    const nextDose = getPriorityPendingDose(item);
+    if (!nextDose) {
+      showNotification({
+        type: 'warning',
+        title: 'Chưa có mũi cần xác nhận',
+        message: `${item.diseaseName ?? 'Bệnh này'} hiện không có mũi sắp tới trong lịch.`,
+      });
+      return;
+    }
+
+    router.push({
+      pathname: '/lichtiem/themmuitiem',
+      params: {
+        profileId: selectedProfile.id,
+        returnTo: 'list',
+        mode: 'confirm',
+        recordId: nextDose.recordId ?? '',
+        vaccineTypeId: nextDose.vaccineId ?? '',
+        vaccineName: nextDose.vaccineName || item.diseaseName || 'Vắc-xin',
+        diseaseId: item.diseaseId ?? '',
+        diseaseName: item.diseaseName ?? '',
+        doseOrder: nextDose.doseOrder ?? item.nextDoseOrder ?? '',
+        source: nextDose.source ?? '',
+        injectionDate: nextDose.injectionDate || item.nextInjectionDate || '',
+        note: nextDose.note ?? '',
+        status: SUCCESS_STATUS,
+        allowVaccineChange: canChangeVaccine(item) ? '1' : '0',
       },
     });
   };
@@ -421,7 +537,7 @@ export default function VaccineScheduleScreen() {
           filteredDiseaseProgress.length > 0 ? (
             <>
             {visibleDiseaseProgress.map((item) => {
-              const nextDose = getNextPendingDose(item);
+              const nextDose = getPriorityPendingDose(item);
               const stopped = Boolean(item.stopped);
 
               return (
@@ -439,8 +555,10 @@ export default function VaccineScheduleScreen() {
                     doseHistory: buildDoseHistory(item),
                     warnings: stopped ? ['Đã dừng lịch tiêm bệnh này.'] : item.warnings ?? undefined,
                     isStopped: stopped,
+                    canConfirmDose: Boolean(nextDose),
                   }}
-                  onConfirmPress={() => openChangeSchedule(item)}
+                  onConfirmPress={() => openConfirmDose(item)}
+                  onSchedulePress={() => openChangeSchedule(item)}
                   onDetailPress={() => openDiseaseDetail(item)}
                   onStopPress={() => stopDiseaseSchedule(item)}
                   onResumePress={() => resumeDiseaseSchedule(item)}
