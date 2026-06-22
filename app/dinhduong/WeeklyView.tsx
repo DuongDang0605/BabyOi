@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -89,37 +89,13 @@ function isActive(plan: NutritionPlanResponse) {
 
 const NUTRITION_PLAN_NOTICE = 'Lịch ăn mang tính chất tham khảo về cả món ăn lẫn thành phần, mẹ có thể tinh chỉnh cho phù hợp với bản thân hoặc cho bé.';
 
-function confirmPlanAction({
-  title,
-  message,
-  confirmText,
-  destructive,
-  onConfirm,
-}: {
+type PendingPlanAction = {
   title: string;
   message: string;
   confirmText: string;
   destructive?: boolean;
   onConfirm: () => Promise<void>;
-}) {
-  if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
-    if (globalThis.confirm(`${title}\n\n${message}`)) {
-      void onConfirm();
-    }
-    return;
-  }
-
-  Alert.alert(title, message, [
-    { text: 'Hủy', style: 'cancel' },
-    {
-      text: confirmText,
-      style: destructive ? 'destructive' : 'default',
-      onPress: () => {
-        void onConfirm();
-      },
-    },
-  ]);
-}
+};
 
 function getAgeMonths(dateOfBirth?: string | null) {
   if (!dateOfBirth) return null;
@@ -154,6 +130,7 @@ export default function WeeklyViewScreen() {
   const [replacementFoods, setReplacementFoods] = useState<FoodResponse[]>([]);
   const [replacementLoading, setReplacementLoading] = useState(false);
   const [savingFoodId, setSavingFoodId] = useState<number | null>(null);
+  const [pendingPlanAction, setPendingPlanAction] = useState<PendingPlanAction | null>(null);
 
   const selectedPlan = useMemo(
     () => plans.find((item) => item.planId === selectedPlanId) ?? null,
@@ -200,7 +177,7 @@ export default function WeeklyViewScreen() {
 
   const completePlan = (plan: NutritionPlanResponse) => {
     if (!plan.planId) return;
-    confirmPlanAction({
+    setPendingPlanAction({
       title: 'Hoàn thành lịch ăn',
       message: 'Lịch này sẽ được chuyển vào lịch sử. Sau đó bạn có thể tạo lịch mới cho hồ sơ này.',
       confirmText: 'Hoàn thành',
@@ -221,7 +198,7 @@ export default function WeeklyViewScreen() {
 
   const removePlan = (plan: NutritionPlanResponse) => {
     if (!plan.planId) return;
-    confirmPlanAction({
+    setPendingPlanAction({
       title: 'Xóa lịch ăn',
       message: 'Lịch ăn này sẽ bị xóa khỏi danh sách.',
       confirmText: 'Xóa',
@@ -518,6 +495,29 @@ export default function WeeklyViewScreen() {
 
   return (
     <View style={styles.container}>
+      <Modal animationType="fade" transparent visible={!!pendingPlanAction} onRequestClose={() => setPendingPlanAction(null)}>
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmDialog}>
+            <Text style={styles.confirmTitle}>{pendingPlanAction?.title}</Text>
+            <Text style={styles.confirmMessage}>{pendingPlanAction?.message}</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelButton} onPress={() => setPendingPlanAction(null)}>
+                <Text style={styles.confirmCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, pendingPlanAction?.destructive && styles.confirmDestructiveButton]}
+                onPress={() => {
+                  const action = pendingPlanAction;
+                  setPendingPlanAction(null);
+                  if (action) void action.onConfirm();
+                }}
+              >
+                <Text style={styles.confirmButtonText}>{pendingPlanAction?.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => selectedPlan ? setSelectedPlanId(null) : router.back()} style={styles.iconButton}>
@@ -631,4 +631,14 @@ const styles = StyleSheet.create({
   emptyText: { color: '#78909C', fontWeight: '700', marginTop: 7 },
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { color: '#78909C', fontWeight: '800', marginTop: 9 },
+  confirmBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(32, 48, 58, 0.42)', padding: 24 },
+  confirmDialog: { width: '100%', maxWidth: 420, backgroundColor: '#FFFFFF', borderRadius: 8, padding: 22, borderWidth: 1, borderColor: '#FFE0EA' },
+  confirmTitle: { color: '#344955', fontSize: 19, fontWeight: '900', marginBottom: 10 },
+  confirmMessage: { color: '#5C7A8A', fontSize: 14, fontWeight: '700', lineHeight: 21, marginBottom: 20 },
+  confirmActions: { flexDirection: 'row', gap: 10 },
+  confirmCancelButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#DDE8EE', backgroundColor: '#FFFFFF' },
+  confirmCancelText: { color: '#5C7A8A', fontSize: 14, fontWeight: '900' },
+  confirmButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#65B8A8' },
+  confirmDestructiveButton: { backgroundColor: '#D95757' },
+  confirmButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
 });

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -246,14 +247,21 @@ export default function ChatBoxAIScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={['#FEF9F3', '#FFF5F8', '#F1FBFA']} style={styles.screenGlow} />
 
-      <View style={styles.customHeader}>
+      <LinearGradient colors={['#FFFFFF', '#FFF1F6', '#EFFBFF']} style={styles.customHeader}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={27} color="#ff8fab" />
         </TouchableOpacity>
         <View style={styles.titleGroup}>
-          <Text style={styles.headerTitle}>Trợ lý AI</Text>
-          <Text style={styles.headerSubtitle}>BabyOi Agentic RAG</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.headerTitle}>Trợ lý AI</Text>
+            <Ionicons name="sparkles" size={14} color="#FFD166" />
+          </View>
+          <View style={styles.onlineRow}>
+            <View style={styles.onlineDot} />
+            <Text style={styles.headerSubtitle}>Sẵn sàng đồng hành cùng mẹ</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
           {conversationId ? (
@@ -266,7 +274,7 @@ export default function ChatBoxAIScreen() {
           </TouchableOpacity>
           <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.headerSticker} />
         </View>
-      </View>
+      </LinearGradient>
 
       {loadingHistory ? (
         <View style={styles.loadingContainer}>
@@ -281,6 +289,47 @@ export default function ChatBoxAIScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {messages.length > 0 ? (
+            <LinearGradient
+              colors={['#FFF0F5', '#F0FBFF', '#F2FFF7']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.activeChatBanner}
+            >
+              <View style={styles.activeChatIcon}>
+                <Ionicons name="sparkles" size={18} color="#FF8FAB" />
+              </View>
+              <View style={styles.activeChatCopy}>
+                <Text style={styles.activeChatTitle}>BabyOi đang đồng hành cùng mẹ</Text>
+                <Text style={styles.activeChatText}>Câu trả lời được cá nhân hóa theo hồ sơ đang chọn.</Text>
+              </View>
+              <View style={styles.secureBadge}>
+                <Ionicons name="shield-checkmark" size={13} color="#69AD7D" />
+              </View>
+            </LinearGradient>
+          ) : null}
+          {messages.length === 0 ? (
+            <LinearGradient
+              colors={['#FF8FAB', '#FFB86C', '#A7E4F5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
+            >
+              <View style={styles.heroBubbleLarge} />
+              <View style={styles.heroBubbleSmall} />
+              <View style={styles.heroCopy}>
+                <View style={styles.heroBadge}>
+                  <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+                  <Text style={styles.heroBadgeText}>AI CỦA BABYOI</Text>
+                </View>
+                <Text style={styles.heroTitle}>Mẹ hỏi, BabyOi lắng nghe</Text>
+                <Text style={styles.heroSubtitle}>Tư vấn gần gũi dựa trên hồ sơ sức khỏe của mẹ và bé.</Text>
+              </View>
+              <View style={styles.heroImageWrap}>
+                <Image source={require('../../assets/images/AI_chatBox_transparent.png')} style={styles.heroImage} />
+              </View>
+            </LinearGradient>
+          ) : null}
           {messages.length === 0 ? <ChatMessage isAi text={GREETING} /> : null}
           {messages.length === 0 ? (
             <View style={styles.promptSection}>
@@ -294,8 +343,11 @@ export default function ChatBoxAIScreen() {
                     disabled={sending}
                     onPress={() => void sendMessage(prompt.question)}
                   >
-                    <Ionicons name={prompt.icon} size={18} color="#e97f9d" />
+                    <View style={styles.promptIcon}>
+                      <Ionicons name={prompt.icon} size={18} color="#e97f9d" />
+                    </View>
                     <Text style={styles.promptChipText}>{prompt.label}</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#B8C2CC" />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -335,11 +387,18 @@ export default function ChatBoxAIScreen() {
           disabled={!input.trim() || sending}
           onPress={() => void sendMessage()}
         >
-          {sending ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Ionicons name="send" size={20} color="#ffffff" />
-          )}
+          <LinearGradient
+            colors={!input.trim() || sending ? ['#CBD5E1', '#CBD5E1'] : ['#FF8FAB', '#FFB86C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sendButtonGradient}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#ffffff" />
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -348,73 +407,96 @@ export default function ChatBoxAIScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fef9f3' },
+  screenGlow: { ...StyleSheet.absoluteFillObject },
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 52 : 38,
-    paddingBottom: 10,
+    paddingBottom: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#fffdf9',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderBottomWidth: 1,
     borderBottomColor: '#f6e9e7',
   },
-  headerButton: { width: 42, height: 42, justifyContent: 'center', alignItems: 'center' },
+  headerButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFF5F8', justifyContent: 'center', alignItems: 'center' },
   titleGroup: { position: 'absolute', left: 60, right: 130, alignItems: 'center', bottom: 13 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#ff8fab', letterSpacing: 0.3 },
-  headerSubtitle: { marginTop: 1, fontSize: 10, color: '#94a3b8', fontWeight: '600' },
+  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#7BCB94' },
+  headerSubtitle: { fontSize: 10, color: '#7B8794', fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   smallHeaderButton: { width: 34, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerSticker: { width: 46, height: 46, resizeMode: 'contain' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
   loadingText: { color: '#64748b', fontSize: 14 },
   chatArea: { flex: 1 },
-  chatContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14 },
+  chatContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 18 },
+  activeChatBanner: { flexDirection: 'row', alignItems: 'center', padding: 13, borderRadius: 21, borderWidth: 1, borderColor: '#F2DDE6', marginBottom: 18, shadowColor: '#A7E4F5', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 3 },
+  activeChatIcon: { width: 40, height: 40, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 11, borderWidth: 1, borderColor: '#F6E6EC' },
+  activeChatCopy: { flex: 1 },
+  activeChatTitle: { color: '#C85D7D', fontSize: 13, fontWeight: '900' },
+  activeChatText: { color: '#738391', fontSize: 11, lineHeight: 16, fontWeight: '600', marginTop: 2 },
+  secureBadge: { width: 27, height: 27, borderRadius: 13.5, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  heroCard: { minHeight: 142, borderRadius: 28, padding: 20, marginBottom: 20, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', shadowColor: '#FF8FAB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 16, elevation: 5 },
+  heroBubbleLarge: { position: 'absolute', right: -30, top: -42, width: 132, height: 132, borderRadius: 66, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroBubbleSmall: { position: 'absolute', left: -18, bottom: -35, width: 78, height: 78, borderRadius: 39, backgroundColor: 'rgba(255,255,255,0.12)' },
+  heroCopy: { flex: 1, zIndex: 1, paddingRight: 6 },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, marginBottom: 8 },
+  heroBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  heroTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 25, fontWeight: '900' },
+  heroSubtitle: { color: '#FFFDFE', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 5 },
+  heroImageWrap: { width: 84, height: 84, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.24)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  heroImage: { width: 76, height: 76, resizeMode: 'contain' },
   promptSection: {
-    marginLeft: 56,
+    marginLeft: 0,
     marginBottom: 20,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: '#fff8fa',
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.86)',
     borderWidth: 1,
     borderColor: '#f8dce5',
   },
-  promptTitle: { color: '#c85d7d', fontSize: 14, fontWeight: '900' },
+  promptTitle: { color: '#C85D7D', fontSize: 15, fontWeight: '900' },
   promptSubtitle: { color: '#7b8794', fontSize: 12, lineHeight: 17, marginTop: 4, marginBottom: 11 },
   promptGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   promptChip: {
+    width: '48%',
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 18,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#f3c9d6',
   },
-  promptChipText: { color: '#72515c', fontSize: 12, fontWeight: '800' },
+  promptIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#FFF1F5', justifyContent: 'center', alignItems: 'center' },
+  promptChipText: { flex: 1, color: '#72515c', fontSize: 11, lineHeight: 15, fontWeight: '800' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 58, marginBottom: 16, gap: 9 },
   thinkingText: { color: '#7b8794', fontSize: 13, fontStyle: 'italic' },
   inputArea: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: Platform.OS === 'ios' ? 25 : 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.96)',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     alignItems: 'flex-end',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    shadowOpacity: 0.09,
+    shadowRadius: 10,
     elevation: 10,
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#f5f7f9',
-    borderRadius: 20,
+    backgroundColor: '#FFF8FA',
+    borderRadius: 22,
     paddingHorizontal: 18,
     paddingVertical: 11,
     fontSize: 15,
@@ -422,21 +504,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 110,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#F1DDE4',
   },
   sendButton: {
-    backgroundColor: '#98d8aa',
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 10,
-    shadowColor: '#98d8aa',
+    overflow: 'hidden',
+    shadowColor: '#FF8FAB',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 3,
     elevation: 2,
   },
-  sendButtonDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0 },
+  sendButtonGradient: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  sendButtonDisabled: { shadowOpacity: 0 },
 });

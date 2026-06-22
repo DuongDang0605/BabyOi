@@ -14,6 +14,7 @@ import {
   deleteBabyRoutineEntry,
   getBabyRoutineDay,
   updateBabyRoutineEntryCompletion,
+  updateBabyRoutineTimeline,
 } from '../../lib/api';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -345,16 +346,9 @@ export default function FullSmartBabySchedule() {
         completed: true,
         actualTime: toTimeParam(new Date()),
       });
-
-      setSchedule((current) => current.map((entry) => (
-        entry.id === updated.id ? mapRoutineItem(updated) : entry
-      )));
-      setRoutineDay((current) => current
-        ? {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
-          }
-        : current);
+      const updatedDay = await updateBabyRoutineTimeline(updated.id);
+      setRoutineDay(updatedDay);
+      setSchedule(sortRoutineItems((updatedDay.entries || []).map(mapRoutineItem)));
       rememberScrollPosition();
     } catch (err) {
       Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể cập nhật lịch sinh hoạt.');
@@ -403,15 +397,9 @@ export default function FullSmartBabySchedule() {
         completed: true,
         actualTime,
       });
-      setSchedule((current) => current.map((entry) => (
-        entry.id === updated.id ? mapRoutineItem(updated) : entry
-      )));
-      setRoutineDay((current) => current
-        ? {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
-          }
-        : current);
+      const updatedDay = await updateBabyRoutineTimeline(updated.id);
+      setRoutineDay(updatedDay);
+      setSchedule(sortRoutineItems((updatedDay.entries || []).map(mapRoutineItem)));
       setEditingEntryId(null);
       setEditTimeDigits('');
       rememberScrollPosition();

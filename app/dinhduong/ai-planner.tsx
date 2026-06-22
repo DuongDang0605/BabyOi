@@ -181,6 +181,7 @@ export default function AIPlannerScreen() {
   const [latestHealth, setLatestHealth] = useState<HealthRecordResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [plannerError, setPlannerError] = useState('');
 
   const parsedStartDate = useMemo(() => parseDisplayDate(startDate), [startDate]);
   const endDateDisplay = useMemo(() => {
@@ -275,6 +276,7 @@ export default function AIPlannerScreen() {
   };
 
   const createPlan = async () => {
+    setPlannerError('');
     if (loading) {
       return;
     }
@@ -293,6 +295,7 @@ export default function AIPlannerScreen() {
       }
     }
     if (profile.profileType?.toUpperCase() !== 'MOTHER' && getAgeMonths(profile.dateOfBirth) < 6) {
+      setPlannerError('Bé dưới 6 tháng nên bú mẹ hoàn toàn; chưa thể tạo lịch ăn bổ sung.');
       Alert.alert(
         'Chưa thể tạo lịch ăn',
         'Bé dưới 6 tháng nên bú mẹ hoàn toàn. Lịch ăn bổ sung sẽ mở khi bé đủ 6 tháng.',
@@ -301,6 +304,7 @@ export default function AIPlannerScreen() {
     }
     let healthForPlan = latestHealth;
     if (!hasEnergyEstimate(healthForPlan)) {
+      setPlannerError(getHealthRequirementMessage(profile));
       try {
         const records = await getHealthRecords(profile.id);
         healthForPlan = getLatestHealthRecord(records);
@@ -316,6 +320,7 @@ export default function AIPlannerScreen() {
     try {
       const existingPlans = await getNutritionPlanHistory(profile.id);
       if (existingPlans.some((item) => item.lifecycleStatus === 'ACTIVE')) {
+        setPlannerError('Hãy hoàn thành hoặc xóa lịch ăn đang thực hiện trước khi tạo lịch mới.');
         Alert.alert(
           'Đang có lịch ăn',
           'Hãy hoàn thành hoặc xóa lịch ăn đang thực hiện trước khi tạo lịch mới.',
@@ -327,7 +332,9 @@ export default function AIPlannerScreen() {
         return;
       }
     } catch (error) {
-      Alert.alert('Bé Đậu dinh dưỡng', error instanceof Error ? error.message : 'Không kiểm tra được lịch ăn hiện tại.');
+      const message = error instanceof Error ? error.message : 'Không kiểm tra được lịch ăn hiện tại.';
+      setPlannerError(message);
+      Alert.alert('Bé Đậu dinh dưỡng', message);
       return;
     }
 
@@ -369,6 +376,7 @@ export default function AIPlannerScreen() {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không tạo được lịch ăn, mẹ thử lại nhé.';
+      setPlannerError(message);
       if (/cập nhật|TDEE|EER|cân nặng|chiều cao|vận động/i.test(message)) {
         showHealthRequiredAlert(profile);
       } else {
@@ -523,6 +531,13 @@ export default function AIPlannerScreen() {
             />
           </View>
 
+          {!!plannerError && (
+            <View style={styles.plannerErrorBox}>
+              <Ionicons name="alert-circle-outline" size={19} color="#D95757" />
+              <Text style={styles.plannerErrorText}>{plannerError}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={createPlan}
@@ -583,4 +598,6 @@ const styles = StyleSheet.create({
   primaryButton: { height: 54, borderRadius: 8, backgroundColor: '#FF8FAB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 4 },
   primaryButtonDisabled: { opacity: 0.72 },
   primaryText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
+  plannerErrorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFF2F2', borderWidth: 1, borderColor: '#FFD5D5', borderRadius: 8, padding: 12, marginBottom: 12 },
+  plannerErrorText: { flex: 1, color: '#B63D3D', fontSize: 13, fontWeight: '800', lineHeight: 19 },
 });

@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -21,6 +23,8 @@ export default function RegisterScreen() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState('');
   const [formError, setFormError] = useState('');
 
   async function handleRegister() {
@@ -28,7 +32,13 @@ export default function RegisterScreen() {
     setEmailError('');
     setPasswordError('');
     setConfirmPasswordError('');
+    setTermsError('');
     setFormError('');
+
+    if (!acceptedTerms) {
+      setTermsError('Vui lòng đồng ý với Điều khoản dịch vụ trước khi tạo tài khoản.');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setConfirmPasswordError('Mật khẩu xác nhận không khớp.');
@@ -123,7 +133,38 @@ export default function RegisterScreen() {
         {!!confirmPasswordError && <Text style={authStyles.errorText}>{confirmPasswordError}</Text>}
       </View>
 
-      {!!formError && !userNameError && !emailError && !passwordError && !confirmPasswordError && (
+      <View style={styles.termsRow}>
+        <TouchableOpacity
+          accessibilityLabel="Đồng ý Điều khoản dịch vụ"
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: acceptedTerms }}
+          activeOpacity={0.82}
+          hitSlop={8}
+          onPress={() => {
+            setAcceptedTerms((current) => !current);
+            setTermsError('');
+          }}
+          style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}
+        >
+          {acceptedTerms && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+        </TouchableOpacity>
+        <View style={styles.termsContent}>
+          <Text style={styles.termsText}>Tôi đã đọc và đồng ý với</Text>
+          <View style={styles.termsLinkRow}>
+            <TouchableOpacity onPress={() => router.push('/legal/terms-of-service' as any)}>
+              <Text style={styles.termsLink}>Điều khoản dịch vụ</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}> và </Text>
+            <TouchableOpacity onPress={() => router.push('/legal/privacy-policy' as any)}>
+              <Text style={styles.termsLink}>Chính sách bảo mật</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}>.</Text>
+          </View>
+        </View>
+      </View>
+      {!!termsError && <Text style={authStyles.errorText}>{termsError}</Text>}
+
+      {!!formError && !userNameError && !emailError && !passwordError && !confirmPasswordError && !termsError && (
         <Text style={authStyles.formErrorText}>{formError}</Text>
       )}
 
@@ -141,3 +182,45 @@ export default function RegisterScreen() {
     </AuthShell>
   );
 }
+
+const styles = StyleSheet.create({
+  termsRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+    marginTop: 2,
+  },
+  checkbox: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FF9DB8',
+    borderRadius: 5,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxChecked: {
+    backgroundColor: '#FF6F9B',
+    borderColor: '#FF6F9B',
+  },
+  termsText: {
+    color: '#5C7A8A',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  termsContent: {
+    flex: 1,
+  },
+  termsLinkRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  termsLink: {
+    color: '#FF6F9B',
+    fontWeight: '900',
+  },
+});
