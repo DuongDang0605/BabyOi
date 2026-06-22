@@ -388,6 +388,38 @@ export type AiTeachingLessonResponse = {
   progressUpdatedAt: string | null;
 };
 
+export type AiChatResponse = {
+  conversationId: string;
+  profileId: number | null;
+  userMessage: string;
+  botReply: string;
+  answer: string;
+  selectedAgent: string | null;
+  intent: string | null;
+  safetyLevel: string | null;
+  usedDomains: string[] | null;
+  createdAt: string | null;
+};
+
+export type AiChatMessageResponse = {
+  id: number;
+  sender: 'USER' | 'ASSISTANT' | string;
+  message: string;
+  selectedAgent: string | null;
+  intent: string | null;
+  safetyLevel: string | null;
+  usedDomains: string[] | null;
+  createdAt: string | null;
+};
+
+export type AiChatConversationResponse = {
+  conversationId: string;
+  profileId: number | null;
+  title: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type HandbookPostResponse = {
   id: number;
   category: string;
@@ -1788,6 +1820,36 @@ export function getAiTeachingLessonsByProfile(profileId: number | string, init?:
   });
 }
 
+export function sendAiChatMessage(payload: {
+  message: string;
+  profileId?: number | null;
+  conversationId?: string | null;
+}) {
+  return request<AiChatResponse>('/api/ai-chat/messages', {
+    method: 'POST',
+    fallbackTimeoutMs: 90000,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAiChatConversations(profileId?: number | string | null) {
+  return request<AiChatConversationResponse[]>(`/api/ai-chat/conversations${buildQueryString({ profileId })}`, {
+    method: 'GET',
+  });
+}
+
+export function getAiChatMessages(conversationId: string) {
+  return request<AiChatMessageResponse[]>(`/api/ai-chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'GET',
+  });
+}
+
+export function deleteAiChatConversation(conversationId: string) {
+  return request<void>(`/api/ai-chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export function getHandbookPosts(params?: { category?: string; search?: string }) {
   return request<HandbookPostResponse[]>(`/api/handbook/posts${buildQueryString({
     category: params?.category,
@@ -1940,6 +2002,13 @@ export function deleteRestrictedFood(profileId: number | string, foodId: number 
 /* =========================
    NUTRITION PLAN API
 ========================= */
+
+export function trackNutritionPageView() {
+  return request<void>('/api/analytics/page-views/nutrition', {
+    silent: true,
+    method: 'POST',
+  });
+}
 
 export function generateNutritionPlan(payload: NutritionPlanGeneratePayload) {
   return request<NutritionPlanResponse>('/api/nutrition-plans/generate', {
