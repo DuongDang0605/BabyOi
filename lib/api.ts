@@ -170,6 +170,8 @@ export type VaccineStatisticsResponse = {
   pending: number;
   canceled: number;
   success: number;
+  overdue?: number;
+  upcoming?: number;
 };
 
 export type VaccineProgressDoseResponse = {
@@ -183,6 +185,7 @@ export type VaccineProgressDoseResponse = {
   injectionDate: string | null;
   actualInjectionDate: string | null;
   status: number | null;
+  overdue?: boolean | null;
   note: string | null;
 };
 
@@ -256,6 +259,8 @@ export type VaccineProgressResponse = {
   totalDoses: number | null;
   completedDoses: number | null;
   pendingDoses: number | null;
+  overdueDoses?: number | null;
+  upcomingDoses?: number | null;
   currentDoseOrder: number | null;
   nextDoseOrder: number | null;
   nextInjectionDate: string | null;

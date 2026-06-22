@@ -139,6 +139,8 @@ async function loadVaccineOverview(profileId: number | string) {
     progress: Array.isArray(progressData) ? progressData : [],
     stats: {
       pending: statistics.pending,
+      overdue: statistics.overdue ?? 0,
+      upcoming: statistics.upcoming ?? statistics.pending,
       success: statistics.success,
       canceled: statistics.canceled,
     },
@@ -150,7 +152,7 @@ export default function VaccineScheduleScreen() {
   const { showNotification } = useNotification();
   const hasLoadedDataRef = useRef(false);
   const [selectedProfile, setSelectedProfileState] = useState<ProfileResponse | null>(null);
-  const [stats, setStats] = useState({ pending: 0, success: 0, canceled: 0 });
+  const [stats, setStats] = useState({ pending: 0, overdue: 0, upcoming: 0, success: 0, canceled: 0 });
   const [diseaseProgress, setDiseaseProgress] = useState<VaccineProgressResponse[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_DISEASES);
@@ -171,7 +173,7 @@ export default function VaccineScheduleScreen() {
       setStats(overview.stats);
     } catch {
       setDiseaseProgress([]);
-      setStats({ pending: 0, success: 0, canceled: 0 });
+      setStats({ pending: 0, overdue: 0, upcoming: 0, success: 0, canceled: 0 });
     }
   }, [selectedProfile]);
 
@@ -193,7 +195,7 @@ export default function VaccineScheduleScreen() {
         setSelectedProfileState(profile);
         if (!profile) {
           setDiseaseProgress([]);
-          setStats({ pending: 0, success: 0, canceled: 0 });
+          setStats({ pending: 0, overdue: 0, upcoming: 0, success: 0, canceled: 0 });
           return;
         }
 
@@ -207,14 +209,14 @@ export default function VaccineScheduleScreen() {
         } catch {
           if (!cancelled) {
             setDiseaseProgress([]);
-            setStats({ pending: 0, success: 0, canceled: 0 });
+            setStats({ pending: 0, overdue: 0, upcoming: 0, success: 0, canceled: 0 });
           }
         }
       } catch {
         if (!cancelled) {
           setSelectedProfileState(null);
           setDiseaseProgress([]);
-          setStats({ pending: 0, success: 0, canceled: 0 });
+          setStats({ pending: 0, overdue: 0, upcoming: 0, success: 0, canceled: 0 });
         }
       } finally {
         if (!cancelled) {
@@ -386,7 +388,7 @@ export default function VaccineScheduleScreen() {
           </LinearGradient>
         ) : null}
 
-        <VaccineSummary completedCount={stats.success} upcomingCount={stats.pending} />
+        <VaccineSummary completedCount={stats.success} overdueCount={stats.overdue} upcomingCount={stats.upcoming} />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Danh sách bệnh</Text>
