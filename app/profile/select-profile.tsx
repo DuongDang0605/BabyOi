@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -14,12 +15,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 
 import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
-import { todayIsoDate } from '../../lib/health-format';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
 
@@ -60,16 +59,6 @@ function normalizeProfileDateInput(value: string) {
     return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   }
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function parseNumberInput(value: string) {
-  const normalized = value.replace(',', '.').trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function calculateAgeLabel(dateOfBirth: string, profileType: string) {
@@ -119,16 +108,37 @@ function validateProfileForm(payload: ProfilePayload) {
   return '';
 }
 
+function parsePositiveNumber(value: string) {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN;
+}
+
+function todayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isRemoteImageUrl(uri?: string | null) {
+  return !!uri && (uri.startsWith('http://') || uri.startsWith('https://'));
+}
+
 export default function SelectProfileScreen() {
-  const { width } = useWindowDimensions();
   const [profiles, setProfiles] = useState<ProfileResponse[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState('');
-  const [healthForm, setHealthForm] = useState({ height: '', weight: '' });
+  const [initialHeight, setInitialHeight] = useState('');
+  const [initialWeight, setInitialWeight] = useState('');
   const [form, setForm] = useState<ProfilePayload>({
     userId: 0,
     name: '',
@@ -139,29 +149,6 @@ export default function SelectProfileScreen() {
     profileCode: null,
     functionCode: null,
   });
-
-  const childProfileCount = profiles.filter((profile) => profile.profileType === 'CHILD').length;
-  const motherProfileCount = profiles.filter((profile) => profile.profileType === 'MOTHER').length;
-
-  const getProfileLimitError = (profileType: 'MOTHER' | 'CHILD') => {
-    if (profileType === 'CHILD' && childProfileCount >= 2) {
-      return 'Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé.';
-    }
-    if (profileType === 'MOTHER' && motherProfileCount >= 1) {
-      return 'Mỗi tài khoản chỉ được tạo tối đa 1 hồ sơ mẹ.';
-    }
-    return '';
-  };
-
-  const getFirstAvailableProfileType = (): 'MOTHER' | 'CHILD' | null => {
-    if (childProfileCount < 2) {
-      return 'CHILD';
-    }
-    if (motherProfileCount < 1) {
-      return 'MOTHER';
-    }
-    return null;
-  };
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -194,9 +181,8 @@ export default function SelectProfileScreen() {
       router.replace('/auth/login');
       return;
     }
-    const nextProfileType = getFirstAvailableProfileType();
-    if (!nextProfileType) {
-      setError('Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé và 1 hồ sơ mẹ.');
+    if (profiles.length >= 3) {
+      setError('Mỗi tài khoản chỉ được tạo tối đa 3 hồ sơ đang hoạt động.');
       return;
     }
 
@@ -205,23 +191,18 @@ export default function SelectProfileScreen() {
       name: '',
       dateOfBirth: '',
       sex: 'FEMALE',
-      profileType: nextProfileType,
+      profileType: 'CHILD',
       imageUrl: null,
       profileCode: null,
       functionCode: null,
     });
-    setHealthForm({ height: '', weight: '' });
+    setInitialHeight('');
+    setInitialWeight('');
     setError('');
     setModalVisible(true);
   };
 
   const updateProfileType = (profileType: 'MOTHER' | 'CHILD') => {
-    const limitError = getProfileLimitError(profileType);
-    if (limitError) {
-      setError(limitError);
-      return;
-    }
-
     setForm((current) => ({
       ...current,
       profileType,
@@ -236,16 +217,8 @@ export default function SelectProfileScreen() {
 
     const uri = result.assets[0]?.uri;
     if (uri) {
-      try {
-        setImageUploading(true);
-        const imageUrl = await uploadProfileAvatar(uri);
-        setForm((current) => ({ ...current, imageUrl }));
-        setError('');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Không thể tải ảnh hồ sơ lên máy chủ. Bạn thử chọn lại ảnh nhé.');
-      } finally {
-        setImageUploading(false);
-      }
+      setForm((current) => ({ ...current, imageUrl: uri }));
+      setError('');
     }
   };
 
@@ -281,43 +254,38 @@ export default function SelectProfileScreen() {
   };
 
   const handleCreateProfile = async () => {
-    const limitError = getProfileLimitError(form.profileType);
-    if (limitError) {
-      setError(limitError);
-      return;
-    }
-
     const validationError = validateProfileForm(form);
     if (validationError) {
       setError(validationError);
       return;
     }
+    const heightValue = parsePositiveNumber(initialHeight);
+    const weightValue = parsePositiveNumber(initialWeight);
 
-    const height = parseNumberInput(healthForm.height);
-    const weight = parseNumberInput(healthForm.weight);
-    if (!height || height <= 0 || !weight || weight <= 0) {
-      setError(form.profileType === 'CHILD'
-        ? 'Vui lòng nhập chiều cao và cân nặng của bé.'
-        : 'Vui lòng nhập chiều cao và cân nặng của mẹ.'
-      );
+    if (Number.isNaN(heightValue) || Number.isNaN(weightValue)) {
+      setError('Chiều cao và cân nặng cần là số lớn hơn 0.');
       return;
     }
 
     try {
       setSubmitting(true);
       setError('');
+      const uploadedImageUrl = form.imageUrl && !isRemoteImageUrl(form.imageUrl)
+        ? await uploadProfileAvatar(form.imageUrl)
+        : form.imageUrl;
       const created = await createProfile({
         ...form,
         name: form.name.trim(),
-        sex: form.profileType === 'MOTHER' ? 'FEMALE' : form.sex,
+        imageUrl: uploadedImageUrl,
       });
-
-      await createHealthRecord({
-        profileId: created.id,
-        height,
-        weight,
-        recordDate: todayIsoDate(),
-      });
+      if (heightValue !== null || weightValue !== null) {
+        await createHealthRecord({
+          profileId: created.id,
+          height: heightValue,
+          weight: weightValue,
+          recordDate: todayIsoDate(),
+        });
+      }
 
       setModalVisible(false);
       setProfiles((current) => [...current, created].slice(0, 3));
@@ -345,10 +313,6 @@ export default function SelectProfileScreen() {
   };
 
   const profileSlots = Array.from({ length: 3 }, (_, index) => profiles[index] ?? null);
-  const profileGap = 12;
-  const profileSlotWidth = Math.floor(Math.min(118, Math.max(96, (width - 40 - profileGap * 2) / 3)));
-  const profileBoxSize = Math.min(106, profileSlotWidth);
-  const profileImageSize = Math.max(76, profileBoxSize - 20);
 
   const handleLogout = async () => {
     await deactivateCurrentDeviceToken();
@@ -360,31 +324,32 @@ export default function SelectProfileScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.backdrop} />
-      <View style={styles.softCircleTop} />
-      <View style={styles.softCircleBottom} />
+      <LinearGradient colors={['#FEF9F3', '#FFF4F8', '#EFFBFF']} style={styles.backdrop} />
+      <View style={[styles.accentBar, styles.accentBarPink]} />
+      <View style={[styles.accentBar, styles.accentBarBlue]} />
+      <View style={[styles.accentBar, styles.accentBarYellow]} />
       <View style={styles.headerRow}>
-        <Text style={styles.brand}>BabyOi</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="close" size={28} color="#5C7A8A" />
-        </TouchableOpacity>
+        <View style={styles.brandPill}>
+          <Text style={styles.brand}>BabyOi</Text>
+          <Ionicons name="sparkles" size={18} color="#FFD166" />
+        </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Hãy chọn hồ sơ</Text>
-        <Text style={styles.profileLimit}>Tối đa 2 hồ sơ bé và 1 hồ sơ mẹ</Text>
+        <Text style={styles.title}>Chọn hồ sơ chăm sóc</Text>
+        <Text style={styles.profileLimit}>Tối đa 3 hồ sơ cho mẹ và bé</Text>
 
         {loading ? (
           <ActivityIndicator color="#FF8FAB" />
         ) : (
-          <View style={[styles.profileRow, { gap: profileGap }]}>
+          <View style={styles.profileRow}>
             {profileSlots.map((profile, index) => {
               if (!profile) {
                 return (
-                  <TouchableOpacity key={`empty-${index}`} style={[styles.profileSlot, { width: profileSlotWidth }]} onPress={openCreateModal}>
-                    <View style={[styles.addBox, { width: profileBoxSize, height: profileBoxSize }]}>
+                  <TouchableOpacity key={`empty-${index}`} style={styles.profileSlot} onPress={openCreateModal}>
+                    <LinearGradient colors={['#FFFFFF', '#FFF1F6', '#EFFBFF']} style={styles.addBox}>
                       <Ionicons name="add" size={46} color="#FF8FAB" />
-                    </View>
+                    </LinearGradient>
                     <Text style={styles.profileName}>Thêm hồ sơ</Text>
                   </TouchableOpacity>
                 );
@@ -392,10 +357,13 @@ export default function SelectProfileScreen() {
 
               const selected = selectedProfileId === profile.id;
               return (
-                <TouchableOpacity key={profile.id} style={[styles.profileSlot, { width: profileSlotWidth }]} onPress={() => handleSelectProfile(profile)}>
-                  <View style={[styles.profileImageWrap, { width: profileBoxSize, height: profileBoxSize }, selected && styles.profileImageWrapSelected]}>
+                <TouchableOpacity key={profile.id} style={styles.profileSlot} onPress={() => handleSelectProfile(profile)}>
+                  <LinearGradient
+                    colors={selected ? ['#FFFFFF', '#FFF1F6', '#FFE9A8'] : ['#FFFFFF', '#F5FEFF']}
+                    style={[styles.profileImageWrap, selected && styles.profileImageWrapSelected]}
+                  >
                     {profile.imageUrl ? (
-                      <Image source={{ uri: profile.imageUrl }} style={[styles.profileImage, { width: profileImageSize, height: profileImageSize }]} />
+                      <Image source={{ uri: profile.imageUrl }} style={styles.profileImage} />
                     ) : (
                       <Text style={styles.questionMark}>?</Text>
                     )}
@@ -404,9 +372,9 @@ export default function SelectProfileScreen() {
                         <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                       </View>
                     )}
-                  </View>
-                  <Text style={[styles.profileName, { maxWidth: profileSlotWidth }, selected && styles.profileNameSelected]} numberOfLines={1}>{profile.name}</Text>
-                  <Text style={styles.profileAge}>{selected ? 'Bấm lần nữa để vào' : calculateAgeLabel(profile.dateOfBirth, profile.profileType)}</Text>
+                  </LinearGradient>
+                  <Text style={[styles.profileName, selected && styles.profileNameSelected]} numberOfLines={1}>{profile.name}</Text>
+                  <Text style={styles.profileAge}>{selected ? 'Bấm lại để vào hồ sơ' : calculateAgeLabel(profile.dateOfBirth, profile.profileType)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -414,6 +382,11 @@ export default function SelectProfileScreen() {
         )}
 
         {!!error && !modalVisible && <Text style={styles.errorText}>{error}</Text>}
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={18} color="#D64545" />
+          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -439,9 +412,7 @@ export default function SelectProfileScreen() {
               <Text style={styles.label}>Ảnh hồ sơ</Text>
               <View style={styles.photoPickerBox}>
                 <View style={styles.photoPreview}>
-                  {imageUploading ? (
-                    <ActivityIndicator color="#FF8FAB" />
-                  ) : form.imageUrl ? (
+                  {form.imageUrl ? (
                     <Image source={{ uri: form.imageUrl }} style={styles.photoPreviewImage} />
                   ) : (
                     <Ionicons name="camera-outline" size={34} color="#FF8FAB" />
@@ -477,67 +448,48 @@ export default function SelectProfileScreen() {
                 onChangeText={(dateOfBirth) => setForm((current) => ({ ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) }))}
               />
 
-              {form.profileType === 'CHILD' && (
-                <>
-                  <Text style={styles.label}>Giới tính</Text>
-                  <View style={styles.sexRow}>
-                    {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
-                      <TouchableOpacity
-                        key={sex}
-                        style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
-                        onPress={() => setForm((current) => ({ ...current, sex }))}
-                      >
-                        <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
-                          {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                </>
-              )}
-
-              <View style={styles.healthBox}>
-                <View style={styles.healthBoxHeader}>
-                  <Ionicons name="body-outline" size={18} color="#FF8FAB" />
-                  <Text style={styles.healthBoxTitle}>
-                    {form.profileType === 'CHILD' ? 'Sức khỏe ban đầu của bé' : 'Sức khỏe ban đầu của mẹ'}
-                  </Text>
+              <Text style={styles.label}>Số đo ban đầu</Text>
+              <View style={styles.measurementRow}>
+                <View style={styles.measurementField}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Chiều cao (cm)"
+                    keyboardType="decimal-pad"
+                    value={initialHeight}
+                    onChangeText={setInitialHeight}
+                  />
                 </View>
-                <View style={styles.healthInputRow}>
-                  <View style={styles.healthInputGroup}>
-                    <Text style={styles.healthLabel}>Chiều cao</Text>
-                    <View style={styles.healthInputWrap}>
-                      <TextInput
-                        style={styles.healthInput}
-                        value={healthForm.height}
-                        onChangeText={(height) => setHealthForm((current) => ({ ...current, height }))}
-                        keyboardType="numeric"
-                        placeholder={form.profileType === 'CHILD' ? '58' : '160'}
-                      />
-                      <Text style={styles.healthUnit}>cm</Text>
-                    </View>
-                  </View>
-                  <View style={styles.healthInputGroup}>
-                    <Text style={styles.healthLabel}>Cân nặng</Text>
-                    <View style={styles.healthInputWrap}>
-                      <TextInput
-                        style={styles.healthInput}
-                        value={healthForm.weight}
-                        onChangeText={(weight) => setHealthForm((current) => ({ ...current, weight }))}
-                        keyboardType="numeric"
-                        placeholder={form.profileType === 'CHILD' ? '5.3' : '55'}
-                      />
-                      <Text style={styles.healthUnit}>kg</Text>
-                    </View>
-                  </View>
+                <View style={styles.measurementField}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Cân nặng (kg)"
+                    keyboardType="decimal-pad"
+                    value={initialWeight}
+                    onChangeText={setInitialWeight}
+                  />
                 </View>
+              </View>
+
+              <Text style={styles.label}>Giới tính</Text>
+              <View style={styles.sexRow}>
+                {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
+                  <TouchableOpacity
+                    key={sex}
+                    style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
+                    onPress={() => setForm((current) => ({ ...current, sex }))}
+                    disabled={form.profileType === 'MOTHER' && sex !== 'FEMALE'}
+                  >
+                    <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
+                      {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               {!!error && <Text style={styles.modalError}>{error}</Text>}
 
-              <TouchableOpacity style={[styles.createButton, (submitting || imageUploading) && styles.disabledButton]} onPress={handleCreateProfile} disabled={submitting || imageUploading}>
-                {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.createButtonText}>{imageUploading ? 'Đang tải ảnh...' : 'Tạo hồ sơ'}</Text>}
+              <TouchableOpacity style={[styles.createButton, submitting && styles.disabledButton]} onPress={handleCreateProfile} disabled={submitting}>
+                {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.createButtonText}>Tạo hồ sơ</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -549,26 +501,31 @@ export default function SelectProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEF9F3' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FEF9F3' },
-  softCircleTop: { position: 'absolute', top: -80, right: -70, width: 210, height: 210, borderRadius: 105, backgroundColor: '#FFE5EC' },
-  softCircleBottom: { position: 'absolute', bottom: -95, left: -80, width: 230, height: 230, borderRadius: 115, backgroundColor: '#E9F8FD' },
-  headerRow: { marginTop: 45, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { color: '#FF8FAB', fontSize: 32, fontWeight: '900', letterSpacing: 1 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, width: '100%' },
-  title: { color: '#5C7A8A', fontSize: 31, fontWeight: '900', marginBottom: 8 },
-  profileLimit: { color: '#7D95A1', fontSize: 13, fontWeight: '800', marginBottom: 26, textAlign: 'center' },
-  profileRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 },
-  profileSlot: { width: 126, alignItems: 'center' },
-  profileImageWrap: { width: 112, height: 112, borderRadius: 30, backgroundColor: '#FFFFFF', borderWidth: 3, borderColor: '#FFE5EC', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FFB6C1', shadowOpacity: 0.18, shadowRadius: 10 },
-  profileImageWrapSelected: { borderColor: '#FF8FAB', transform: [{ scale: 1.04 }] },
-  profileImage: { width: 92, height: 92, borderRadius: 25 },
-  questionMark: { color: '#FF8FAB', fontSize: 58, fontWeight: '900', textAlign: 'center' },
-  selectedBadge: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF8FAB', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
-  addBox: { width: 112, height: 112, borderRadius: 30, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#FFB6C1', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8 },
-  profileName: { width: '100%', color: '#5C7A8A', fontSize: 15, fontWeight: '900', marginTop: 10, maxWidth: 126, textAlign: 'center' },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+  accentBar: { position: 'absolute', borderRadius: 999 },
+  accentBarPink: { top: 92, right: 26, width: 96, height: 11, backgroundColor: '#FFB6C1', transform: [{ rotate: '8deg' }] },
+  accentBarBlue: { top: 150, left: 22, width: 120, height: 11, backgroundColor: '#A7E4F5', transform: [{ rotate: '-9deg' }] },
+  accentBarYellow: { bottom: 92, right: 42, width: 74, height: 9, backgroundColor: '#FFD166', transform: [{ rotate: '-7deg' }] },
+  headerRow: { marginTop: 45, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center' },
+  brandPill: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#FFE5EC', borderRadius: 22, borderWidth: 1.5, flexDirection: 'row', gap: 6, paddingHorizontal: 13, paddingVertical: 7, shadowColor: '#FFB6C1', shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 },
+  brand: { color: '#FF8FAB', fontSize: 32, fontWeight: '900' },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 },
+  title: { color: '#FF6F9B', fontSize: 28, fontWeight: '900', marginBottom: 8, textAlign: 'center' },
+  profileLimit: { backgroundColor: '#FFFFFF', borderColor: '#DDF5FB', borderRadius: 999, borderWidth: 1, color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginBottom: 26, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 7, textAlign: 'center' },
+  profileRow: { width: '100%', maxWidth: 390, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  profileSlot: { width: '31%', alignItems: 'center' },
+  profileImageWrap: { width: 96, height: 96, borderRadius: 26, borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#FF8FAB', shadowOpacity: 0.2, shadowRadius: 12 },
+  profileImageWrapSelected: { borderColor: '#FFD166', transform: [{ scale: 1.04 }] },
+  profileImage: { width: 78, height: 78, borderRadius: 22 },
+  questionMark: { color: '#FF8FAB', fontSize: 48, fontWeight: '900', textAlign: 'center' },
+  selectedBadge: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF6F9B', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
+  addBox: { width: 96, height: 96, borderRadius: 26, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#FFB6C1', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#FF8FAB', shadowOpacity: 0.16, shadowRadius: 10 },
+  profileName: { color: '#5C7A8A', fontSize: 13, fontWeight: '900', marginTop: 10, maxWidth: '100%', textAlign: 'center' },
   profileNameSelected: { color: '#FF8FAB' },
-  profileAge: { width: '100%', color: '#7D95A1', fontSize: 12, fontWeight: '800', marginTop: 3, textAlign: 'center' },
+  profileAge: { color: '#7D95A1', fontSize: 11, fontWeight: '800', marginTop: 4, minHeight: 30, textAlign: 'center' },
   errorText: { marginTop: 26, color: '#FF6B8F', fontWeight: '800', textAlign: 'center' },
+  logoutButton: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#FFD2DE', borderRadius: 18, borderWidth: 1.5, flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 28, minHeight: 42, paddingHorizontal: 18, shadowColor: '#FFB6C1', shadowOpacity: 0.12, shadowRadius: 8, elevation: 3 },
+  logoutButtonText: { color: '#D64545', fontSize: 14, fontWeight: '900' },
   modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(92,122,138,0.35)', padding: 20 },
   modalCard: { maxHeight: '88%', backgroundColor: '#FEF9F3', borderRadius: 28, padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
@@ -586,20 +543,13 @@ const styles = StyleSheet.create({
   photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 34, borderRadius: 14, backgroundColor: '#FFF6F8', borderWidth: 1.5, borderColor: '#FFD2DE' },
   photoButtonText: { color: '#FF8FAB', fontSize: 13, fontWeight: '900' },
   input: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 2, borderColor: '#F0F4F8', color: '#334455', fontWeight: '700', marginBottom: 16 },
+  measurementRow: { flexDirection: 'row', gap: 10 },
+  measurementField: { flex: 1 },
   sexRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   sexButton: { flex: 1, paddingVertical: 11, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F0F4F8', alignItems: 'center' },
   sexButtonActive: { backgroundColor: '#FFE5EC', borderColor: '#FF8FAB' },
   sexText: { color: '#7D95A1', fontWeight: '900' },
   sexTextActive: { color: '#FF8FAB' },
-  healthBox: { backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1.5, borderColor: '#FFE5EC', padding: 14, marginBottom: 16 },
-  healthBoxHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  healthBoxTitle: { color: '#FF8FAB', fontSize: 14, fontWeight: '900', marginLeft: 7 },
-  healthInputRow: { flexDirection: 'row', gap: 10 },
-  healthInputGroup: { flex: 1 },
-  healthLabel: { color: '#5C7A8A', fontSize: 12, fontWeight: '900', marginBottom: 6 },
-  healthInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8FA', borderRadius: 16, borderWidth: 1.5, borderColor: '#FFD2DE', paddingHorizontal: 10 },
-  healthInput: { flex: 1, minHeight: 42, color: '#334455', fontSize: 15, fontWeight: '900' },
-  healthUnit: { color: '#7D95A1', fontSize: 12, fontWeight: '900' },
   modalError: { color: '#D64545', fontWeight: '800', textAlign: 'center', marginBottom: 12 },
   createButton: { backgroundColor: '#FF8FAB', borderRadius: 22, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
   disabledButton: { opacity: 0.7 },

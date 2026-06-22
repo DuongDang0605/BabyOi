@@ -57,6 +57,7 @@ export type ProfileResponse = {
   name: string;
   dateOfBirth: string;
   sex: 'MALE' | 'FEMALE' | 'OTHER' | string;
+  activityLevel: string | null;
   profileType: 'MOTHER' | 'CHILD' | string;
   profileCode: string | null;
   functionCode: string | null;
@@ -73,6 +74,7 @@ export type ProfilePayload = {
   name: string;
   dateOfBirth: string;
   sex?: 'MALE' | 'FEMALE' | 'OTHER';
+  activityLevel?: string | null;
   profileType: 'MOTHER' | 'CHILD';
   profileCode?: string | null;
   functionCode?: string | null;
@@ -279,6 +281,7 @@ export type HealthRecordPayload = {
   weight?: number | null;
   heartRate?: number | null;
   bmi?: number | null;
+  activityLevel?: string | null;
   recordDate: string;
 };
 
@@ -289,6 +292,11 @@ export type HealthRecordResponse = {
   weight: number | null;
   heartRate: number | null;
   bmi: number | null;
+  activityLevel: string | null;
+  bmr: number | null;
+  tdee: number | null;
+  tdeeFormula: string | null;
+  tdeeNote: string | null;
   illnessCount: number | null;
   recordDate: string;
   createdAt: string | null;
@@ -383,6 +391,38 @@ export type AiTeachingLessonResponse = {
   lastPracticedAt: string | null;
   progressNote: string | null;
   progressUpdatedAt: string | null;
+};
+
+export type AiChatResponse = {
+  conversationId: string;
+  profileId: number | null;
+  userMessage: string;
+  botReply: string;
+  answer: string;
+  selectedAgent: string | null;
+  intent: string | null;
+  safetyLevel: string | null;
+  usedDomains: string[] | null;
+  createdAt: string | null;
+};
+
+export type AiChatMessageResponse = {
+  id: number;
+  sender: 'USER' | 'ASSISTANT' | string;
+  message: string;
+  selectedAgent: string | null;
+  intent: string | null;
+  safetyLevel: string | null;
+  usedDomains: string[] | null;
+  createdAt: string | null;
+};
+
+export type AiChatConversationResponse = {
+  conversationId: string;
+  profileId: number | null;
+  title: string;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 export type HandbookPostResponse = {
@@ -551,6 +591,95 @@ export type FavoriteFoodResponse = {
   food: FoodResponse | null;
 };
 
+export type NutritionPlanGeneratePayload = {
+  profileId: number;
+  startDate: string;
+  endDate: string;
+  mealsPerDay?: number;
+  allowedMealTypes?: string[];
+  currentGoal?: string;
+  goalCode?: string;
+  targetWeightKg?: number;
+  futureGoal?: string;
+  userNotes?: string;
+  candidateFoodIds?: number[];
+};
+
+export type NutritionPlanMealResponse = {
+  id: number;
+  mealType: string;
+  foodId: number | null;
+  foodName: string | null;
+  foodImageUrl: string | null;
+  nutrition: FoodNutritionResponse | null;
+  adjustedCalories: number | null;
+  portionScale: number | null;
+  ingredientStorageKey: string | null;
+  ingredientAmounts: Record<string, string> | null;
+  portion: string | null;
+  reason: string | null;
+  warning: string | null;
+  eatenStatus: string | null;
+};
+
+export type NutritionPlanDayResponse = {
+  id: number;
+  date: string;
+  dayIndex: number;
+  note: string | null;
+  meals: NutritionPlanMealResponse[];
+};
+
+export type NutritionPlanResponse = {
+  status: 'SUCCESS' | 'NEEDS_MORE_DATA' | string;
+  lifecycleStatus: 'ACTIVE' | 'COMPLETED' | 'UNKNOWN' | string;
+  planId: number | null;
+  profileId: number | null;
+  profileName: string | null;
+  profileType: string | null;
+  currentGoal: string | null;
+  goalCode: string | null;
+  userNotes: string | null;
+  targetDailyCalories: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  mealsPerDay: number | null;
+  summary: string | null;
+  warnings: string[] | null;
+  aiModel: string | null;
+  aiPromptVersion: string | null;
+  cached: boolean | null;
+  days: NutritionPlanDayResponse[];
+};
+
+export type IngredientAdjustmentSuggestPayload = {
+  profileId: number;
+  foodId: number;
+  currentGoal?: string;
+  userNotes?: string;
+};
+
+export type IngredientAdjustmentSuggestionResponse = {
+  status: 'SUCCESS' | 'NEEDS_MORE_DATA' | 'NOT_RECOMMENDED' | string;
+  foodId: number;
+  profileId: number;
+  storageKey: string;
+  amounts: Record<string, string>;
+  summary: string | null;
+  reason: string | null;
+  warnings: string[] | null;
+  expiresInDays: number | null;
+};
+
+export type NutritionPlanMealUpdatePayload = {
+  mealType?: string;
+  foodId?: number;
+  portion?: string;
+  reason?: string;
+  warning?: string;
+  eatenStatus?: string;
+};
+
 export type AppNotificationResponse = {
   id: number;
   userId: number;
@@ -657,6 +786,16 @@ export type BabyRoutineEntryUpdatePayload = {
   note?: string | null;
 };
 
+export type BabyRoutineEntryCreatePayload = {
+  routineDate: string;
+  plannedTime: string;
+  activity: string;
+  type?: string | null;
+  note?: string | null;
+  icon?: string | null;
+  color?: string | null;
+};
+
 /* =========================
    ERROR
 ========================= */
@@ -691,11 +830,18 @@ export class ApiError extends Error {
   }
 }
 
+export const EMAIL_VERIFICATION_REQUIRED_CODE = 'EMAIL_VERIFICATION_REQUIRED';
+
+function isEmailVerificationRequiredError(errors?: Record<string, string>) {
+  return errors?.code === EMAIL_VERIFICATION_REQUIRED_CODE;
+}
+
 /* =========================
    BASE URL CONFIG
 ========================= */
 
-const DEFAULT_PUBLIC_API_BASE_URL = 'http://187.77.130.63:8085';
+const DEFAULT_PUBLIC_API_BASE_URL = 'http://babyoi.com.vn';
+const LEGACY_PUBLIC_API_BASE_URL = 'http://187.77.130.63:8085';
 const LOCAL_API_PORT = 8085;
 const API_FALLBACK_TIMEOUT_MS = 2500;
 
@@ -736,6 +882,20 @@ function getConfiguredBaseUrl() {
   return '';
 }
 
+function getWebOriginBaseUrl() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    return '';
+  }
+
+  const origin = window.location.origin;
+
+  if (!origin || /^file:/i.test(origin)) {
+    return '';
+  }
+
+  return normalizeBaseUrl(origin);
+}
+
 function getLocalBaseUrlCandidates() {
   const inferredHost = getHostFromUri(Constants.expoConfig?.hostUri);
   const candidates: string[] = [];
@@ -762,11 +922,18 @@ function getApiBaseUrlCandidates() {
     return [configuredBaseUrl];
   }
 
+  const webOriginBaseUrl = getWebOriginBaseUrl();
+
   if (!__DEV__) {
-    return [DEFAULT_PUBLIC_API_BASE_URL];
+    return uniqueUrls([webOriginBaseUrl, DEFAULT_PUBLIC_API_BASE_URL, LEGACY_PUBLIC_API_BASE_URL]);
   }
 
-  return uniqueUrls([...getLocalBaseUrlCandidates(), DEFAULT_PUBLIC_API_BASE_URL]);
+  return uniqueUrls([
+    ...getLocalBaseUrlCandidates(),
+    webOriginBaseUrl,
+    DEFAULT_PUBLIC_API_BASE_URL,
+    LEGACY_PUBLIC_API_BASE_URL,
+  ]);
 }
 
 export const API_BASE_URLS = getApiBaseUrlCandidates();
@@ -948,7 +1115,7 @@ async function parseError(response: Response, init?: ApiRequestInit): Promise<ne
     payload?.error ||
     `Request failed with status ${response.status}`;
 
-  if (shouldRedirectToLogin(response.status)) {
+  if (shouldRedirectToLogin(response.status) && !isEmailVerificationRequiredError(normalizedErrors)) {
     await redirectToLogin();
   } else if (response.status >= 500 && !init?.silent) {
     openErrorScreen(payload?.status || String(response.status), message);
@@ -1057,7 +1224,12 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const rawBody = await response.text();
+  if (!rawBody.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(rawBody) as T;
 }
 
 async function requestMultipart<T>(path: string, formData: FormData, init?: ApiRequestInit): Promise<T> {
@@ -1194,6 +1366,12 @@ export function getCurrentUser() {
   });
 }
 
+export function deleteCurrentAccount() {
+  return request<void>('/api/users/me', {
+    method: 'DELETE',
+  });
+}
+
 /* =========================
    PROFILE API
 ========================= */
@@ -1257,6 +1435,23 @@ function getUploadMimeType(uri: string) {
   return 'image/jpeg';
 }
 
+async function appendImageToFormData(formData: FormData, fieldName: string, uri: string, fileName: string) {
+  const mimeType = getUploadMimeType(uri);
+
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append(fieldName, blob, fileName);
+    return;
+  }
+
+  formData.append(fieldName, {
+    uri,
+    name: fileName,
+    type: mimeType,
+  } as any);
+}
+
 async function readImageBase64(uri: string) {
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
@@ -1279,11 +1474,7 @@ async function readImageBase64(uri: string) {
 
 export async function uploadProfileAvatar(uri: string) {
   const formData = new FormData();
-  formData.append('file', {
-    uri,
-    name: getUploadFileName(uri),
-    type: getUploadMimeType(uri),
-  } as any);
+  await appendImageToFormData(formData, 'file', uri, getUploadFileName(uri));
 
   const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData);
   return response.imageUrl;
@@ -1291,11 +1482,7 @@ export async function uploadProfileAvatar(uri: string) {
 
 export async function uploadDiaryImage(uri: string) {
   const formData = new FormData();
-  formData.append('file', {
-    uri,
-    name: getDiaryUploadFileName(uri),
-    type: getUploadMimeType(uri),
-  } as any);
+  await appendImageToFormData(formData, 'file', uri, getDiaryUploadFileName(uri));
 
   const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/diary-entries/image', formData);
   return response.imageUrl;
@@ -1558,10 +1745,23 @@ export function applyBabyRoutineNextDayAdjustment(profileId: number | string, da
   });
 }
 
+export function createBabyRoutineEntry(profileId: number | string, payload: BabyRoutineEntryCreatePayload) {
+  return request<BabyRoutineEntryResponse>(`/api/routines/profile/${profileId}/entries`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateBabyRoutineEntryCompletion(entryId: number | string, payload: BabyRoutineEntryUpdatePayload) {
   return request<BabyRoutineEntryResponse>(`/api/routines/entries/${entryId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  });
+}
+
+export function deleteBabyRoutineEntry(entryId: number | string) {
+  return request<void>(`/api/routines/entries/${entryId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -1622,6 +1822,36 @@ export function getAiTeachingLessonsByProfile(profileId: number | string, init?:
   return request<AiTeachingLessonResponse[]>(`/api/ai-teaching/profiles/${profileId}/lessons`, {
     ...init,
     method: 'GET',
+  });
+}
+
+export function sendAiChatMessage(payload: {
+  message: string;
+  profileId?: number | null;
+  conversationId?: string | null;
+}) {
+  return request<AiChatResponse>('/api/ai-chat/messages', {
+    method: 'POST',
+    fallbackTimeoutMs: 90000,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAiChatConversations(profileId?: number | string | null) {
+  return request<AiChatConversationResponse[]>(`/api/ai-chat/conversations${buildQueryString({ profileId })}`, {
+    method: 'GET',
+  });
+}
+
+export function getAiChatMessages(conversationId: string) {
+  return request<AiChatMessageResponse[]>(`/api/ai-chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'GET',
+  });
+}
+
+export function deleteAiChatConversation(conversationId: string) {
+  return request<void>(`/api/ai-chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
   });
 }
 
@@ -1770,6 +2000,58 @@ export function addRestrictedFood(profileId: number | string, foodId: number | s
 
 export function deleteRestrictedFood(profileId: number | string, foodId: number | string) {
   return request<void>(`/api/foods/restricted/profile/${profileId}/food/${foodId}`, {
+    method: 'DELETE',
+  });
+}
+
+/* =========================
+   NUTRITION PLAN API
+========================= */
+
+export function trackNutritionPageView() {
+  return request<void>('/api/analytics/page-views/nutrition', {
+    silent: true,
+    method: 'POST',
+  });
+}
+
+export function generateNutritionPlan(payload: NutritionPlanGeneratePayload) {
+  return request<NutritionPlanResponse>('/api/nutrition-plans/generate', {
+    method: 'POST',
+    fallbackTimeoutMs: 90000,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function suggestIngredientAdjustments(payload: IngredientAdjustmentSuggestPayload) {
+  return request<IngredientAdjustmentSuggestionResponse>('/api/nutrition-ai/ingredient-adjustments/suggest', {
+    method: 'POST',
+    fallbackTimeoutMs: 90000,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getNutritionPlanHistory(profileId: number | string) {
+  return request<NutritionPlanResponse[]>(`/api/nutrition-plans/profile/${profileId}/history`, {
+    method: 'GET',
+  });
+}
+
+export function updateNutritionPlanMeal(mealId: number | string, payload: NutritionPlanMealUpdatePayload) {
+  return request<NutritionPlanResponse>(`/api/nutrition-plans/meals/${mealId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function completeNutritionPlan(planId: number | string) {
+  return request<NutritionPlanResponse>(`/api/nutrition-plans/${planId}/complete`, {
+    method: 'PATCH',
+  });
+}
+
+export function deleteNutritionPlan(planId: number | string) {
+  return request<void>(`/api/nutrition-plans/${planId}`, {
     method: 'DELETE',
   });
 }

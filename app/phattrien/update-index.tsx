@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,10 +12,19 @@ import {
   View
 } from 'react-native';
 
-import { createHealthRecord } from '../../lib/api';
+import type { ProfileResponse } from '../../lib/api';
+import { createHealthRecord, getHealthRecords, updateHealthRecord } from '../../lib/api';
 import { parseDisplayDateToIso, todayIsoDate, toDisplayDate } from '../../lib/health-format';
 import { useNotification } from '../../lib/notification';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
+
+const ACTIVITY_LEVELS = [
+  { value: 'SEDENTARY', label: 'Không tập luyện', detail: 'Chủ yếu ngồi, chỉ sinh hoạt hằng ngày.' },
+  { value: 'LIGHT', label: 'Tập nhẹ 1-3 buổi/tuần', detail: 'Đi bộ, yoga hoặc vận động nhẹ.' },
+  { value: 'MODERATE', label: 'Tập vừa 3-5 buổi/tuần', detail: 'Tập luyện cường độ vừa, đều đặn.' },
+  { value: 'ACTIVE', label: 'Tập nặng 6-7 buổi/tuần', detail: 'Tập cường độ cao gần như mỗi ngày.' },
+  { value: 'VERY_ACTIVE', label: 'Rất nặng mỗi ngày', detail: 'Tập nặng 2 buổi/ngày hoặc lao động thể lực.' },
+] as const;
 
 function parseNumber(value: string) {
   const normalized = value.replace(',', '.').trim();
@@ -29,13 +38,29 @@ function parseNumber(value: string) {
 
 export default function UpdateIndexScreen() {
   const { showNotification } = useNotification();
+  const [activeProfile, setActiveProfile] = useState<ProfileResponse | null>(() => getSelectedProfile());
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [recordDate, setRecordDate] = useState(toDisplayDate(todayIsoDate()));
+  const [activityLevel, setActivityLevel] = useState(
+    getSelectedProfile()?.activityLevel || 'LIGHT'
+  );
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (activeProfile) {
+      return;
+    }
+    hydrateSelectedProfile().then((profile) => {
+      setActiveProfile(profile);
+      if (profile?.activityLevel) {
+        setActivityLevel(profile.activityLevel);
+      }
+    });
+  }, [activeProfile]);
+
   const handleSave = async () => {
-    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    const profile = activeProfile || getSelectedProfile() || await hydrateSelectedProfile();
     if (!profile?.id) {
       showNotification({ type: 'error', title: 'Chưa chọn hồ sơ', message: 'Vui lòng chọn hồ sơ trước khi cập nhật chỉ số.' });
       return;
@@ -46,6 +71,7 @@ export default function UpdateIndexScreen() {
       profileId: profile.id,
       height: parseNumber(height),
       weight: parseNumber(weight),
+      activityLevel: profile.profileType === 'MOTHER' ? activityLevel : null,
       recordDate: isoRecordDate || '',
     };
 
@@ -60,7 +86,16 @@ export default function UpdateIndexScreen() {
 
     try {
       setSaving(true);
-      await createHealthRecord(payload);
+      const sameDayRecords = await getHealthRecords(profile.id, {
+        fromDate: isoRecordDate,
+        toDate: isoRecordDate,
+      });
+      const latestSameDayRecord = [...sameDayRecords].sort((a, b) => b.id - a.id)[0];
+      if (latestSameDayRecord) {
+        await updateHealthRecord(latestSameDayRecord.id, payload);
+      } else {
+        await createHealthRecord(payload);
+      }
       showNotification({
         type: 'success',
         title: 'Cập nhật thành công',
@@ -136,6 +171,36 @@ export default function UpdateIndexScreen() {
               </View>
             </View>
 
+            {activeProfile?.profileType === 'MOTHER' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Mức hoạt động mỗi ngày</Text>
+                <View style={styles.activityOptions}>
+                  {ACTIVITY_LEVELS.map((option) => {
+                    const selected = activityLevel === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.activityOption, selected && styles.activityOptionSelected]}
+                        onPress={() => setActivityLevel(option.value)}
+                      >
+                        <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
+                          {selected && <View style={styles.radioInner} />}
+                        </View>
+                        <View style={styles.activityOptionContent}>
+                          <Text style={[styles.activityOptionText, selected && styles.activityOptionTextSelected]}>
+                            {option.label}
+                          </Text>
+                          <Text style={[styles.activityOptionDetail, selected && styles.activityOptionDetailSelected]}>
+                            {option.detail}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
           </View>
 
           <TouchableOpacity
@@ -173,6 +238,17 @@ const styles = StyleSheet.create({
   dateInput: { borderColor: '#FFE5EC', backgroundColor: '#FFF8FA' },
   heightInput: { borderColor: '#DDF5FB', backgroundColor: '#F6FDFF' },
   weightInput: { borderColor: '#DFF5E6', backgroundColor: '#F6FFF8' },
+  activityOptions: { gap: 8 },
+  activityOption: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#DDF5FB' },
+  activityOptionSelected: { backgroundColor: '#EFFBFE', borderColor: '#78D2EA' },
+  activityOptionContent: { flex: 1, marginLeft: 12 },
+  activityOptionText: { color: '#5C7A8A', fontSize: 13, fontWeight: '800' },
+  activityOptionTextSelected: { color: '#248FA8' },
+  activityOptionDetail: { color: '#8A9AA3', fontSize: 11, fontWeight: '600', lineHeight: 16, marginTop: 2 },
+  activityOptionDetailSelected: { color: '#5C8E9A' },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#B9DCE5', alignItems: 'center', justifyContent: 'center' },
+  radioOuterSelected: { borderColor: '#3DB9D3' },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3DB9D3' },
   input: { flex: 1, fontSize: 18, fontWeight: '800', color: '#333' },
   unitText: { color: '#999', fontWeight: '700', fontSize: 14 },
   saveButton: { backgroundColor: '#98D8AA', height: 60, borderRadius: 30, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 40, elevation: 5, shadowColor: '#98D8AA', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6 },

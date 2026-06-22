@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ScheduleItem } from '../../components/phattrien/ScheduleItem';
 import {
@@ -10,9 +10,10 @@ import {
   BabyRoutineAiAnalysisResponse,
   BabyRoutineDayResponse,
   BabyRoutineEntryResponse,
+  createBabyRoutineEntry,
+  deleteBabyRoutineEntry,
   getBabyRoutineDay,
   updateBabyRoutineEntryCompletion,
-  updateBabyRoutineTimeline,
 } from '../../lib/api';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
 
@@ -127,11 +128,67 @@ function formatDuration(minutes?: number | null) {
   const hours = Math.floor(absMinutes / 60);
   const mins = absMinutes % 60;
   const value = `${hours > 0 ? `${hours} giờ` : ''}${hours > 0 && mins > 0 ? ' ' : ''}${mins > 0 ? `${mins} phút` : ''}` || '0 phút';
-  return minutes >= 0 ? `Còn khoảng ${value}` : `Đã qua mốc dự đoán ${value}`;
+  return minutes >= 0 ? `Còn khoảng ${value} đến mốc bé dễ dậy nhất` : `Đã qua mốc bé dễ dậy nhất ${value}`;
 }
 
 function isValidTime(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
+}
+
+function getTimeDigits(value?: string | null) {
+  return (value ?? '').replace(/\D/g, '').slice(0, 4);
+}
+
+function formatTimeDigits(digits: string) {
+  const value = getTimeDigits(digits);
+  if (value.length <= 2) {
+    return value;
+  }
+  if (value.length === 3) {
+    return `${value.slice(0, 1)}:${value.slice(1)}`;
+  }
+  return `${value.slice(0, 2)}:${value.slice(2)}`;
+}
+
+function digitsToTime(digits: string) {
+  const value = getTimeDigits(digits);
+  if (value.length !== 3 && value.length !== 4) {
+    return null;
+  }
+  const normalized = value.length === 3 ? `0${value}` : value;
+  const hour = Number(normalized.slice(0, 2));
+  const minute = Number(normalized.slice(2));
+  if (hour > 23 || minute > 59) {
+    return null;
+  }
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function timeToMinutes(value?: string | null) {
+  if (!value || !isValidTime(value)) {
+    return null;
+  }
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function effectiveTime(item?: RoutineItem | null) {
+  return item?.actualTime || item?.time || null;
+}
+
+function sortRoutineItems(items: RoutineItem[]) {
+  return [...items].sort((left, right) => {
+    const leftMinutes = timeToMinutes(left.time) ?? Number.MAX_SAFE_INTEGER;
+    const rightMinutes = timeToMinutes(right.time) ?? Number.MAX_SAFE_INTEGER;
+    if (leftMinutes !== rightMinutes) {
+      return leftMinutes - rightMinutes;
+    }
+    return left.id - right.id;
+  });
+}
+
+function isChildProfile(profile: { profileType?: string | null } | null | undefined) {
+  return profile?.profileType === 'CHILD';
 }
 
 export default function FullSmartBabySchedule() {
@@ -142,22 +199,72 @@ export default function FullSmartBabySchedule() {
   const [schedule, setSchedule] = useState<RoutineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingEntryId, setSavingEntryId] = useState<number | null>(null);
+  const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [adjustingTomorrow, setAdjustingTomorrow] = useState(false);
-  const [updatingTimelineEntryId, setUpdatingTimelineEntryId] = useState<number | null>(null);
-  const [editingItem, setEditingItem] = useState<RoutineItem | null>(null);
-  const [editTime, setEditTime] = useState('');
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editTimeDigits, setEditTimeDigits] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [addingAfterIndex, setAddingAfterIndex] = useState<number | null>(null);
+  const [addTimeDigits, setAddTimeDigits] = useState('');
+  const [addActivity, setAddActivity] = useState('');
+  const [addNote, setAddNote] = useState('');
+  const [addSaving, setAddSaving] = useState(false);
   const [error, setError] = useState('');
+  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollYRef = useRef(0);
+  const timelineTopRef = useRef(0);
+  const itemOffsetsRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
     setSelectedDate(routeDate);
   }, [routeDate]);
 
   const selectedDateParam = toDateParam(selectedDate);
-  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDateParam]);
+  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDate]);
   const routineCompleted = !!routineDay?.entries?.length && routineDay.entries.every((entry) => entry.completed);
-  const completedItems = useMemo(() => schedule.filter((item) => item.completed), [schedule]);
+
+  const rememberScrollPosition = useCallback(() => {
+    const y = scrollYRef.current;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    });
+  }, []);
+
+  const scrollToScheduleIndex = useCallback((index: number) => {
+    const item = schedule[index];
+    if (!item) {
+      return;
+    }
+    const offset = itemOffsetsRef.current[item.id];
+    if (offset == null) {
+      return;
+    }
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, timelineTopRef.current + offset - 18),
+      animated: true,
+    });
+  }, [schedule]);
+
+  const handleJumpToLatestProgress = useCallback(() => {
+    if (!schedule.length) {
+      return;
+    }
+    if (schedule.every((item) => item.completed)) {
+      const nextDate = new Date(selectedDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      router.push({ pathname: '/phattrien/daily-schedule', params: { date: toDateParam(nextDate) } });
+      return;
+    }
+    const latestCompletedIndex = schedule.reduce(
+      (latestIndex, item, index) => (item.completed ? index : latestIndex),
+      -1
+    );
+    const nextIndex = latestCompletedIndex >= 0
+      ? latestCompletedIndex
+      : schedule.findIndex((item) => !item.completed);
+    scrollToScheduleIndex(nextIndex);
+  }, [schedule, scrollToScheduleIndex, selectedDate]);
 
   const loadRoutine = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -174,9 +281,16 @@ export default function FullSmartBabySchedule() {
         return;
       }
 
+      if (!isChildProfile(profile)) {
+        setRoutineDay(null);
+        setSchedule([]);
+        setError('Lịch sinh hoạt chỉ áp dụng cho hồ sơ bé. Hồ sơ mẹ không cần thiết lập lịch sinh hoạt.');
+        return;
+      }
+
       const data = await getBabyRoutineDay(profile.id, selectedDateParam);
       setRoutineDay(data);
-      setSchedule((data.entries || []).map(mapRoutineItem));
+      setSchedule(sortRoutineItems((data.entries || []).map(mapRoutineItem)));
     } catch (err) {
       if (showLoading) {
         setRoutineDay(null);
@@ -241,8 +355,7 @@ export default function FullSmartBabySchedule() {
             entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
           }
         : current);
-
-      await loadRoutine(false);
+      rememberScrollPosition();
     } catch (err) {
       Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể cập nhật lịch sinh hoạt.');
     } finally {
@@ -251,24 +364,36 @@ export default function FullSmartBabySchedule() {
   };
 
   const openEditTime = (item: RoutineItem) => {
-    setEditingItem(item);
-    setEditTime(item.actualTime || item.time);
+    setAddingAfterIndex(null);
+    setEditingEntryId(item.id);
+    setEditTimeDigits(getTimeDigits(item.actualTime || item.time));
   };
 
   const closeEditTime = () => {
     if (editSaving) {
       return;
     }
-    setEditingItem(null);
-    setEditTime('');
+    setEditingEntryId(null);
+    setEditTimeDigits('');
   };
 
   const handleSaveEditTime = async () => {
+    const editingItem = schedule.find((item) => item.id === editingEntryId);
+    const actualTime = digitsToTime(editTimeDigits);
     if (!editingItem) {
       return;
     }
-    if (!isValidTime(editTime)) {
-      Alert.alert('BabyOi', 'Giờ hoàn thành cần đúng định dạng HH:mm, ví dụ 07:30.');
+    if (!actualTime) {
+      Alert.alert('BabyOi', 'Hãy nhập giờ bằng số, ví dụ 730 hoặc 0730.');
+      return;
+    }
+
+    const itemIndex = schedule.findIndex((item) => item.id === editingItem.id);
+    const previousItem = itemIndex > 0 ? schedule[itemIndex - 1] : null;
+    const previousMinutes = timeToMinutes(effectiveTime(previousItem));
+    const actualMinutes = timeToMinutes(actualTime);
+    if (previousMinutes != null && actualMinutes != null && actualMinutes <= previousMinutes) {
+      Alert.alert('BabyOi', 'Vui lòng cập nhật lịch trình theo đúng lịch.');
       return;
     }
 
@@ -276,7 +401,7 @@ export default function FullSmartBabySchedule() {
     try {
       const updated = await updateBabyRoutineEntryCompletion(editingItem.id, {
         completed: true,
-        actualTime: editTime.trim(),
+        actualTime,
       });
       setSchedule((current) => current.map((entry) => (
         entry.id === updated.id ? mapRoutineItem(updated) : entry
@@ -287,9 +412,9 @@ export default function FullSmartBabySchedule() {
             entries: current.entries.map((entry) => (entry.id === updated.id ? updated : entry)),
           }
         : current);
-      setEditingItem(null);
-      setEditTime('');
-      await loadRoutine(false);
+      setEditingEntryId(null);
+      setEditTimeDigits('');
+      rememberScrollPosition();
     } catch (err) {
       Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể sửa giờ hoàn thành.');
     } finally {
@@ -297,21 +422,140 @@ export default function FullSmartBabySchedule() {
     }
   };
 
-  const handleUpdateTimeline = async (item: RoutineItem) => {
-    if (!item.completed || updatingTimelineEntryId) {
+  const openAddEntry = (afterIndex: number) => {
+    setEditingEntryId(null);
+    setAddingAfterIndex(afterIndex);
+    setAddTimeDigits('');
+    setAddActivity('');
+    setAddNote('');
+  };
+
+  const closeAddEntry = () => {
+    if (addSaving) {
+      return;
+    }
+    setAddingAfterIndex(null);
+    setAddTimeDigits('');
+    setAddActivity('');
+    setAddNote('');
+  };
+
+  const handleSaveAddEntry = async () => {
+    if (addingAfterIndex === null) {
+      return;
+    }
+    const plannedTime = digitsToTime(addTimeDigits);
+    if (!plannedTime) {
+      Alert.alert('BabyOi', 'Hãy nhập giờ bằng số, ví dụ 930 hoặc 0930.');
+      return;
+    }
+    const activity = addActivity.trim();
+    if (!activity) {
+      Alert.alert('BabyOi', 'Hãy nhập tên lịch sinh hoạt.');
       return;
     }
 
-    setUpdatingTimelineEntryId(item.id);
-    try {
-      const updatedDay = await updateBabyRoutineTimeline(item.id);
-      setRoutineDay(updatedDay);
-      setSchedule((updatedDay.entries || []).map(mapRoutineItem));
-    } catch (err) {
-      Alert.alert('Đậu sức khỏe', err instanceof Error ? err.message : 'Không thể update lại timeline lúc này.');
-    } finally {
-      setUpdatingTimelineEntryId(null);
+    const previousItem = addingAfterIndex >= 0 ? schedule[addingAfterIndex] : null;
+    const nextItem = addingAfterIndex + 1 < schedule.length ? schedule[addingAfterIndex + 1] : null;
+    const plannedMinutes = timeToMinutes(plannedTime);
+    const previousMinutes = timeToMinutes(effectiveTime(previousItem));
+    const nextMinutes = timeToMinutes(effectiveTime(nextItem));
+    if (previousMinutes != null && plannedMinutes != null && plannedMinutes <= previousMinutes) {
+      Alert.alert('BabyOi', 'Vui lòng cập nhật lịch trình theo đúng lịch.');
+      return;
     }
+    if (nextMinutes != null && plannedMinutes != null && plannedMinutes >= nextMinutes) {
+      Alert.alert('BabyOi', 'Vui lòng cập nhật lịch trình theo đúng lịch.');
+      return;
+    }
+
+    const profile = getSelectedProfile() || await hydrateSelectedProfile();
+    if (!profile) {
+      Alert.alert('BabyOi', 'Vui lòng chọn hồ sơ bé trước khi thêm lịch sinh hoạt.');
+      return;
+    }
+
+    setAddSaving(true);
+    try {
+      const created = await createBabyRoutineEntry(profile.id, {
+        routineDate: selectedDateParam,
+        plannedTime,
+        activity,
+        note: addNote.trim() || null,
+        type: 'CUSTOM',
+        icon: 'calendar',
+        color: '#FF8FAB',
+      });
+      setSchedule((current) => sortRoutineItems([...current, mapRoutineItem(created)]));
+      setRoutineDay((current) => current
+        ? {
+            ...current,
+            entries: sortRoutineItems([...current.entries.map(mapRoutineItem), mapRoutineItem(created)]).map((entry) => ({
+              id: entry.id,
+              profileId: entry.profileId,
+              routineDate: entry.routineDate,
+              type: entry.type,
+              time: entry.time,
+              actualTime: entry.actualTime,
+              activity: entry.activity,
+              note: entry.note,
+              icon: entry.icon,
+              color: entry.color,
+              completed: entry.completed,
+              source: entry.source,
+            })),
+          }
+        : current);
+      setAddingAfterIndex(null);
+      setAddTimeDigits('');
+      setAddActivity('');
+      setAddNote('');
+      rememberScrollPosition();
+    } catch (err) {
+      Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể thêm lịch sinh hoạt.');
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
+  const handleDeleteEntry = (item: RoutineItem) => {
+    if (deletingEntryId) {
+      return;
+    }
+
+    Alert.alert(
+      'Xóa lịch sinh hoạt',
+      `Bạn muốn xóa lịch "${item.activity}" lúc ${effectiveTime(item)}?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingEntryId(item.id);
+            try {
+              await deleteBabyRoutineEntry(item.id);
+              setSchedule((current) => current.filter((entry) => entry.id !== item.id));
+              setRoutineDay((current) => current
+                ? {
+                    ...current,
+                    entries: current.entries.filter((entry) => entry.id !== item.id),
+                  }
+                : current);
+              if (editingEntryId === item.id) {
+                setEditingEntryId(null);
+                setEditTimeDigits('');
+              }
+              rememberScrollPosition();
+            } catch (err) {
+              Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể xóa lịch sinh hoạt.');
+            } finally {
+              setDeletingEntryId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAiForecast = async () => {
@@ -364,6 +608,74 @@ export default function FullSmartBabySchedule() {
     }
   };
 
+  const renderTimeInput = (digits: string, onChange: (value: string) => void) => (
+    <View style={styles.maskedTimeBox}>
+      <TextInput
+        value={formatTimeDigits(digits)}
+        onChangeText={(value) => onChange(getTimeDigits(value))}
+        placeholder="--:--"
+        keyboardType="number-pad"
+        maxLength={5}
+        style={styles.maskedTimeInput}
+      />
+    </View>
+  );
+
+  const renderEditPanel = (item: RoutineItem) => (
+    <View style={styles.inlineForm}>
+      <Text style={styles.inlineFormTitle}>Cập nhật thời gian hoàn thành</Text>
+      <Text style={styles.inlineFormSub}>Chỉ cần nhập số, ví dụ 730 sẽ thành 07:30.</Text>
+      {renderTimeInput(editTimeDigits, setEditTimeDigits)}
+      <View style={styles.inlineActions}>
+        <TouchableOpacity style={styles.inlineCancelButton} onPress={closeEditTime} disabled={editSaving}>
+          <Text style={styles.inlineCancelText}>Hủy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.inlineSaveButton} onPress={handleSaveEditTime} disabled={editSaving}>
+          {editSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.inlineSaveText}>Lưu thời gian</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderAddPanel = (afterIndex: number) => {
+    const previousItem = afterIndex >= 0 ? schedule[afterIndex] : null;
+    const nextItem = afterIndex + 1 < schedule.length ? schedule[afterIndex + 1] : null;
+    return (
+      <View style={styles.inlineForm}>
+        <Text style={styles.inlineFormTitle}>Thêm lịch sinh hoạt</Text>
+        <Text style={styles.inlineFormSub}>
+          {previousItem && nextItem
+            ? `Giờ cần nằm giữa ${effectiveTime(previousItem)} và ${effectiveTime(nextItem)}.`
+            : previousItem
+              ? `Giờ cần sau ${effectiveTime(previousItem)}.`
+              : 'Nhập giờ cho lịch mới.'}
+        </Text>
+        {renderTimeInput(addTimeDigits, setAddTimeDigits)}
+        <TextInput
+          value={addActivity}
+          onChangeText={setAddActivity}
+          placeholder="Tên lịch sinh hoạt"
+          style={styles.inlineTextInput}
+        />
+        <TextInput
+          value={addNote}
+          onChangeText={setAddNote}
+          placeholder="Ghi chú (không bắt buộc)"
+          style={[styles.inlineTextInput, styles.inlineNoteInput]}
+          multiline
+        />
+        <View style={styles.inlineActions}>
+          <TouchableOpacity style={styles.inlineCancelButton} onPress={closeAddEntry} disabled={addSaving}>
+            <Text style={styles.inlineCancelText}>Hủy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.inlineSaveButton} onPress={handleSaveAddEntry} disabled={addSaving}>
+            {addSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.inlineSaveText}>Thêm lịch</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -400,8 +712,16 @@ export default function FullSmartBabySchedule() {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.aiInsights}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y;
+        }}
+      >
+        <TouchableOpacity style={styles.aiInsights} onPress={handleJumpToLatestProgress} activeOpacity={0.85}>
           <View style={styles.aiRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiTitle}>Đậu sức khỏe</Text>
@@ -415,7 +735,7 @@ export default function FullSmartBabySchedule() {
               )}
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {!!routineDay?.sleepPrediction && (
           <View style={styles.predictionBox}>
@@ -424,24 +744,24 @@ export default function FullSmartBabySchedule() {
                 <Ionicons name="moon" size={20} color="#5C7A8A" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.predictionTitle}>Dự đoán giấc ngủ đêm</Text>
+                <Text style={styles.predictionTitle}>Dự đoán giờ bé có thể dậy trong đêm</Text>
                 <Text style={styles.predictionSub}>
-                  Bé ngủ lúc {formatDateTimeLabel(routineDay.sleepPrediction.sleepStartDateTime)}
+                  Dựa trên giờ bé ngủ lúc {formatDateTimeLabel(routineDay.sleepPrediction.sleepStartDateTime)}
                 </Text>
               </View>
             </View>
 
             <View style={styles.predictionGrid}>
               <View style={styles.predictionMetric}>
-                <Text style={styles.predictionLabel}>Sớm nhất</Text>
+                <Text style={styles.predictionLabel}>Có thể dậy từ</Text>
                 <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.earliestWakeDateTime)}</Text>
               </View>
               <View style={styles.predictionMetric}>
-                <Text style={styles.predictionLabel}>Có khả năng</Text>
+                <Text style={styles.predictionLabel}>Dễ dậy nhất</Text>
                 <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.likelyWakeDateTime)}</Text>
               </View>
               <View style={styles.predictionMetric}>
-                <Text style={styles.predictionLabel}>Muộn nhất</Text>
+                <Text style={styles.predictionLabel}>Có thể dậy đến</Text>
                 <Text style={styles.predictionValue}>{formatDateTimeLabel(routineDay.sleepPrediction.latestWakeDateTime)}</Text>
               </View>
             </View>
@@ -473,17 +793,17 @@ export default function FullSmartBabySchedule() {
 
             {!!routineDay.sleepPrediction.nightEvents?.length && (
               <View style={styles.nightPlanBox}>
-                <Text style={styles.nightPlanTitle}>Lịch dự kiến nếu bé dậy giữa đêm</Text>
+                <Text style={styles.nightPlanTitle}>Các mốc bé có thể dậy trong đêm</Text>
                 {routineDay.sleepPrediction.nightEvents.map((event, index) => (
                   <View key={`${event.type}-${index}`} style={styles.nightEventRow}>
                     <View style={styles.nightEventDot} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.nightEventTitle}>{event.label}</Text>
                       <Text style={styles.nightEventTime}>
-                        Thường gặp: {formatDateTimeLabel(event.likelyDateTime)}
+                        Dễ xảy ra nhất: {formatDateTimeLabel(event.likelyDateTime)}
                       </Text>
                       <Text style={styles.nightEventRange}>
-                        Khoảng {formatDateTimeLabel(event.earliestDateTime)} - {formatDateTimeLabel(event.latestDateTime)}
+                        Có thể xảy ra trong khoảng {formatDateTimeLabel(event.earliestDateTime)} - {formatDateTimeLabel(event.latestDateTime)}
                       </Text>
                       <Text style={styles.nightEventNote}>{event.note}</Text>
                     </View>
@@ -507,36 +827,33 @@ export default function FullSmartBabySchedule() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.timelineContainer}>
+          <View
+            style={styles.timelineContainer}
+            onLayout={(event) => {
+              timelineTopRef.current = event.nativeEvent.layout.y;
+            }}
+          >
             {schedule.map((item, index) => (
-              <ScheduleItem
+              <View
                 key={item.id}
-                item={item}
-                isLast={index === schedule.length - 1}
-                onToggle={() => handleToggleComplete(item)}
-                onUpdateTimeline={() => handleUpdateTimeline(item)}
-                updateLoading={updatingTimelineEntryId === item.id}
-              />
-            ))}
-
-            {!!completedItems.length && (
-              <View style={styles.completedEditBox}>
-                <Text style={styles.completedEditTitle}>Chỉnh sửa mục đã hoàn thành</Text>
-                <Text style={styles.completedEditSub}>Dùng khi bé hoàn thành lệch giờ và bạn muốn ghi lại thời gian đúng.</Text>
-                {completedItems.map((item) => (
-                  <TouchableOpacity key={item.id} style={styles.completedEditButton} onPress={() => openEditTime(item)}>
-                    <View style={[styles.completedEditIcon, { backgroundColor: item.color + '18' }]}>
-                      <Ionicons name={item.icon as any} size={18} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.completedEditName}>{item.activity}</Text>
-                      <Text style={styles.completedEditTime}>Giờ hoàn thành: {item.actualTime || item.time}</Text>
-                    </View>
-                    <Ionicons name="create-outline" size={20} color="#5C7A8A" />
-                  </TouchableOpacity>
-                ))}
+                onLayout={(event) => {
+                  itemOffsetsRef.current[item.id] = event.nativeEvent.layout.y;
+                }}
+              >
+                <ScheduleItem
+                  item={item}
+                  isLast={index === schedule.length - 1}
+                  onToggle={() => handleToggleComplete(item)}
+                  onEditTime={item.completed ? () => openEditTime(item) : undefined}
+                  onDelete={() => handleDeleteEntry(item)}
+                  onAdd={() => openAddEntry(index)}
+                  deleteLoading={deletingEntryId === item.id}
+                >
+                  {editingEntryId === item.id ? renderEditPanel(item) : null}
+                  {addingAfterIndex === index ? renderAddPanel(index) : null}
+                </ScheduleItem>
               </View>
-            )}
+            ))}
           </View>
         )}
 
@@ -551,33 +868,6 @@ export default function FullSmartBabySchedule() {
         {aiLoading ? <ActivityIndicator color="#FFF" /> : <Ionicons name="sparkles" size={24} color="#FFF" />}
       </TouchableOpacity>
 
-      <Modal visible={!!editingItem} transparent animationType="fade" onRequestClose={closeEditTime}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.editModal}>
-            <Text style={styles.editModalTitle}>Sửa giờ hoàn thành</Text>
-            <Text style={styles.editModalSub}>{editingItem?.activity}</Text>
-
-            <TextInput
-              value={editTime}
-              onChangeText={setEditTime}
-              placeholder="HH:mm"
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-              style={styles.timeInput}
-            />
-            <Text style={styles.editHint}>Nhập theo định dạng 24 giờ, ví dụ 19:30.</Text>
-
-            <View style={styles.editActions}>
-              <TouchableOpacity style={styles.cancelEditButton} onPress={closeEditTime} disabled={editSaving}>
-                <Text style={styles.cancelEditText}>Huỷ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveEditButton} onPress={handleSaveEditTime} disabled={editSaving}>
-                {editSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveEditText}>Lưu giờ</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -624,6 +914,18 @@ const styles = StyleSheet.create({
   nightEventRange: { fontSize: 11, color: '#6B8796', fontWeight: '700', marginTop: 2 },
   nightEventNote: { fontSize: 11, color: '#7C8E96', lineHeight: 16, marginTop: 3 },
   timelineContainer: { marginTop: 30, paddingHorizontal: 5 },
+  inlineForm: { marginLeft: 90, marginTop: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#FFE5EC', borderRadius: 18, padding: 14 },
+  inlineFormTitle: { color: '#5C7A8A', fontSize: 14, fontWeight: '900' },
+  inlineFormSub: { color: '#8FA4AF', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 3, marginBottom: 10 },
+  maskedTimeBox: { borderWidth: 1, borderColor: '#FFE5EC', borderRadius: 16, backgroundColor: '#FEF9F3', marginBottom: 10 },
+  maskedTimeInput: { minHeight: 48, paddingHorizontal: 14, color: '#5C7A8A', fontSize: 22, fontWeight: '900', textAlign: 'center' },
+  inlineTextInput: { minHeight: 46, borderWidth: 1, borderColor: '#EEF1F4', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, color: '#344955', fontSize: 13, fontWeight: '800', backgroundColor: '#FBFCFD', marginTop: 8 },
+  inlineNoteInput: { minHeight: 70, textAlignVertical: 'top' },
+  inlineActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  inlineCancelButton: { flex: 1, minHeight: 42, borderRadius: 14, backgroundColor: '#F1F3F5', alignItems: 'center', justifyContent: 'center' },
+  inlineCancelText: { color: '#5C7A8A', fontWeight: '900' },
+  inlineSaveButton: { flex: 1, minHeight: 42, borderRadius: 14, backgroundColor: '#FF8FAB', alignItems: 'center', justifyContent: 'center' },
+  inlineSaveText: { color: '#FFF', fontWeight: '900' },
   completedEditBox: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginTop: 8 },
   completedEditTitle: { color: '#5C7A8A', fontSize: 15, fontWeight: '900' },
   completedEditSub: { color: '#8FA4AF', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 4, marginBottom: 10 },

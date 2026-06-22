@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack, router, useFocusEffect } from 'expo-router';
+import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +33,7 @@ import {
   getRestrictedFoodIds,
   resolveOptimizedAssetUrl,
   suggestFoodsFromIngredients,
+  trackNutritionPageView,
 } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -161,6 +162,7 @@ async function writeLocalIds(key: string, ids: string[]) {
 }
 
 export default function ListDoAnScreen() {
+  const params = useLocalSearchParams<{ openedFrom?: string; entryKey?: string }>();
   const [activeTab, setActiveTab] = useState<AudienceTab>('baby');
   const [activeAdvanceFor, setActiveAdvanceFor] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -179,6 +181,8 @@ export default function ListDoAnScreen() {
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const flatListRef = useRef<FlatList<Dish>>(null);
   const listStartOffsetRef = useRef(0);
+  const handledHomeEntryKeyRef = useRef<string | null>(null);
+  const lastNutritionViewTrackedAtRef = useRef(0);
 
   const targetCode = activeTab === 'mom' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
   const filterOptions = FILTERS[activeTab];
@@ -205,6 +209,39 @@ export default function ListDoAnScreen() {
       mounted = false;
     };
   }, []));
+
+  useFocusEffect(useCallback(() => {
+    const now = Date.now();
+    if (now - lastNutritionViewTrackedAtRef.current < 1500) {
+      return;
+    }
+    lastNutritionViewTrackedAtRef.current = now;
+
+    void (async () => {
+      const session = await getCurrentSession();
+      if (session) {
+        await trackNutritionPageView();
+      }
+    })().catch(() => undefined);
+  }, []));
+
+  useFocusEffect(useCallback(() => {
+    if (params.openedFrom !== 'home') {
+      return;
+    }
+
+    const entryKey = params.entryKey || 'home';
+    if (handledHomeEntryKeyRef.current === entryKey) {
+      return;
+    }
+
+    handledHomeEntryKeyRef.current = entryKey;
+    const animationFrame = requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [params.entryKey, params.openedFrom]));
 
   useEffect(() => {
     setActiveAdvanceFor(null);

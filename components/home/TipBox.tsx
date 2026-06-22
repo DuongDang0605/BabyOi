@@ -7,7 +7,7 @@ interface TipBoxProps {
   tip: string;
 }
 
-export const TipBox = React.memo(({ tip }: TipBoxProps) => {
+function TipBoxComponent({ tip }: TipBoxProps) {
   return (
     <LinearGradient colors={['#FFF8FA', '#F0FFF6', '#EFFBFF']} style={styles.tipCard}>
       <View style={styles.colorDotPink} />
@@ -26,7 +26,9 @@ export const TipBox = React.memo(({ tip }: TipBoxProps) => {
       </View>
     </LinearGradient>
   );
-});
+}
+
+export const TipBox = React.memo(TipBoxComponent);
 
 const styles = StyleSheet.create({
   tipCard: {

@@ -24,6 +24,7 @@ import {
   HealthRecordResponse,
   ProfilePayload,
   ProfileResponse,
+  createHealthRecord,
   deleteProfile,
   getHealthRecords,
   getVaccineStatistics,
@@ -119,6 +120,24 @@ function validateProfileForm(payload: ProfilePayload) {
   return '';
 }
 
+function parsePositiveNumber(value: string) {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN;
+}
+
+function todayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [editVisible, setEditVisible] = useState(false);
@@ -126,6 +145,8 @@ export default function ProfileScreen() {
   const [deleting, setDeleting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [editError, setEditError] = useState('');
+  const [editHeight, setEditHeight] = useState('');
+  const [editWeight, setEditWeight] = useState('');
   const [form, setForm] = useState<ProfilePayload | null>(null);
   const [latestHealth, setLatestHealth] = useState<HealthRecordResponse | null>(null);
   const [completedVaccines, setCompletedVaccines] = useState<number | null>(null);
@@ -175,7 +196,6 @@ export default function ProfileScreen() {
     { id: '1', title: 'Sổ tiêm chủng', icon: 'shield-checkmark-outline', color: '#4CAF50', route: '/lichtiem/listlichtiem' },
     { id: '2', title: 'Lịch sử sức khỏe', icon: 'pulse-outline', color: '#2196F3', route: '/phattrien/health-history' },
     { id: '3', title: 'Nhật ký khoảnh khắc', icon: 'book-outline', color: '#FF9800', route: '/nhatki/nhatki' },
-    { id: '4', title: 'Cài đặt tài khoản', icon: 'settings-outline', color: '#7a8c99', route: '/setting/setting' },
   ];
 
   const displayName = profile?.name || 'Chưa chọn hồ sơ';
@@ -207,6 +227,8 @@ export default function ProfileScreen() {
       functionCode: profile.functionCode,
       imageUrl: profile.imageUrl,
     });
+    setEditHeight(latestHealth?.height != null ? String(latestHealth.height) : '');
+    setEditWeight(latestHealth?.weight != null ? String(latestHealth.weight) : '');
     setEditError('');
     setEditVisible(true);
   };
@@ -284,11 +306,27 @@ export default function ProfileScreen() {
       setEditError(validationError);
       return;
     }
+    const heightValue = parsePositiveNumber(editHeight);
+    const weightValue = parsePositiveNumber(editWeight);
+
+    if (Number.isNaN(heightValue) || Number.isNaN(weightValue)) {
+      setEditError('Chiều cao và cân nặng cần là số lớn hơn 0.');
+      return;
+    }
 
     try {
       setSubmitting(true);
       setEditError('');
       const updated = await updateProfile(profile.id, normalizedForm);
+      if (heightValue !== null || weightValue !== null) {
+        const createdHealth = await createHealthRecord({
+          profileId: updated.id,
+          height: heightValue,
+          weight: weightValue,
+          recordDate: todayIsoDate(),
+        });
+        setLatestHealth(createdHealth);
+      }
       setProfile(updated);
       await setSelectedProfile(updated);
       setEditVisible(false);
@@ -376,9 +414,9 @@ export default function ProfileScreen() {
             color="#4CAF50"
           />
           <StatCard
-            label="BMI"
-            value={formatStatNumber(latestHealth?.bmi)}
-            icon="bar-chart-outline"
+            label="TDEE"
+            value={formatStatNumber(latestHealth?.tdee, ' kcal', 0)}
+            icon="flame-outline"
             color="#A7E4F5"
           />
         </View>
@@ -465,6 +503,28 @@ export default function ProfileScreen() {
                   value={form.dateOfBirth}
                   onChangeText={(dateOfBirth) => setForm((current) => current ? { ...current, dateOfBirth: normalizeProfileDateInput(dateOfBirth) } : current)}
                 />
+
+                <Text style={styles.label}>Số đo sức khỏe</Text>
+                <View style={styles.measurementRow}>
+                  <View style={styles.measurementField}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Chiều cao (cm)"
+                      keyboardType="decimal-pad"
+                      value={editHeight}
+                      onChangeText={setEditHeight}
+                    />
+                  </View>
+                  <View style={styles.measurementField}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Cân nặng (kg)"
+                      keyboardType="decimal-pad"
+                      value={editWeight}
+                      onChangeText={setEditWeight}
+                    />
+                  </View>
+                </View>
 
                 {form.profileType === 'CHILD' && (
                   <>
@@ -648,6 +708,13 @@ const styles = StyleSheet.create({
     color: '#334455',
     fontWeight: '700',
     marginBottom: 16,
+  },
+  measurementRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  measurementField: {
+    flex: 1,
   },
   sexRow: {
     flexDirection: 'row',

@@ -54,45 +54,54 @@ function parseNotificationData(dataJson: string | null) {
 
 function resolveRoute(notification: AppNotificationResponse) {
   const data = parseNotificationData(notification.dataJson);
-  const recordId = data?.recordId ?? notification.sourceId;
+  const directRoute = data?.route || data?.path || data?.pathname;
   const profileId = data?.profileId;
   const diseaseId = data?.diseaseId;
-
-  if (recordId && profileId && diseaseId) {
-    return {
-      pathname: '/lichtiem/chitietbenh',
-      params: {
-        profileId: String(profileId),
-        diseaseId: String(diseaseId),
-        recordId: String(recordId),
-      },
-    };
-  }
-  if (recordId && profileId) {
-    return {
-      pathname: '/lichtiem/themmuitiem',
-      params: {
-        profileId: String(profileId),
-        mode: 'edit',
-        recordId: String(recordId),
-      },
-    };
-  }
-  const directRoute = data?.route || data?.path || data?.pathname;
-
-  if (typeof directRoute === 'string' && directRoute.startsWith('/')) {
-    return directRoute;
-  }
-
-  const target = String(data?.screen ?? notification.sourceType ?? notification.type ?? '').toLowerCase();
-
-  if (
+  const target = [data?.screen, data?.type, notification.sourceType, notification.type]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const isVaccineNotification =
     target.includes('vaccine')
     || target.includes('tiem')
     || target.includes('tiêm')
-    || target.includes('vaccination')
-  ) {
+    || target.includes('vaccination');
+  const isRoutineNotification = target.includes('routine') || target.includes('lich sinh hoat');
+
+  if (isVaccineNotification) {
+    const recordId = data?.recordId ?? notification.sourceId;
+    if (recordId && profileId && diseaseId) {
+      return {
+        pathname: '/lichtiem/chitietbenh',
+        params: {
+          profileId: String(profileId),
+          diseaseId: String(diseaseId),
+          recordId: String(recordId),
+        },
+      };
+    }
+    if (recordId && profileId) {
+      return {
+        pathname: '/lichtiem/themmuitiem',
+        params: {
+          profileId: String(profileId),
+          mode: 'edit',
+          recordId: String(recordId),
+        },
+      };
+    }
     return '/lichtiem/listlichtiem';
+  }
+
+  if (isRoutineNotification) {
+    return {
+      pathname: '/phattrien/daily-schedule',
+      params: data?.routineDate ? { date: String(data.routineDate) } : {},
+    };
+  }
+
+  if (typeof directRoute === 'string' && directRoute.startsWith('/')) {
+    return directRoute;
   }
 
   if (

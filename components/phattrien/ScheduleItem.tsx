@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+﻿import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ScheduleItemProps {
@@ -15,12 +15,35 @@ interface ScheduleItemProps {
   };
   isLast: boolean;
   onToggle: () => void;
-  onUpdateTimeline?: () => void;
-  updateLoading?: boolean;
+  onEditTime?: () => void;
+  onDelete?: () => void;
+  onAdd?: () => void;
+  deleteLoading?: boolean;
+  children?: React.ReactNode;
 }
 
-export const ScheduleItem = ({ item, isLast, onToggle, onUpdateTimeline, updateLoading }: ScheduleItemProps) => {
+export const ScheduleItem = ({ item, isLast, onToggle, onEditTime, onDelete, onAdd, deleteLoading, children }: ScheduleItemProps) => {
   const displayTime = item.isDone && item.actualTime ? item.actualTime : item.time;
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionItems = useMemo(() => [
+    item.isDone && onEditTime
+      ? { key: 'edit', label: 'Cập nhật thời gian hoàn thành', icon: 'time-outline' as const, tone: 'default' as const, action: onEditTime }
+      : null,
+    onAdd
+      ? { key: 'add', label: 'Thêm lịch tại đây', icon: 'add-circle-outline' as const, tone: 'default' as const, action: onAdd }
+      : null,
+    onDelete
+      ? { key: 'delete', label: deleteLoading ? 'Đang xóa...' : 'Xóa lịch', icon: 'trash-outline' as const, tone: 'danger' as const, action: onDelete }
+      : null,
+  ].filter(Boolean).sort((left, right) => right!.label.length - left!.label.length), [deleteLoading, item.isDone, onAdd, onDelete, onEditTime]);
+
+  const runAction = (action?: () => void) => {
+    if (!action) {
+      return;
+    }
+    setActionsOpen(false);
+    action();
+  };
 
   return (
     <View style={styles.timelineBlock}>
@@ -55,17 +78,40 @@ export const ScheduleItem = ({ item, isLast, onToggle, onUpdateTimeline, updateL
         </TouchableOpacity>
       </View>
 
-      {item.isDone && onUpdateTimeline && (
-        <TouchableOpacity
-          style={[styles.updateButton, updateLoading && styles.updateButtonDisabled]}
-          onPress={onUpdateTimeline}
-          disabled={updateLoading}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="sync" size={15} color="#5C7A8A" />
-          <Text style={styles.updateButtonText}>{updateLoading ? 'Updating...' : 'Update'}</Text>
-        </TouchableOpacity>
-      )}
+      {actionItems.length ? (
+        <View style={styles.selectBox}>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setActionsOpen((open) => !open)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="options-outline" size={15} color="#5C7A8A" />
+            <Text style={styles.selectButtonText}>Tùy chọn</Text>
+            <Ionicons name={actionsOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#5C7A8A" />
+          </TouchableOpacity>
+
+          {actionsOpen ? (
+            <View style={styles.selectMenu}>
+              {actionItems.map((action) => (
+                <TouchableOpacity
+                  key={action!.key}
+                  style={styles.selectOption}
+                  onPress={() => runAction(action!.action)}
+                  disabled={action!.key === 'delete' && deleteLoading}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name={action!.icon} size={15} color={action!.tone === 'danger' ? '#D9485F' : '#5C7A8A'} />
+                  <Text style={[styles.selectOptionText, action!.tone === 'danger' && styles.selectDangerText]}>
+                    {action!.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {children}
     </View>
   );
 };
@@ -88,7 +134,12 @@ const styles = StyleSheet.create({
   activityNote: { fontSize: 12, color: '#999', marginTop: 4 },
   checkCircle: { width: 26, height: 26, borderRadius: 13, borderColor: '#FFB6C1', borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   checkCircleActive: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
-  updateButton: { alignSelf: 'flex-start', marginLeft: 90, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#D9EEFF', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
-  updateButtonDisabled: { opacity: 0.55 },
-  updateButtonText: { color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
+  selectBox: { marginLeft: 90, marginTop: 8, alignSelf: 'flex-start', minWidth: 190 },
+  selectButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#D9EEFF', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 14 },
+  selectButtonText: { color: '#5C7A8A', fontSize: 12, fontWeight: '900', flex: 1 },
+  selectMenu: { marginTop: 6, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#EEF1F4', borderRadius: 14, overflow: 'hidden' },
+  selectOption: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
+  selectOptionText: { color: '#5C7A8A', fontSize: 12, fontWeight: '900' },
+  selectDangerText: { color: '#D9485F' },
 });
+

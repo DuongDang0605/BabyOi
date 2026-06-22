@@ -1,17 +1,14 @@
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { AuthShell, authStyles } from '@/components/auth/AuthShell';
 import { ApiError, forgotPassword, resetPassword, verifyPasswordResetCode } from '@/lib/api';
 
 type Step = 'email' | 'code' | 'password';
@@ -134,189 +131,109 @@ export default function ForgotPasswordScreen() {
     return handleResetPassword();
   }
 
+  const steps: { id: Step; label: string }[] = [
+    { id: 'email', label: 'Email' },
+    { id: 'code', label: 'Mã OTP' },
+    { id: 'password', label: 'Mật khẩu' },
+  ];
+
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Tìm lại tài khoản</Text>
-        <Text style={styles.subtitle}>{message}</Text>
+    <AuthShell
+      title="Tìm lại tài khoản"
+      subtitle={message}
+      onBack={() => router.replace('/auth/login')}
+    >
+      <View style={authStyles.stepRow}>
+        {steps.map((item) => {
+          const active = item.id === step;
+          return (
+            <View key={item.id} style={[authStyles.stepChip, active && authStyles.stepChipActive]}>
+              <Text style={[authStyles.stepText, active && authStyles.stepTextActive]}>{item.label}</Text>
+            </View>
+          );
+        })}
+      </View>
 
-        {step === 'email' && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+      {step === 'email' && (
+        <View style={authStyles.inputGroup}>
+          <Text style={authStyles.label}>Email</Text>
+          <TextInput
+            style={authStyles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="me@gmail.com"
+            placeholderTextColor="#AAB7C2"
+          />
+        </View>
+      )}
+
+      {step !== 'email' && <Text style={authStyles.emailBadge}>{email}</Text>}
+
+      {step === 'code' && (
+        <View style={authStyles.inputGroup}>
+          <Text style={authStyles.label}>Mã xác nhận</Text>
+          <TextInput
+            style={[authStyles.input, authStyles.otpInput]}
+            value={code}
+            onChangeText={(value) => setCode(normalizeCode(value))}
+            keyboardType="number-pad"
+            maxLength={6}
+            placeholder="000000"
+            placeholderTextColor="#D8A6B6"
+          />
+        </View>
+      )}
+
+      {step === 'password' && (
+        <>
+          <View style={authStyles.inputGroup}>
+            <Text style={authStyles.label}>Mật khẩu mới</Text>
             <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder="me@gmail.com"
-              placeholderTextColor="#aab7c2"
+              style={authStyles.input}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              placeholder="Ít nhất 8 ký tự"
+              placeholderTextColor="#AAB7C2"
             />
           </View>
-        )}
 
-        {step !== 'email' && <Text style={styles.emailText}>{email}</Text>}
-
-        {step === 'code' && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mã xác nhận</Text>
+          <View style={authStyles.inputGroup}>
+            <Text style={authStyles.label}>Xác nhận mật khẩu mới</Text>
             <TextInput
-              style={[styles.input, styles.otpInput]}
-              value={code}
-              onChangeText={(value) => setCode(normalizeCode(value))}
-              keyboardType="number-pad"
-              maxLength={6}
-              placeholder="000000"
-              placeholderTextColor="#d8a6b6"
+              style={authStyles.input}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              placeholder="Nhập lại mật khẩu mới"
+              placeholderTextColor="#AAB7C2"
             />
           </View>
-        )}
+        </>
+      )}
 
-        {step === 'password' && (
-          <>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Mật khẩu mới</Text>
-              <TextInput
-                style={styles.input}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-                placeholder="Ít nhất 8 ký tự"
-                placeholderTextColor="#aab7c2"
-              />
-            </View>
+      {!!formError && <Text style={authStyles.formErrorText}>{formError}</Text>}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Xác nhận mật khẩu mới</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholder="Nhập lại mật khẩu mới"
-                placeholderTextColor="#aab7c2"
-              />
-            </View>
-          </>
-        )}
+      <TouchableOpacity
+        style={[authStyles.primaryButton, submitting && authStyles.disabledButton]}
+        onPress={handlePrimaryPress}
+        disabled={submitting}
+      >
+        {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={authStyles.primaryButtonText}>{renderPrimaryLabel()}</Text>}
+      </TouchableOpacity>
 
-        {!!formError && <Text style={styles.formErrorText}>{formError}</Text>}
-
-        <TouchableOpacity
-          style={[styles.primaryButton, submitting && styles.disabledButton]}
-          onPress={handlePrimaryPress}
-          disabled={submitting}
-        >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{renderPrimaryLabel()}</Text>}
+      {step === 'code' && (
+        <TouchableOpacity style={authStyles.secondaryButton} onPress={handleResendCode} disabled={submitting}>
+          <Text style={authStyles.secondaryButtonText}>Gửi lại mã</Text>
         </TouchableOpacity>
+      )}
 
-        {step === 'code' && (
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleResendCode} disabled={submitting}>
-            <Text style={styles.secondaryButtonText}>Gửi lại mã</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/auth/login')}>
-          <Text style={styles.mutedLink}>Quay về đăng nhập</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <TouchableOpacity style={authStyles.secondaryButton} onPress={() => router.replace('/auth/login')}>
+        <Text style={authStyles.mutedLink}>Quay về đăng nhập</Text>
+      </TouchableOpacity>
+    </AuthShell>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fef9f3',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#ff8fab',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#5c7a8a',
-    marginBottom: 28,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  emailText: {
-    color: '#5c7a8a',
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 22,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#5c7a8a',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    borderRadius: 22,
-    fontSize: 16,
-    color: '#333333',
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
-  },
-  otpInput: {
-    textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 8,
-    color: '#ff8fab',
-  },
-  formErrorText: {
-    marginBottom: 6,
-    color: '#d64545',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#ff8fab',
-    paddingVertical: 16,
-    borderRadius: 28,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  secondaryButtonText: {
-    color: '#ff8fab',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  mutedLink: {
-    color: '#5c7a8a',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

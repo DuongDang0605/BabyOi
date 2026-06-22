@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,7 +15,7 @@ import {
 export default function AIScanResultScreen() {
   // Dữ liệu giả lập đã được AI bóc tách từ ảnh chụp Đơn thuốc
   const [illness, setIllness] = useState('Viêm mũi họng cấp (J00)');
-  const [startDate, setStartDate] = useState('25/03/2026');
+  const [startDate] = useState('25/03/2026');
   const [severity, setSeverity] = useState('Cần chú ý'); 
   const severityLevels = ['Nhẹ', 'Bình thường', 'Cần chú ý'];
   

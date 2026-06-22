@@ -58,7 +58,7 @@ export default function LessonHistoryScreen() {
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={24} color="#2196F3" style={{ marginRight: 10 }} />
           <Text style={styles.infoText}>
-            Dữ liệu này giúp BabyOi AI phân tích các giai đoạn "khủng hoảng ngủ/phát triển" (Wonder Weeks) của bé.
+            Dữ liệu này giúp BabyOi AI phân tích các giai đoạn &quot;khủng hoảng ngủ/phát triển&quot; (Wonder Weeks) của bé.
           </Text>
         </View>
 
@@ -92,7 +92,7 @@ export default function LessonHistoryScreen() {
                 {log.note && (
                   <View style={styles.noteBox}>
                     <Ionicons name="pencil-outline" size={14} color="#5C7A8A" style={{ marginRight: 5 }} />
-                    <Text style={styles.noteText}>"{log.note}"</Text>
+                    <Text style={styles.noteText}>&quot;{log.note}&quot;</Text>
                   </View>
                 )}
               </View>

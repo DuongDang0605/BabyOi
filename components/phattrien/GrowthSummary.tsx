@@ -15,14 +15,15 @@ interface SummaryItem {
 interface GrowthSummaryProps {
   weight: number | string;
   height: number | string;
-  bmi: number | string;
+  tdee: number | string;
+  energyLabel?: string;
 }
 
-export const GrowthSummary = ({ weight, height, bmi }: GrowthSummaryProps) => {
+export const GrowthSummary = ({ weight, height, tdee, energyLabel = 'TDEE' }: GrowthSummaryProps) => {
   const data: SummaryItem[] = [
     { label: 'Cân nặng', value: weight, unit: 'kg', icon: 'scale-outline', color: '#98D8AA' },
     { label: 'Chiều cao', value: height, unit: 'cm', icon: 'body-outline', color: '#FFD166' },
-    { label: 'Chỉ số BMI', value: bmi, icon: 'pulse-outline', color: '#A7E4F5' },
+    { label: energyLabel, value: tdee, unit: 'kcal', icon: 'flame-outline', color: '#A7E4F5' },
   ];
 
   return (

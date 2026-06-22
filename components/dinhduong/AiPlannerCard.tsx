@@ -7,12 +7,12 @@ interface AiPlannerCardProps {
 
 export const AiPlannerCard = ({ onPress }: AiPlannerCardProps) => {
   return (
-    <TouchableOpacity style={styles.aiPlannerBox} onPress={onPress}>
+    <TouchableOpacity style={styles.aiPlannerBox} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.aiInfo}>
         <View style={styles.aiTag}>
           <Text style={styles.aiTagText}>AI SMART</Text>
         </View>
-        <Text style={styles.aiTitle}>Trợ Lý Lên Lịch Ăn</Text>
+        <Text style={styles.aiTitle}>Trợ lý lên lịch ăn</Text>
         <Text style={styles.aiSub}>Tự động thiết kế thực đơn khoa học cho 7 ngày</Text>
       </View>
       <View style={styles.aiIconBg}>
@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF8FAB',
     marginHorizontal: 20,
     marginTop: 20,
-    borderRadius: 25,
+    borderRadius: 8,
     paddingVertical: 18,
     paddingLeft: 20,
     paddingRight: 14,

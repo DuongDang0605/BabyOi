@@ -30,10 +30,21 @@ function openNotificationData(data: Record<string, unknown> | undefined) {
       nestedData = {};
     }
   }
+  const target = [nestedData.screen, nestedData.type, data.type]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const isVaccineNotification =
+    target.includes('vaccine')
+    || target.includes('tiem')
+    || target.includes('tiêm')
+    || target.includes('vaccination');
+  const isRoutineNotification = target.includes('routine') || target.includes('lich sinh hoat');
   const recordId = nestedData.recordId ?? data.recordId;
   const profileId = nestedData.profileId ?? data.profileId;
   const diseaseId = nestedData.diseaseId ?? data.diseaseId;
-  if (recordId && profileId && diseaseId) {
+
+  if (isVaccineNotification && recordId && profileId && diseaseId) {
     router.push({
       pathname: '/lichtiem/chitietbenh',
       params: {
@@ -44,7 +55,7 @@ function openNotificationData(data: Record<string, unknown> | undefined) {
     });
     return;
   }
-  if (recordId && profileId) {
+  if (isVaccineNotification && recordId && profileId) {
     router.push({
       pathname: '/lichtiem/themmuitiem',
       params: {
@@ -55,6 +66,21 @@ function openNotificationData(data: Record<string, unknown> | undefined) {
     });
     return;
   }
+
+  if (isRoutineNotification) {
+    const routineDate = nestedData.routineDate ?? data.routineDate;
+    router.push({
+      pathname: '/phattrien/daily-schedule',
+      params: routineDate ? { date: String(routineDate) } : {},
+    });
+    return;
+  }
+
+  if (isVaccineNotification) {
+    router.push('/lichtiem/listlichtiem');
+    return;
+  }
+
   const route = nestedData.route ?? data.route;
   router.push(typeof route === 'string' && route.startsWith('/') ? route as any : '/notification/notifications');
 }

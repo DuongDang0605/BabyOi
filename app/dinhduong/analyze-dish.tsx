@@ -100,7 +100,7 @@ export default function AnalyzeDishScreen() {
     startRotation();
     startJumping();
     startSteam();
-  }, []);
+  }, [armAnim, fireAnim, jumpAnim, leafAnim, rotateAnim, shineAnim, steamAnim]);
 
   // --- DỮ LIỆU & LOGIC CŨ (GIỮ NGUYÊN) ---
   const [ingredients, setIngredients] = useState<Ingredient[]>([

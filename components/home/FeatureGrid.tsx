@@ -23,7 +23,7 @@ const FEATURE_ACCENTS = [
   { card: '#FFF8E8', gradient: ['#FFFFFF', '#FFF1C9'], dot: '#D8B56D', foot: '#EAD9B6', border: '#EFE0C6' },
 ] as const;
 
-export const FeatureGrid = React.memo(({ title, features, onFeaturePress }: FeatureGridProps) => {
+function FeatureGridComponent({ title, features, onFeaturePress }: FeatureGridProps) {
   return (
     <View>
       <View style={styles.sectionHeader}>
@@ -62,7 +62,9 @@ export const FeatureGrid = React.memo(({ title, features, onFeaturePress }: Feat
       </View>
     </View>
   );
-});
+}
+
+export const FeatureGrid = React.memo(FeatureGridComponent);
 
 const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },

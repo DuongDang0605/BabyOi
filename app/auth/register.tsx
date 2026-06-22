@@ -1,17 +1,14 @@
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { AuthShell, authStyles } from '@/components/auth/AuthShell';
 import { ApiError, register } from '@/lib/api';
 
 export default function RegisterScreen() {
@@ -34,7 +31,7 @@ export default function RegisterScreen() {
     setFormError('');
 
     if (password !== confirmPassword) {
-        setConfirmPasswordError('Mật khẩu xác nhận không khớp.');
+      setConfirmPasswordError('Mật khẩu xác nhận không khớp.');
       return;
     }
 
@@ -67,163 +64,80 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <AuthShell
+      title="Tạo tài khoản"
+      subtitle="Bắt đầu với một tài khoản BabyOi để lưu hồ sơ và theo dõi chăm sóc hằng ngày."
+      onBack={() => router.replace('/auth/login')}
     >
-      <Stack.Screen options={{ title: 'Tạo tài khoản', headerShadowVisible: false }} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Tạo tài khoản BabyOi</Text>
+      <View style={authStyles.inputGroup}>
+        <Text style={authStyles.label}>Tên người dùng</Text>
+        <TextInput
+          style={authStyles.input}
+          value={userName}
+          onChangeText={setUserName}
+          autoCapitalize="none"
+          placeholder="Tên của mẹ"
+          placeholderTextColor="#AAB7C2"
+        />
+        {!!userNameError && <Text style={authStyles.errorText}>{userNameError}</Text>}
+      </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Tên người dùng</Text>
-          <TextInput
-            style={styles.input}
-            value={userName}
-            onChangeText={setUserName}
-            autoCapitalize="none"
-            placeholder="Tên của mẹ"
-            placeholderTextColor="#aab7c2"
-          />
-          {!!userNameError && <Text style={styles.errorText}>{userNameError}</Text>}
-        </View>
+      <View style={authStyles.inputGroup}>
+        <Text style={authStyles.label}>Email</Text>
+        <TextInput
+          style={authStyles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          placeholder="me@gmail.com"
+          placeholderTextColor="#AAB7C2"
+        />
+        {!!emailError && <Text style={authStyles.errorText}>{emailError}</Text>}
+      </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            placeholder="me@gmail.com"
-            placeholderTextColor="#aab7c2"
-          />
-          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
-        </View>
+      <View style={authStyles.inputGroup}>
+        <Text style={authStyles.label}>Mật khẩu</Text>
+        <TextInput
+          style={authStyles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="Ít nhất 8 ký tự"
+          placeholderTextColor="#AAB7C2"
+        />
+        {!!passwordError && <Text style={authStyles.errorText}>{passwordError}</Text>}
+      </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Mật khẩu</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Ít nhất 8 ký tự"
-            placeholderTextColor="#aab7c2"
-          />
-          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-        </View>
+      <View style={authStyles.inputGroup}>
+        <Text style={authStyles.label}>Xác nhận mật khẩu</Text>
+        <TextInput
+          style={authStyles.input}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          placeholder="Nhập lại mật khẩu"
+          placeholderTextColor="#AAB7C2"
+        />
+        {!!confirmPasswordError && <Text style={authStyles.errorText}>{confirmPasswordError}</Text>}
+      </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Xác nhận mật khẩu</Text>
-          <TextInput
-            style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            placeholder="Nhập lại mật khẩu"
-            placeholderTextColor="#aab7c2"
-          />
-          {!!confirmPasswordError && <Text style={styles.errorText}>{confirmPasswordError}</Text>}
-        </View>
+      {!!formError && !userNameError && !emailError && !passwordError && !confirmPasswordError && (
+        <Text style={authStyles.formErrorText}>{formError}</Text>
+      )}
 
-        {!!formError && !userNameError && !emailError && !passwordError && !confirmPasswordError && (
-          <Text style={styles.formErrorText}>{formError}</Text>
-        )}
+      <TouchableOpacity
+        style={[authStyles.primaryButton, submitting && authStyles.disabledButton]}
+        onPress={handleRegister}
+        disabled={submitting}
+      >
+        {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={authStyles.primaryButtonText}>Tạo tài khoản</Text>}
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.primaryButton, submitting && styles.disabledButton]}
-          onPress={handleRegister}
-          disabled={submitting}
-        >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Tạo tài khoản</Text>}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/auth/login')}>
-          <Text style={styles.secondaryButtonText}>Đã có tài khoản? Đăng nhập</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <TouchableOpacity style={authStyles.secondaryButton} onPress={() => router.replace('/auth/login')}>
+        <Text style={authStyles.mutedLink}>Đã có tài khoản? Đăng nhập</Text>
+      </TouchableOpacity>
+    </AuthShell>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fef9f3',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#ff8fab',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#5c7a8a',
-    marginBottom: 28,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#5c7a8a',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    borderRadius: 22,
-    fontSize: 16,
-    color: '#333333',
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
-  },
-  errorText: {
-    marginTop: 8,
-    color: '#d64545',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  formErrorText: {
-    marginBottom: 6,
-    color: '#d64545',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#ff8fab',
-    paddingVertical: 16,
-    borderRadius: 28,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  secondaryButtonText: {
-    color: '#5c7a8a',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

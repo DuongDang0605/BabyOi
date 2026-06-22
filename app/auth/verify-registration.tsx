@@ -1,30 +1,31 @@
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { AuthShell, authStyles } from '@/components/auth/AuthShell';
 import { ApiError, cancelRegistration, resendRegistrationOtp, verifyRegistration } from '@/lib/api';
 import { setAuthSession } from '@/lib/auth-session';
 
 export default function VerifyRegistrationScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; message?: string }>();
   const initialEmail = useMemo(() => String(params.email ?? ''), [params.email]);
+  const initialMessage = useMemo(() => {
+    const value = String(params.message ?? '').trim();
+    return value || 'Nhập mã 6 số đã gửi vào email của bạn.';
+  }, [params.message]);
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [resending, setResending] = useState(false);
   const [formError, setFormError] = useState('');
-  const [message, setMessage] = useState('Nhập mã 6 số đã gửi vào email của bạn.');
+  const [message, setMessage] = useState(initialMessage);
 
   function normalizeCode(value: string) {
     return value.replace(/\D/g, '').slice(0, 6);
@@ -111,139 +112,43 @@ export default function VerifyRegistrationScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Xác nhận email</Text>
-        <Text style={styles.subtitle}>{message}</Text>
-        <Text style={styles.emailText}>{initialEmail}</Text>
+    <AuthShell
+      title="Xác nhận email"
+      subtitle={message}
+      onBack={() => router.replace('/auth/login')}
+    >
+      <Text style={authStyles.emailBadge}>{initialEmail}</Text>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Mã xác nhận</Text>
-          <TextInput
-            style={[styles.input, styles.otpInput]}
-            value={code}
-            onChangeText={(value) => setCode(normalizeCode(value))}
-            keyboardType="number-pad"
-            maxLength={6}
-            placeholder="000000"
-            placeholderTextColor="#d8a6b6"
-          />
-        </View>
+      <View style={authStyles.inputGroup}>
+        <Text style={authStyles.label}>Mã xác nhận</Text>
+        <TextInput
+          style={[authStyles.input, authStyles.otpInput]}
+          value={code}
+          onChangeText={(value) => setCode(normalizeCode(value))}
+          keyboardType="number-pad"
+          maxLength={6}
+          placeholder="000000"
+          placeholderTextColor="#D8A6B6"
+        />
+      </View>
 
-        {!!formError && <Text style={styles.formErrorText}>{formError}</Text>}
+      {!!formError && <Text style={authStyles.formErrorText}>{formError}</Text>}
 
-        <TouchableOpacity
-          style={[styles.primaryButton, submitting && styles.disabledButton]}
-          onPress={handleVerify}
-          disabled={submitting}
-        >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Xác nhận</Text>}
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={[authStyles.primaryButton, submitting && authStyles.disabledButton]}
+        onPress={handleVerify}
+        disabled={submitting}
+      >
+        {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={authStyles.primaryButtonText}>Xác nhận</Text>}
+      </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleResend} disabled={resending}>
-          <Text style={styles.secondaryButtonText}>{resending ? 'Đang gửi lại...' : 'Gửi lại mã 6 số'}</Text>
-        </TouchableOpacity>
+      <TouchableOpacity style={authStyles.secondaryButton} onPress={handleResend} disabled={resending}>
+        <Text style={authStyles.secondaryButtonText}>{resending ? 'Đang gửi lại...' : 'Gửi lại mã 6 số'}</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleCancel} disabled={canceling}>
-          <Text style={styles.dangerLink}>{canceling ? 'Đang hủy...' : 'Hủy tạo tài khoản'}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <TouchableOpacity style={authStyles.secondaryButton} onPress={handleCancel} disabled={canceling}>
+        <Text style={authStyles.dangerLink}>{canceling ? 'Đang hủy...' : 'Hủy tạo tài khoản'}</Text>
+      </TouchableOpacity>
+    </AuthShell>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fef9f3',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#ff8fab',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#5c7a8a',
-    marginBottom: 28,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  emailText: {
-    color: '#5c7a8a',
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 22,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#5c7a8a',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    borderRadius: 22,
-    fontSize: 16,
-    color: '#333333',
-    borderWidth: 2,
-    borderColor: '#f0f4f8',
-  },
-  otpInput: {
-    textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 8,
-    color: '#ff8fab',
-  },
-  formErrorText: {
-    marginBottom: 6,
-    color: '#d64545',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#ff8fab',
-    paddingVertical: 16,
-    borderRadius: 28,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  secondaryButtonText: {
-    color: '#ff8fab',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  dangerLink: {
-    color: '#d64545',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-});
