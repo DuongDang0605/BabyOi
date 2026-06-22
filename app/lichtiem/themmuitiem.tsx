@@ -136,6 +136,21 @@ const VACCINE_RECORD_SOURCE = {
   CUSTOM: 2,
 };
 
+const getRouteValue = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
+
+const parseRouteNumber = (value?: string | string[], onlyPositive = false) => {
+  const rawValue = getRouteValue(value);
+  if (rawValue == null || rawValue.trim() === '') {
+    return null;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || (onlyPositive && parsed <= 0)) {
+    return null;
+  }
+  return parsed;
+};
+
 export default function AddVaccineScreen() {
   const {
     profileId,
@@ -153,29 +168,32 @@ export default function AddVaccineScreen() {
     doseOrder: routeDoseOrder,
     status: routeStatus,
     source: routeSource,
+    returnTo,
   } = useLocalSearchParams();
   const { showNotification } = useNotification();
 
-  const routeProfileId = Array.isArray(profileId) ? profileId[0] : profileId;
-  const isConfirmMode = mode === 'confirm';
-  const isEditMode = mode === 'edit';
+  const routeProfileId = getRouteValue(profileId);
+  const routeMode = getRouteValue(mode);
+  const returnTarget = getRouteValue(returnTo);
+  const isConfirmMode = routeMode === 'confirm';
+  const isEditMode = routeMode === 'edit';
   const isUpdateMode = isConfirmMode || isEditMode;
-  const parsedRecordId = Array.isArray(recordId) ? recordId[0] : recordId;
-  const parsedVaccineTypeId = Number.isFinite(Number(routeVaccineTypeId)) ? Number(routeVaccineTypeId) : null;
+  const parsedRecordId = getRouteValue(recordId);
+  const parsedVaccineTypeId = parseRouteNumber(routeVaccineTypeId, true);
   const lockedVaccineName = typeof vaccineName === 'string' ? vaccineName : '';
   const defaultInjectionDate = typeof routeInjectionDate === 'string' ? formatApiDateToDisplay(routeInjectionDate) : '';
   const defaultLocation = typeof routeLocation === 'string' ? routeLocation : '';
   const defaultPrice = typeof routePrice === 'string' ? routePrice : '';
   const defaultNote = typeof routeNote === 'string' ? routeNote : '';
-  const canChangeVaccine = !isUpdateMode || allowVaccineChange === '1';
-  const parsedDiseaseId = Number(Array.isArray(routeDiseaseId) ? routeDiseaseId[0] : routeDiseaseId);
-  const parsedDoseOrder = Number(Array.isArray(routeDoseOrder) ? routeDoseOrder[0] : routeDoseOrder);
-  const parsedRouteStatus = Number(Array.isArray(routeStatus) ? routeStatus[0] : routeStatus);
-  const parsedRouteSource = Number(Array.isArray(routeSource) ? routeSource[0] : routeSource);
+  const canChangeVaccine = !isUpdateMode || parsedVaccineTypeId == null || allowVaccineChange === '1';
+  const parsedDiseaseId = parseRouteNumber(routeDiseaseId, true);
+  const parsedDoseOrder = parseRouteNumber(routeDoseOrder, true);
+  const parsedRouteStatus = parseRouteNumber(routeStatus);
+  const parsedRouteSource = parseRouteNumber(routeSource, true);
   const diseaseName = typeof routeDiseaseName === 'string' ? routeDiseaseName : '';
-  const hasDiseaseContext = Number.isFinite(parsedDiseaseId);
+  const hasDiseaseContext = parsedDiseaseId != null;
   const isCustomDose = parsedRouteSource === VACCINE_RECORD_SOURCE.CUSTOM;
-  const shouldFilterVaccineOptionsByDose = hasDiseaseContext && Number.isFinite(parsedDoseOrder) && !isCustomDose;
+  const shouldFilterVaccineOptionsByDose = hasDiseaseContext && parsedDoseOrder != null && !isCustomDose;
 
   const [vaccineTypes, setVaccineTypes] = useState<VaccineTypeResponse[]>([]);
   const [effectiveProfileId, setEffectiveProfileId] = useState<string | null>(routeProfileId ?? null);
@@ -188,7 +206,7 @@ export default function AddVaccineScreen() {
   const [injectionDate, setInjectionDate] = useState(isUpdateMode ? defaultInjectionDate : '');
   const [dateError, setDateError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [status, setStatus] = useState(isConfirmMode ? 3 : Number.isFinite(parsedRouteStatus) ? parsedRouteStatus : -1);
+  const [status, setStatus] = useState(isConfirmMode ? 3 : parsedRouteStatus ?? -1);
   const [note, setNote] = useState(defaultNote);
   const [location, setLocation] = useState(defaultLocation);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
@@ -265,7 +283,7 @@ export default function AddVaccineScreen() {
 
     setVaccineTypeId(parsedVaccineTypeId);
     setInjectionDate(defaultInjectionDate);
-    setStatus(isConfirmMode ? 3 : Number.isFinite(parsedRouteStatus) ? parsedRouteStatus : -1);
+    setStatus(isConfirmMode ? 3 : parsedRouteStatus ?? -1);
     setSearchText(lockedVaccineName);
     setLocation(defaultLocation);
     setPrice(defaultPrice);
@@ -349,6 +367,17 @@ export default function AddVaccineScreen() {
   };
 
   const navigateAfterSave = () => {
+    if (returnTarget === 'list') {
+      router.replace({
+        pathname: '/lichtiem/listlichtiem',
+        params: {
+          profileId: effectiveProfileId,
+          refreshAt: Date.now().toString(),
+        },
+      });
+      return;
+    }
+
     if (hasDiseaseContext) {
       router.replace({
         pathname: '/lichtiem/chitietbenh',
@@ -381,6 +410,15 @@ export default function AddVaccineScreen() {
       return;
     }
 
+    if (!vaccineTypeId && nextStatus === TABLE_STATUS.SUCCESS) {
+      showNotification({
+        type: 'warning',
+        title: 'Thiếu vắc-xin',
+        message: 'Vui lòng chọn loại vắc-xin đã tiêm trước khi xác nhận.',
+      });
+      return;
+    }
+
     if (injectionDate.trim() === '') {
       setDateError('Vui lòng nhập ngày tiêm hoặc ngày dự kiến.');
       return;
@@ -392,7 +430,7 @@ export default function AddVaccineScreen() {
       return;
     }
 
-    if (isUpdateMode && !parsedRecordId) {
+    if (isEditMode && !parsedRecordId) {
       showNotification({
         type: 'error',
         title: 'Không tìm thấy lịch tiêm',
@@ -408,9 +446,9 @@ export default function AddVaccineScreen() {
 
     const request = {
       profileId: Number(effectiveProfileId),
-      diseaseId: Number.isFinite(parsedDiseaseId) ? parsedDiseaseId : undefined,
-      doseOrder: Number.isFinite(parsedDoseOrder) ? parsedDoseOrder : undefined,
-      source: Number.isFinite(parsedRouteSource) ? parsedRouteSource : (hasDiseaseContext ? VACCINE_RECORD_SOURCE.STANDARD : VACCINE_RECORD_SOURCE.CUSTOM),
+      diseaseId: parsedDiseaseId ?? undefined,
+      doseOrder: parsedDoseOrder ?? undefined,
+      source: parsedRouteSource ?? (hasDiseaseContext ? VACCINE_RECORD_SOURCE.STANDARD : VACCINE_RECORD_SOURCE.CUSTOM),
       vaccineTypeId,
       injectionDate: formatApiDate(parsedDate),
       actualInjectionDate: nextIsCompleted ? formatApiDate(parsedDate) : undefined,
@@ -425,7 +463,7 @@ export default function AddVaccineScreen() {
     };
 
     try {
-      if (isUpdateMode) {
+      if (isUpdateMode && parsedRecordId) {
         await updateVaccineRecord(parsedRecordId!, request);
         showNotification({
           type: 'success',
@@ -439,8 +477,8 @@ export default function AddVaccineScreen() {
       await createVaccineRecord(request);
       showNotification({
         type: 'success',
-        title: 'Thêm mũi tiêm thành công',
-        message: 'Lịch tiêm đã được lưu vào sổ tiêm chủng.',
+        title: nextIsCompleted ? 'Đã xác nhận mũi tiêm' : 'Thêm mũi tiêm thành công',
+        message: nextIsCompleted ? 'Mũi tiêm đã chuyển sang trạng thái đã tiêm.' : 'Lịch tiêm đã được lưu vào sổ tiêm chủng.',
       });
       navigateAfterSave();
     } catch (error) {
@@ -478,7 +516,7 @@ export default function AddVaccineScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.customHeader}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={navigateAfterSave} style={styles.backButton}>
             <Ionicons name="arrow-back" size={25} color="#FF8FAB" />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
@@ -498,7 +536,7 @@ export default function AddVaccineScreen() {
               <Text style={styles.diseaseContextLabel}>Bệnh đang lên lịch</Text>
               <Text style={styles.diseaseContextText}>
                 {diseaseName || 'Bệnh chưa cập nhật'}
-                {Number.isFinite(parsedDoseOrder) ? ` - Mũi ${parsedDoseOrder}` : ''}
+                {parsedDoseOrder != null ? ` - Mũi ${parsedDoseOrder}` : ''}
               </Text>
             </View>
           </View>

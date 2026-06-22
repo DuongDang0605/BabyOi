@@ -115,7 +115,7 @@ export type VaccineRecordResponse = {
   doseOrder: number | null;
   source: number | null;
   sourceCode: string | null;
-  vaccineTypeId: number;
+  vaccineTypeId: number | null;
   vaccineTypeName: string;
   vaccineTypeDescription: string | null;
   injectionDate: string;
@@ -704,6 +704,16 @@ export type NotificationSettingsResponse = {
   chatEnabled: boolean;
   promotionEnabled: boolean;
   systemEnabled: boolean;
+  vaccineInAppEnabled: boolean;
+  vaccinePushEnabled: boolean;
+  appointmentInAppEnabled: boolean;
+  appointmentPushEnabled: boolean;
+  chatInAppEnabled: boolean;
+  chatPushEnabled: boolean;
+  promotionInAppEnabled: boolean;
+  promotionPushEnabled: boolean;
+  systemInAppEnabled: boolean;
+  systemPushEnabled: boolean;
 };
 
 export type NotificationSettingsPayload = Partial<NotificationSettingsResponse>;
@@ -1526,7 +1536,7 @@ function mapVaccineRecordResponse(item: VaccineRecordApiResponse): VaccineRecord
     doseOrder: item.doseOrder,
     source: item.source,
     sourceCode: item.sourceCode,
-    vaccineTypeId: item.vaccineId ?? 0,
+    vaccineTypeId: item.vaccineId,
     vaccineTypeName: item.vaccineName ?? 'Vắc-xin chưa cập nhật',
     vaccineTypeDescription: item.vaccineDescription,
     injectionDate: item.injectionDate,
