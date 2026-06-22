@@ -4,10 +4,11 @@ import { StyleSheet, Text, View } from 'react-native';
 
 interface VaccineSummaryProps {
   completedCount: number;
+  overdueCount?: number;
   upcomingCount: number;
 }
 
-export const VaccineSummary = ({ completedCount, upcomingCount }: VaccineSummaryProps) => {
+export const VaccineSummary = ({ completedCount, overdueCount = 0, upcomingCount }: VaccineSummaryProps) => {
   return (
     <LinearGradient
       colors={['#FFFFFF', '#FFF8FA', '#EFFBFF']}
@@ -21,6 +22,13 @@ export const VaccineSummary = ({ completedCount, upcomingCount }: VaccineSummary
       <View style={styles.summaryBox}>
         <Text style={styles.summaryNumber}>{completedCount}</Text>
         <Text style={styles.summaryLabel}>Đã tiêm</Text>
+      </View>
+
+      <View style={styles.summaryDivider} />
+
+      <View style={styles.summaryBox}>
+        <Text style={[styles.summaryNumber, styles.overdueNumber]}>{overdueCount}</Text>
+        <Text style={styles.summaryLabel}>Quá hạn</Text>
       </View>
 
       <View style={styles.summaryDivider} />
@@ -89,6 +97,9 @@ const styles = StyleSheet.create({
   },
   upcomingNumber: {
     color: '#FF9C6E',
+  },
+  overdueNumber: {
+    color: '#E26D6D',
   },
   summaryLabel: {
     fontSize: 12,
