@@ -26,6 +26,7 @@ import {
   getAiTeachingLessonsByProfile,
   getUnreadNotificationCount,
   getVaccineProgress,
+  logout as logoutApi,
   ProfileResponse,
   resolveOptimizedAssetUrl,
   VaccineProgressResponse,
@@ -417,6 +418,11 @@ export default function AppHomeScreen() {
 
   const handleLogout = useCallback(async () => {
     await deactivateCurrentDeviceToken();
+    try {
+      await logoutApi();
+    } catch {
+      // Local logout must still complete when the device is offline.
+    }
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

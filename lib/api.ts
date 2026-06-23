@@ -3,10 +3,17 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
-import { clearAuthSession, getAuthorizationHeader, hydrateAuthSession } from './auth-session';
+import {
+  clearAuthSession,
+  getAuthorizationHeader,
+  getRefreshToken,
+  hydrateAuthSession,
+  setAuthSession,
+} from './auth-session';
 
 export type AuthResponse = {
   accessToken: string;
+  refreshToken?: string | null;
   tokenType: string;
   userId: number;
   userName: string;
@@ -820,6 +827,7 @@ type ErrorPayload = {
 
 type ApiRequestInit = RequestInit & {
   skipAuth?: boolean;
+  skipAuthRefresh?: boolean;
   silent?: boolean;
   fallbackTimeoutMs?: number | null;
 };
@@ -948,6 +956,7 @@ function getApiBaseUrlCandidates() {
 
 export const API_BASE_URLS = getApiBaseUrlCandidates();
 export const API_BASE_URL = API_BASE_URLS[0];
+let authRefreshPromise: Promise<AuthResponse | null> | null = null;
 
 /* =========================
    ASSET URL
@@ -1142,6 +1151,7 @@ function buildHeaders(init?: ApiRequestInit, options?: { jsonContentType?: boole
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    'X-Client-Platform': Platform.OS === 'web' ? 'web' : 'mobile',
     ...((init?.headers as Record<string, string>) ?? {}),
   };
 
@@ -1197,6 +1207,7 @@ async function fetchWithApiFallback(
     try {
       return await fetch(`${baseUrl}${path}`, {
         ...fetchInit,
+        credentials: Platform.OS === 'web' ? 'include' : fetchInit.credentials,
         signal,
         headers: buildHeaders(init, options),
       });
@@ -1213,7 +1224,7 @@ async function fetchWithApiFallback(
 async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
   await hydrateAuthSession();
 
-  const { skipAuth, silent, fallbackTimeoutMs, ...fetchInit } = init ?? {};
+  const { skipAuth, skipAuthRefresh, silent, fallbackTimeoutMs, ...fetchInit } = init ?? {};
 
   let response: Response;
 
@@ -1224,6 +1235,21 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
       openErrorScreen('Network', 'Không thể kết nối đến máy chủ. Mẹ kiểm tra mạng hoặc thử lại sau nhé.');
     }
     throw error;
+  }
+
+  if (
+    !response.ok
+    && !skipAuth
+    && !skipAuthRefresh
+    && (response.status === 401 || response.status === 403)
+  ) {
+    const refreshed = await refreshAuthSession();
+    if (refreshed) {
+      return request<T>(path, {
+        ...init,
+        skipAuthRefresh: true,
+      });
+    }
   }
 
   if (!response.ok) {
@@ -1303,6 +1329,50 @@ export function socialLogin(payload: SocialLoginPayload) {
   });
 }
 
+async function performAuthRefresh() {
+  const refreshToken = Platform.OS === 'web' ? null : getRefreshToken();
+
+  if (Platform.OS !== 'web' && !refreshToken) {
+    return null;
+  }
+
+  let response: Response;
+  try {
+    response = await fetchWithApiFallback(
+      '/api/auth/refresh-token',
+      {
+        method: 'POST',
+        body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
+      },
+      {
+        skipAuth: true,
+        skipAuthRefresh: true,
+        silent: true,
+      }
+    );
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const session = (await response.json()) as AuthResponse;
+  await setAuthSession(session);
+  return session;
+}
+
+export function refreshAuthSession() {
+  if (!authRefreshPromise) {
+    authRefreshPromise = performAuthRefresh().finally(() => {
+      authRefreshPromise = null;
+    });
+  }
+
+  return authRefreshPromise;
+}
+
 export function register(payload: RegisterPayload) {
   return request<OtpResponse>('/api/auth/register', {
     skipAuth: true,
@@ -1360,8 +1430,12 @@ export function resetPassword(payload: ResetPasswordPayload) {
 }
 
 export function logout() {
+  const refreshToken = Platform.OS === 'web' ? null : getRefreshToken();
   return request<void>('/api/auth/logout', {
+    skipAuth: true,
+    skipAuthRefresh: true,
     method: 'POST',
+    body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
   });
 }
 

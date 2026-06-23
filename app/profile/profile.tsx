@@ -28,6 +28,7 @@ import {
   deleteProfile,
   getHealthRecords,
   getVaccineStatistics,
+  logout as logoutApi,
   updateProfile,
   updateProfileAvatar,
   uploadProfileAvatar,
@@ -214,6 +215,11 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await deactivateCurrentDeviceToken();
+    try {
+      await logoutApi();
+    } catch {
+      // Local logout must still complete when the device is offline.
+    }
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

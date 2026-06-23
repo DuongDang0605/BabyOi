@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, uploadProfileAvatar } from '../../lib/api';
+import { ApiError, ProfilePayload, ProfileResponse, createHealthRecord, createProfile, getProfilesByUserId, logout as logoutApi, uploadProfileAvatar } from '../../lib/api';
 import { clearAuthSession, getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { clearSelectedProfile, setSelectedProfile } from '../../lib/profile-session';
 import { deactivateCurrentDeviceToken } from '../../lib/push-notifications';
@@ -361,6 +361,11 @@ export default function SelectProfileScreen() {
 
   const handleLogout = async () => {
     await deactivateCurrentDeviceToken();
+    try {
+      await logoutApi();
+    } catch {
+      // Local logout must still complete when the device is offline.
+    }
     await clearSelectedProfile();
     await clearAuthSession();
     router.replace('/auth/login');

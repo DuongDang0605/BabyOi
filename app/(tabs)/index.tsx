@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getCurrentUser } from '@/lib/api';
+import { getCurrentUser, refreshAuthSession } from '@/lib/api';
 import { clearAuthSession, hydrateAuthSession } from '@/lib/auth-session';
 import { ensureCurrentUserSelectedProfile } from '@/lib/profile-session';
 
@@ -17,7 +17,7 @@ export default function WelcomeScreen() {
 
     async function bootstrapSession() {
       try {
-        const savedSession = await hydrateAuthSession();
+        const savedSession = await hydrateAuthSession() || await refreshAuthSession();
 
         if (!savedSession?.accessToken) {
           return;
