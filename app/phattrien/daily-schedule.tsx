@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ScheduleItem } from '../../components/phattrien/ScheduleItem';
 import {
@@ -25,6 +25,8 @@ type RoutineItem = BabyRoutineEntryResponse & {
   isDone: boolean;
 };
 
+const APP_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
 function toDateParam(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -32,20 +34,42 @@ function toDateParam(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function parseDateParam(value?: string | string[] | null) {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  if (!rawValue) {
-    return new Date();
+function getAppDateParam(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getAppTimeParam(date = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: APP_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+}
+
+function parseAppDateTime(value?: string | null) {
+  if (!value) {
+    return null;
   }
+  const normalized = value.trim().replace(' ', 'T');
+  const parsed = new Date(`${normalized}:00+07:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateParam(value?: string | string[] | null) {
+  const rawValue = (Array.isArray(value) ? value[0] : value) || getAppDateParam();
   const [year, month, day] = rawValue.split('-').map(Number);
   if (!year || !month || !day) {
     return new Date();
   }
   return new Date(year, month - 1, day);
-}
-
-function toTimeParam(date: Date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 function getMonday(date: Date) {
@@ -212,18 +236,50 @@ export default function FullSmartBabySchedule() {
   const [addNote, setAddNote] = useState('');
   const [addSaving, setAddSaving] = useState(false);
   const [error, setError] = useState('');
+  const [clockNow, setClockNow] = useState(() => new Date());
   const scrollRef = useRef<ScrollView | null>(null);
   const scrollYRef = useRef(0);
   const timelineTopRef = useRef(0);
   const itemOffsetsRef = useRef<Record<number, number>>({});
+  const previousAppDateRef = useRef(getAppDateParam());
+  const followTodayRef = useRef(!params.date || toDateParam(routeDate) === getAppDateParam());
 
   useEffect(() => {
     setSelectedDate(routeDate);
   }, [routeDate]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setClockNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const selectedDateParam = toDateParam(selectedDate);
   const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDate]);
   const routineCompleted = !!routineDay?.entries?.length && routineDay.entries.every((entry) => entry.completed);
+  const liveWakeMinutes = useMemo(() => {
+    const likelyWake = parseAppDateTime(routineDay?.sleepPrediction?.likelyWakeDateTime);
+    if (!likelyWake) {
+      return null;
+    }
+    const differenceMinutes = (likelyWake.getTime() - clockNow.getTime()) / 60000;
+    return differenceMinutes >= 0 ? Math.ceil(differenceMinutes) : Math.floor(differenceMinutes);
+  }, [clockNow, routineDay?.sleepPrediction?.likelyWakeDateTime]);
+
+  useEffect(() => {
+    const appDateParam = getAppDateParam(clockNow);
+    const previousAppDate = previousAppDateRef.current;
+    if (appDateParam === previousAppDate) {
+      return;
+    }
+
+    previousAppDateRef.current = appDateParam;
+    if (followTodayRef.current || selectedDateParam === previousAppDate) {
+      followTodayRef.current = true;
+      const nextDate = parseDateParam(appDateParam);
+      setSelectedDate(nextDate);
+      router.replace({ pathname: '/phattrien/daily-schedule', params: { date: appDateParam } });
+    }
+  }, [clockNow, selectedDateParam]);
 
   const rememberScrollPosition = useCallback(() => {
     const y = scrollYRef.current;
@@ -325,7 +381,7 @@ export default function FullSmartBabySchedule() {
       return;
     }
 
-    const todayParam = toDateParam(new Date());
+    const todayParam = getAppDateParam();
     if (selectedDateParam > todayParam) {
       try {
         const todayRoutine = await getBabyRoutineDay(profile.id, todayParam);
@@ -344,7 +400,7 @@ export default function FullSmartBabySchedule() {
     try {
       const updated = await updateBabyRoutineEntryCompletion(item.id, {
         completed: true,
-        actualTime: toTimeParam(new Date()),
+        actualTime: getAppTimeParam(),
       });
       const updatedDay = await updateBabyRoutineTimeline(updated.id);
       setRoutineDay(updatedDay);
@@ -506,8 +562,40 @@ export default function FullSmartBabySchedule() {
     }
   };
 
+  const deleteEntry = async (item: RoutineItem) => {
+    setDeletingEntryId(item.id);
+    try {
+      await deleteBabyRoutineEntry(item.id);
+      setSchedule((current) => current.filter((entry) => entry.id !== item.id));
+      setRoutineDay((current) => current
+        ? {
+            ...current,
+            entries: current.entries.filter((entry) => entry.id !== item.id),
+          }
+        : current);
+      if (editingEntryId === item.id) {
+        setEditingEntryId(null);
+        setEditTimeDigits('');
+      }
+      rememberScrollPosition();
+    } catch (err) {
+      Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể xóa lịch sinh hoạt.');
+    } finally {
+      setDeletingEntryId(null);
+    }
+  };
+
   const handleDeleteEntry = (item: RoutineItem) => {
     if (deletingEntryId) {
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined'
+        && window.confirm(`Bạn muốn xóa lịch "${item.activity}" lúc ${effectiveTime(item)}?`);
+      if (confirmed) {
+        void deleteEntry(item);
+      }
       return;
     }
 
@@ -519,28 +607,7 @@ export default function FullSmartBabySchedule() {
         {
           text: 'Xóa',
           style: 'destructive',
-          onPress: async () => {
-            setDeletingEntryId(item.id);
-            try {
-              await deleteBabyRoutineEntry(item.id);
-              setSchedule((current) => current.filter((entry) => entry.id !== item.id));
-              setRoutineDay((current) => current
-                ? {
-                    ...current,
-                    entries: current.entries.filter((entry) => entry.id !== item.id),
-                  }
-                : current);
-              if (editingEntryId === item.id) {
-                setEditingEntryId(null);
-                setEditTimeDigits('');
-              }
-              rememberScrollPosition();
-            } catch (err) {
-              Alert.alert('BabyOi', err instanceof Error ? err.message : 'Không thể xóa lịch sinh hoạt.');
-            } finally {
-              setDeletingEntryId(null);
-            }
-          },
+          onPress: () => void deleteEntry(item),
         },
       ]
     );
@@ -689,7 +756,11 @@ export default function FullSmartBabySchedule() {
             return (
               <TouchableOpacity
                 key={day.dateParam}
-                onPress={() => setSelectedDate(day.date)}
+                onPress={() => {
+                  followTodayRef.current = day.dateParam === getAppDateParam();
+                  setSelectedDate(day.date);
+                  router.replace({ pathname: '/phattrien/daily-schedule', params: { date: day.dateParam } });
+                }}
                 style={[styles.dateItem, selected && styles.dateItemSelected]}
               >
                 <Text style={[styles.dateLabel, selected && styles.textWhite]}>{day.label}</Text>
@@ -755,7 +826,7 @@ export default function FullSmartBabySchedule() {
             </View>
 
             <Text style={styles.predictionCountdown}>
-              {formatDuration(routineDay.sleepPrediction.minutesUntilLikelyWake)}
+              {formatDuration(liveWakeMinutes)}
             </Text>
             <Text style={styles.predictionExplain}>{routineDay.sleepPrediction.explanation}</Text>
 

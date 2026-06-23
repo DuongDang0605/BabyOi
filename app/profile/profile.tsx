@@ -138,6 +138,14 @@ function todayIsoDate() {
   return `${year}-${month}-${day}`;
 }
 
+const MOTHER_ACTIVITY_LEVELS = [
+  { code: 'SEDENTARY', label: 'Ít vận động' },
+  { code: 'LIGHT', label: 'Vận động nhẹ' },
+  { code: 'MODERATE', label: 'Vận động vừa' },
+  { code: 'ACTIVE', label: 'Vận động nhiều' },
+  { code: 'VERY_ACTIVE', label: 'Vận động rất nhiều' },
+] as const;
+
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [editVisible, setEditVisible] = useState(false);
@@ -221,7 +229,8 @@ export default function ProfileScreen() {
       userId: profile.userId,
       name: profile.name,
       dateOfBirth: profile.dateOfBirth,
-      sex: profileType === 'MOTHER' ? 'FEMALE' : profile.sex === 'MALE' || profile.sex === 'FEMALE' || profile.sex === 'OTHER' ? profile.sex : 'OTHER',
+      sex: profileType === 'MOTHER' ? undefined : profile.sex === 'MALE' || profile.sex === 'FEMALE' || profile.sex === 'OTHER' ? profile.sex : 'OTHER',
+      activityLevel: profileType === 'MOTHER' ? (profile.activityLevel || 'LIGHT') : null,
       profileType,
       profileCode: profile.profileCode,
       functionCode: profile.functionCode,
@@ -298,7 +307,8 @@ export default function ProfileScreen() {
     const normalizedForm: ProfilePayload = {
       ...form,
       name: form.name.trim(),
-      sex: form.profileType === 'MOTHER' ? 'FEMALE' : form.sex,
+      sex: form.profileType === 'MOTHER' ? undefined : form.sex,
+      activityLevel: form.profileType === 'MOTHER' ? (form.activityLevel || 'LIGHT') : null,
     };
 
     const validationError = validateProfileForm(normalizedForm);
@@ -323,6 +333,7 @@ export default function ProfileScreen() {
           profileId: updated.id,
           height: heightValue,
           weight: weightValue,
+          activityLevel: updated.profileType === 'MOTHER' ? (normalizedForm.activityLevel || 'LIGHT') : null,
           recordDate: todayIsoDate(),
         });
         setLatestHealth(createdHealth);
@@ -526,6 +537,33 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
+                {form.profileType === 'MOTHER' && (
+                  <>
+                    <Text style={styles.label}>Mức vận động</Text>
+                    <View style={styles.activityLevelList}>
+                      {MOTHER_ACTIVITY_LEVELS.map((option) => (
+                        <TouchableOpacity
+                          key={option.code}
+                          style={[
+                            styles.activityLevelButton,
+                            form.activityLevel === option.code && styles.activityLevelButtonActive,
+                          ]}
+                          onPress={() => setForm((current) => current ? { ...current, activityLevel: option.code } : current)}
+                        >
+                          <Text
+                            style={[
+                              styles.activityLevelText,
+                              form.activityLevel === option.code && styles.activityLevelTextActive,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
                 {form.profileType === 'CHILD' && (
                   <>
                     <Text style={styles.label}>Giới tính</Text>
@@ -715,6 +753,32 @@ const styles = StyleSheet.create({
   },
   measurementField: {
     flex: 1,
+  },
+  activityLevelList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  activityLevelButton: {
+    borderWidth: 1,
+    borderColor: '#F0E3E6',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  activityLevelButtonActive: {
+    borderColor: '#FF8FAB',
+    backgroundColor: '#FFF0F3',
+  },
+  activityLevelText: {
+    color: '#78909C',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  activityLevelTextActive: {
+    color: '#FF6F9B',
   },
   sexRow: {
     flexDirection: 'row',

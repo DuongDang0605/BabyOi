@@ -1486,7 +1486,9 @@ export async function uploadProfileAvatar(uri: string) {
   const formData = new FormData();
   await appendImageToFormData(formData, 'file', uri, getUploadFileName(uri));
 
-  const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData);
+  const response = await requestMultipart<ProfileAvatarUploadResponse>('/api/profiles/avatar', formData, {
+    fallbackTimeoutMs: 45000,
+  });
   return response.imageUrl;
 }
 

@@ -130,6 +130,14 @@ function isRemoteImageUrl(uri?: string | null) {
   return !!uri && (uri.startsWith('http://') || uri.startsWith('https://'));
 }
 
+const MOTHER_ACTIVITY_LEVELS = [
+  { code: 'SEDENTARY', label: 'Ít vận động' },
+  { code: 'LIGHT', label: 'Vận động nhẹ' },
+  { code: 'MODERATE', label: 'Vận động vừa' },
+  { code: 'ACTIVE', label: 'Vận động nhiều' },
+  { code: 'VERY_ACTIVE', label: 'Vận động rất nhiều' },
+] as const;
+
 export default function SelectProfileScreen() {
   const [profiles, setProfiles] = useState<ProfileResponse[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
@@ -144,6 +152,7 @@ export default function SelectProfileScreen() {
     name: '',
     dateOfBirth: '',
     sex: 'FEMALE',
+    activityLevel: null,
     profileType: 'CHILD',
     imageUrl: null,
     profileCode: null,
@@ -186,12 +195,17 @@ export default function SelectProfileScreen() {
       return;
     }
 
+    const motherCount = profiles.filter((profile) => profile.profileType === 'MOTHER').length;
+    const childCount = profiles.filter((profile) => profile.profileType === 'CHILD').length;
+    const initialProfileType: 'MOTHER' | 'CHILD' = childCount < 2 ? 'CHILD' : 'MOTHER';
+
     setForm({
       userId: session.userId,
       name: '',
       dateOfBirth: '',
-      sex: 'FEMALE',
-      profileType: 'CHILD',
+      sex: initialProfileType === 'CHILD' ? 'FEMALE' : undefined,
+      activityLevel: initialProfileType === 'MOTHER' && motherCount < 1 ? 'LIGHT' : null,
+      profileType: initialProfileType,
       imageUrl: null,
       profileCode: null,
       functionCode: null,
@@ -203,11 +217,22 @@ export default function SelectProfileScreen() {
   };
 
   const updateProfileType = (profileType: 'MOTHER' | 'CHILD') => {
+    const profileTypeCount = profiles.filter((profile) => profile.profileType === profileType).length;
+    const profileTypeLimit = profileType === 'MOTHER' ? 1 : 2;
+    if (profileTypeCount >= profileTypeLimit) {
+      setError(profileType === 'MOTHER'
+        ? 'Mỗi tài khoản chỉ được tạo tối đa 1 hồ sơ mẹ.'
+        : 'Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé.');
+      return;
+    }
+
     setForm((current) => ({
       ...current,
       profileType,
-      sex: profileType === 'MOTHER' ? 'FEMALE' : current.sex,
+      sex: profileType === 'MOTHER' ? undefined : (current.sex || 'FEMALE'),
+      activityLevel: profileType === 'MOTHER' ? (current.activityLevel || 'LIGHT') : null,
     }));
+    setError('');
   };
 
   const applyPickedImage = async (result: ImagePicker.ImagePickerResult) => {
@@ -254,6 +279,15 @@ export default function SelectProfileScreen() {
   };
 
   const handleCreateProfile = async () => {
+    const profileTypeCount = profiles.filter((profile) => profile.profileType === form.profileType).length;
+    const profileTypeLimit = form.profileType === 'MOTHER' ? 1 : 2;
+    if (profileTypeCount >= profileTypeLimit) {
+      setError(form.profileType === 'MOTHER'
+        ? 'Mỗi tài khoản chỉ được tạo tối đa 1 hồ sơ mẹ.'
+        : 'Mỗi tài khoản chỉ được tạo tối đa 2 hồ sơ bé.');
+      return;
+    }
+
     const validationError = validateProfileForm(form);
     if (validationError) {
       setError(validationError);
@@ -276,20 +310,31 @@ export default function SelectProfileScreen() {
       const created = await createProfile({
         ...form,
         name: form.name.trim(),
+        sex: form.profileType === 'MOTHER' ? undefined : form.sex,
+        activityLevel: form.profileType === 'MOTHER' ? (form.activityLevel || 'LIGHT') : null,
         imageUrl: uploadedImageUrl,
       });
+      let healthRecordError = '';
       if (heightValue !== null || weightValue !== null) {
-        await createHealthRecord({
-          profileId: created.id,
-          height: heightValue,
-          weight: weightValue,
-          recordDate: todayIsoDate(),
-        });
+        try {
+          await createHealthRecord({
+            profileId: created.id,
+            height: heightValue,
+            weight: weightValue,
+            activityLevel: created.profileType === 'MOTHER' ? (form.activityLevel || 'LIGHT') : null,
+            recordDate: todayIsoDate(),
+          });
+        } catch (healthError) {
+          healthRecordError = healthError instanceof Error
+            ? `Hồ sơ đã được tạo, nhưng chưa lưu được số đo ban đầu: ${healthError.message}`
+            : 'Hồ sơ đã được tạo, nhưng chưa lưu được số đo ban đầu.';
+        }
       }
 
       setModalVisible(false);
       setProfiles((current) => [...current, created].slice(0, 3));
       setSelectedProfileId(created.id);
+      setError(healthRecordError);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -401,10 +446,26 @@ export default function SelectProfileScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.segment}>
-                <TouchableOpacity style={[styles.segmentButton, form.profileType === 'CHILD' && styles.segmentActive]} onPress={() => updateProfileType('CHILD')}>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentButton,
+                    form.profileType === 'CHILD' && styles.segmentActive,
+                    profiles.filter((profile) => profile.profileType === 'CHILD').length >= 2 && styles.segmentDisabled,
+                  ]}
+                  onPress={() => updateProfileType('CHILD')}
+                  disabled={profiles.filter((profile) => profile.profileType === 'CHILD').length >= 2}
+                >
                   <Text style={[styles.segmentText, form.profileType === 'CHILD' && styles.segmentTextActive]}>Bé</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.segmentButton, form.profileType === 'MOTHER' && styles.segmentActive]} onPress={() => updateProfileType('MOTHER')}>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentButton,
+                    form.profileType === 'MOTHER' && styles.segmentActive,
+                    profiles.filter((profile) => profile.profileType === 'MOTHER').length >= 1 && styles.segmentDisabled,
+                  ]}
+                  onPress={() => updateProfileType('MOTHER')}
+                  disabled={profiles.filter((profile) => profile.profileType === 'MOTHER').length >= 1}
+                >
                   <Text style={[styles.segmentText, form.profileType === 'MOTHER' && styles.segmentTextActive]}>Mẹ</Text>
                 </TouchableOpacity>
               </View>
@@ -470,21 +531,51 @@ export default function SelectProfileScreen() {
                 </View>
               </View>
 
-              <Text style={styles.label}>Giới tính</Text>
-              <View style={styles.sexRow}>
-                {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
-                  <TouchableOpacity
-                    key={sex}
-                    style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
-                    onPress={() => setForm((current) => ({ ...current, sex }))}
-                    disabled={form.profileType === 'MOTHER' && sex !== 'FEMALE'}
-                  >
-                    <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
-                      {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {form.profileType === 'MOTHER' && (
+                <>
+                  <Text style={styles.label}>Mức vận động</Text>
+                  <View style={styles.activityLevelList}>
+                    {MOTHER_ACTIVITY_LEVELS.map((option) => (
+                      <TouchableOpacity
+                        key={option.code}
+                        style={[
+                          styles.activityLevelButton,
+                          form.activityLevel === option.code && styles.activityLevelButtonActive,
+                        ]}
+                        onPress={() => setForm((current) => ({ ...current, activityLevel: option.code }))}
+                      >
+                        <Text
+                          style={[
+                            styles.activityLevelText,
+                            form.activityLevel === option.code && styles.activityLevelTextActive,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {form.profileType === 'CHILD' && (
+                <>
+                  <Text style={styles.label}>Giới tính</Text>
+                  <View style={styles.sexRow}>
+                    {(['FEMALE', 'MALE', 'OTHER'] as const).map((sex) => (
+                      <TouchableOpacity
+                        key={sex}
+                        style={[styles.sexButton, form.sex === sex && styles.sexButtonActive]}
+                        onPress={() => setForm((current) => ({ ...current, sex }))}
+                      >
+                        <Text style={[styles.sexText, form.sex === sex && styles.sexTextActive]}>
+                          {sex === 'FEMALE' ? 'Nữ' : sex === 'MALE' ? 'Nam' : 'Khác'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {!!error && <Text style={styles.modalError}>{error}</Text>}
 
@@ -533,6 +624,7 @@ const styles = StyleSheet.create({
   segment: { flexDirection: 'row', backgroundColor: '#FFFFFF', padding: 4, borderRadius: 18, marginBottom: 18 },
   segmentButton: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center' },
   segmentActive: { backgroundColor: '#FF8FAB' },
+  segmentDisabled: { opacity: 0.35 },
   segmentText: { color: '#7D95A1', fontWeight: '900' },
   segmentTextActive: { color: '#FFFFFF' },
   label: { color: '#5C7A8A', fontSize: 14, fontWeight: '900', marginBottom: 8, marginLeft: 3 },
@@ -545,6 +637,11 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 2, borderColor: '#F0F4F8', color: '#334455', fontWeight: '700', marginBottom: 16 },
   measurementRow: { flexDirection: 'row', gap: 10 },
   measurementField: { flex: 1 },
+  activityLevelList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  activityLevelButton: { borderWidth: 1, borderColor: '#F0E3E6', borderRadius: 8, backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 10 },
+  activityLevelButtonActive: { borderColor: '#FF8FAB', backgroundColor: '#FFF0F3' },
+  activityLevelText: { color: '#78909C', fontSize: 12, fontWeight: '800' },
+  activityLevelTextActive: { color: '#FF6F9B' },
   sexRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   sexButton: { flex: 1, paddingVertical: 11, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F0F4F8', alignItems: 'center' },
   sexButtonActive: { backgroundColor: '#FFE5EC', borderColor: '#FF8FAB' },
