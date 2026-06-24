@@ -2,15 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 import {
+  deleteCurrentAccount,
   getNotificationSettings,
   NotificationSettingsPayload,
   NotificationSettingsResponse,
   updateNotificationSettings,
 } from '@/lib/api';
+import { clearAuthSession } from '@/lib/auth-session';
 import { useNotification } from '@/lib/notification';
+import { clearSelectedProfile } from '@/lib/profile-session';
 
 type NotificationCategoryKey = 'vaccineEnabled' | 'appointmentEnabled' | 'chatEnabled' | 'promotionEnabled' | 'systemEnabled';
 
@@ -40,6 +43,7 @@ export default function SettingScreen() {
   const { showNotification } = useNotification();
   const [settings, setSettings] = useState<NotificationSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     getNotificationSettings()
@@ -79,6 +83,48 @@ export default function SettingScreen() {
         title: 'Chưa lưu được cài đặt',
         message: 'Mẹ thử lại sau một chút nhé.',
       });
+    }
+  }
+
+  async function confirmDeleteAccount() {
+    if (deletingAccount) {
+      return;
+    }
+
+    Alert.alert(
+      'Xóa tài khoản?',
+      'Tài khoản và hồ sơ liên quan sẽ bị xóa khỏi ứng dụng. Sau khi xóa, bạn sẽ được đăng xuất và có thể đăng ký lại bằng email cũ.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa tài khoản',
+          style: 'destructive',
+          onPress: deleteAccount,
+        },
+      ]
+    );
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await deleteCurrentAccount();
+      await clearSelectedProfile();
+      await clearAuthSession();
+      showNotification({
+        type: 'success',
+        title: 'Đã xóa tài khoản',
+        message: 'Tài khoản của mẹ đã được xóa khỏi BabyOi.',
+      });
+      router.replace('/auth/login');
+    } catch {
+      showNotification({
+        type: 'error',
+        title: 'Chưa xóa được tài khoản',
+        message: 'Mẹ thử lại sau một chút nhé.',
+      });
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -157,6 +203,27 @@ export default function SettingScreen() {
             <Text style={styles.linkHint}>Cách BabyOi bảo vệ và sử dụng dữ liệu</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9AAAB5" />
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Tài khoản</Text>
+        <TouchableOpacity
+          style={[styles.deleteAccountCard, deletingAccount && styles.deleteAccountCardDisabled]}
+          onPress={confirmDeleteAccount}
+          activeOpacity={0.82}
+          disabled={deletingAccount}
+        >
+          <View style={styles.deleteIcon}>
+            {deletingAccount ? (
+              <ActivityIndicator color="#D64545" />
+            ) : (
+              <Ionicons name="trash-outline" size={21} color="#D64545" />
+            )}
+          </View>
+          <View style={styles.linkCopy}>
+            <Text style={styles.deleteAccountText}>{deletingAccount ? 'Đang xóa tài khoản...' : 'Xóa tài khoản'}</Text>
+            <Text style={styles.linkHint}>Xóa tài khoản BabyOi hiện tại và đăng xuất khỏi ứng dụng</Text>
+          </View>
+          {!deletingAccount && <Ionicons name="chevron-forward" size={20} color="#D64545" />}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -305,4 +372,17 @@ const styles = StyleSheet.create({
   linkCopy: { flex: 1, paddingVertical: 12, paddingRight: 8 },
   linkRowText: { color: '#344955', fontSize: 14, fontWeight: '900' },
   linkHint: { color: '#8496A2', fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 2 },
+  deleteAccountCard: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD2DE',
+  },
+  deleteAccountCardDisabled: { opacity: 0.72 },
+  deleteIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F3', marginRight: 12 },
+  deleteAccountText: { color: '#D64545', fontSize: 14, fontWeight: '900' },
 });

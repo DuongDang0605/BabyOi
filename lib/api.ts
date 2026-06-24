@@ -858,7 +858,7 @@ function isEmailVerificationRequiredError(errors?: Record<string, string>) {
    BASE URL CONFIG
 ========================= */
 
-const DEFAULT_PUBLIC_API_BASE_URL = 'http://babyoi.com.vn';
+const DEFAULT_PUBLIC_API_BASE_URL = 'https://babyoi.com.vn';
 const LEGACY_PUBLIC_API_BASE_URL = 'http://187.77.130.63:8085';
 const LOCAL_API_PORT = 8085;
 const API_FALLBACK_TIMEOUT_MS = 2500;
