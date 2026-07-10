@@ -33,7 +33,6 @@ import {
   getRestrictedFoodIds,
   resolveOptimizedAssetUrl,
   suggestFoodsFromIngredients,
-  trackNutritionPageView,
 } from '../../lib/api';
 import { getAuthSession, hydrateAuthSession } from '../../lib/auth-session';
 import { getSelectedProfile, hydrateSelectedProfile } from '../../lib/profile-session';
@@ -182,7 +181,6 @@ export default function ListDoAnScreen() {
   const flatListRef = useRef<FlatList<Dish>>(null);
   const listStartOffsetRef = useRef(0);
   const handledHomeEntryKeyRef = useRef<string | null>(null);
-  const lastNutritionViewTrackedAtRef = useRef(0);
 
   const targetCode = activeTab === 'mom' ? MOM_FUNCTION_CODE : BABY_FUNCTION_CODE;
   const filterOptions = FILTERS[activeTab];
@@ -208,21 +206,6 @@ export default function ListDoAnScreen() {
     return () => {
       mounted = false;
     };
-  }, []));
-
-  useFocusEffect(useCallback(() => {
-    const now = Date.now();
-    if (now - lastNutritionViewTrackedAtRef.current < 1500) {
-      return;
-    }
-    lastNutritionViewTrackedAtRef.current = now;
-
-    void (async () => {
-      const session = await getCurrentSession();
-      if (session) {
-        await trackNutritionPageView();
-      }
-    })().catch(() => undefined);
   }, []));
 
   useFocusEffect(useCallback(() => {

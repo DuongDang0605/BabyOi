@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { FeatureAnalyticsTracker } from '@/lib/feature-analytics';
 import { NotificationProvider } from '@/lib/notification';
 import { configurePushNotificationHandling } from '@/lib/push-notifications';
 
@@ -20,6 +21,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <NotificationProvider>
+        <FeatureAnalyticsTracker />
         <Stack>
           <Stack.Screen name="auth/login" options={{ headerShown: false }} />
           <Stack.Screen name="auth/register" options={{ headerShown: false }} />

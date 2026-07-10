@@ -828,8 +828,14 @@ type ErrorPayload = {
 type ApiRequestInit = RequestInit & {
   skipAuth?: boolean;
   skipAuthRefresh?: boolean;
+  skipAuthRedirect?: boolean;
   silent?: boolean;
   fallbackTimeoutMs?: number | null;
+};
+
+export type FeatureViewPayload = {
+  featureKey: string;
+  featureName?: string;
 };
 
 type ProfileAvatarUploadResponse = {
@@ -1134,7 +1140,11 @@ async function parseError(response: Response, init?: ApiRequestInit): Promise<ne
     payload?.error ||
     `Request failed with status ${response.status}`;
 
-  if (shouldRedirectToLogin(response.status) && !isEmailVerificationRequiredError(normalizedErrors)) {
+  if (
+    shouldRedirectToLogin(response.status)
+    && !init?.skipAuthRedirect
+    && !isEmailVerificationRequiredError(normalizedErrors)
+  ) {
     await redirectToLogin();
   } else if (response.status >= 500 && !init?.silent) {
     openErrorScreen(payload?.status || String(response.status), message);
@@ -2094,9 +2104,21 @@ export function deleteRestrictedFood(profileId: number | string, foodId: number 
    NUTRITION PLAN API
 ========================= */
 
+export function trackFeatureView(payload: FeatureViewPayload) {
+  return request<void>('/api/analytics/feature-views', {
+    silent: true,
+    skipAuthRefresh: true,
+    skipAuthRedirect: true,
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function trackNutritionPageView() {
   return request<void>('/api/analytics/page-views/nutrition', {
     silent: true,
+    skipAuthRefresh: true,
+    skipAuthRedirect: true,
     method: 'POST',
   });
 }
